@@ -36,7 +36,7 @@ The bag holds 8 sellable fish (upgrades: 15 for 200, 30 for 600); when it's full
 
 ## Audio
 
-All sound is generated at runtime with the Web Audio API — no audio files. Generative music follows the time of day; nature ambience (birds, crickets, owls, gulls, river, wind, surf) follows where the player is; footsteps change with the ground surface. Audio starts on the first tap/key press (browser autoplay rules). Volumes for music, sounds and nature, plus mute, are in the settings (gear button, top right) and stored in `localStorage`.
+All sound is generated at runtime with the Web Audio API — no audio files, except the four composed MIDI tracks in `assets/music/` that supply the note data (converted by `tools/midi2js.mjs` into `js/audio/tracks.js`; re-run it after editing a `.mid`, then bump `CACHE` in `sw.js`). Music plays a different track per time of day and crossfades on the transition; nature ambience (birds, crickets, owls, gulls, river, wind, surf) follows where the player is; footsteps change with the ground surface. Audio starts on the first tap/key press (browser autoplay rules). Volumes for music, sounds and nature, plus mute, are in the settings (gear button, top right) and stored in `localStorage`.
 
 ## Layout
 
@@ -46,7 +46,7 @@ js/render/      Three.js scene built from world data; reads state each frame
 js/input/       keyboard, pointer and joystick -> game actions
 js/ui/          HUD, fishing panel, shop/bag/wallboard dialogs, procedural fish SVGs
 js/persistence/ IndexedDB save slot
-js/audio/       procedural music, ambience and sound effects
+js/audio/       composed MIDI music (tracks.js, generated from assets/music/*.mid), ambience and sound effects
 sw.js           hand-written service worker (versioned precache, cache-first)
 tools/serve.mjs zero-dependency static dev server
 ```

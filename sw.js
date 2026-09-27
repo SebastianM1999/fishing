@@ -25,6 +25,7 @@ const PRECACHE = [
   "/js/ui/fishArt.js",
   "/js/ui/icons.js",
   "/js/audio/audio.js",
+  "/js/audio/tracks.js",
   "/js/render/scene.js",
   "/js/render/kit.js",
   "/js/render/models.js",

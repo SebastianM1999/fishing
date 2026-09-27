@@ -45,7 +45,7 @@ Don't "fix" these back to the spec.
   - Rendering (`js/render/`) only reads state.
   - UI (`js/ui/`) calls handlers wired in `js/main.js`.
 - **Art:**
-  - All art is procedural: low-poly meshes (`js/render/models.js`, `kit.js`), SVG fish portraits (`js/ui/fishArt.js`), SVG icons (`js/ui/icons.js`) and Web Audio sound (`js/audio/audio.js`). There are no asset files.
+  - All art is procedural: low-poly meshes (`js/render/models.js`, `kit.js`), SVG fish portraits (`js/ui/fishArt.js`), SVG icons (`js/ui/icons.js`) and Web Audio sound (`js/audio/audio.js`). There are no asset files, with one exception: the music is composed MIDI in `assets/music/*.mid`, converted by `tools/midi2js.mjs` into `js/audio/tracks.js` (checked-in note data played by the Web Audio synth). After changing a `.mid` file, re-run `node tools/midi2js.mjs` and bump `CACHE` in `sw.js`.
   - Static scenery is batched by material.
   - Custom shaders need a unique `customProgramCacheKey`.
 - **Controls the user asked for:**
