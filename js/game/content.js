@@ -17,7 +17,7 @@ export const REGIONS = {
   sea: { id: "sea", name: "Beach & docks", price: 750, sign: "Beach & docks under construction", requires: "river" },
 };
 
-// Fish bag tiers: sellable fish you can carry. First catches go to the wallboard and take no space.
+// Fish bag tiers: how many sellable fish you can carry.
 export const BAGS = [
   { id: "bag_pouch", name: "Canvas Pouch", price: 0, slots: 8 },
   { id: "bag_basket", name: "Fishing Basket", price: 200, slots: 15 },

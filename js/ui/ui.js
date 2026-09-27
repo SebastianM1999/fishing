@@ -171,9 +171,8 @@ export function createUI(handlers) {
     el.market.innerHTML = inv.length
       ? `<div class="list-head"><span>${inv.length} sellable fish · total ${coinHtml(total)}</span>
           <button type="button" class="primary" data-sell-all>Sell all</button></div>
-        <ul class="fish-list">${inv.map(f => fishRow(f, { sellable: true })).join("")}</ul>
-        <p class="meta">First catches of a species are kept on the wallboard and can't be sold.</p>`
-      : `<p class="empty">No sellable fish yet. First catches go straight to the wallboard — later copies can be sold here.</p>`;
+        <ul class="fish-list">${inv.map(f => fishRow(f, { sellable: true })).join("")}</ul>`
+      : `<p class="empty">No fish to sell yet. Go fishing!</p>`;
   }
 
   function statHtml(def, cur, next) {
@@ -224,7 +223,7 @@ export function createUI(handlers) {
     const cap = BAGS[state.bag].slots, n = state.inventory.length;
     const slots = `<div class="bag-slots ${n >= cap ? "full" : ""}" title="${n} of ${cap} slots used">${Array.from({ length: cap }, (_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</div>`;
     el.bagBody.innerHTML = `<div class="list-head"><span class="bag-count">${ICONS.bag} ${n} / ${cap}</span>${slots}<span>worth ${coinHtml(state.inventory.reduce((a, f) => a + f.value, 0))}</span></div>
-      <p class="bag-note">${ICONS.board} First catches: you choose — mount them on the wallboard or keep them to sell.${n >= cap ? " <b>Bag full — sell at the shop.</b>" : ""}</p>
+      ${n >= cap ? `<p class="bag-note"><b>Bag full — sell at the shop.</b></p>` : ""}
       ${n ? `<ul class="fish-list">${state.inventory.map(f => fishRow(f, { sellable: false })).join("")}</ul>` : `<p class="empty">Your bag is empty. Go fishing!</p>`}`;
   }
 
