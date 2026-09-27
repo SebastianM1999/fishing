@@ -72,13 +72,22 @@ export const INTERACTIONS = [
   { id: "spot_river", type: "fish", location: "river", area: "land", x: 14, z: -6, r: 1.6, facing: Math.PI / 2, label: "Fish in the river" },
   { id: "spot_sea", type: "fish", location: "sea", area: "land", x: -8, z: 18, r: 1.6, facing: 0, label: "Fish from the shore" },
   { id: "spot_offshore", type: "fish", location: "offshore", area: "offshore", x: 0, z: 82.8, r: 1.4, facing: 0, label: "Fish offshore" },
-  { id: "shop", type: "shop", area: "land", x: 8, z: -7, r: 2.2, label: "Open shop" },
+  { id: "shop", type: "shop", area: "land", x: 6, z: -5.1, r: 2.1, label: "Talk to Mira (shop)" },
   { id: "board", type: "board", area: "land", x: 0, z: -10.2, r: 2, label: "View wallboard" },
-  { id: "dock", type: "dock", area: "land", x: 4, z: 22.8, r: 1.6, label: "Sail offshore" },
+  { id: "dock", type: "dock", area: "land", x: 3.8, z: 22.4, r: 1.7, label: "Sail offshore" },
   { id: "return", type: "return", area: "offshore", x: 0, z: 77.2, r: 1.4, label: "Sail back to shore" },
   { id: "gate_river", type: "barrier", region: "river", area: "land", x: 9.1, z: -5, r: 1.9, label: "Construction site" },
   { id: "gate_sea", type: "barrier", region: "sea", area: "land", x: 4, z: 9.1, r: 1.9, label: "Construction site" },
 ];
+
+// Villagers. Positions are also collision circles (NPC_RADIUS).
+export const NPCS = [
+  { id: "shopkeeper", name: "Mira", outfit: "shopkeeper", x: 6, z: -7.05, facing: 0 },
+  { id: "boatseller", name: "Captain Olsen", outfit: "sailor", x: 4.72, z: 21.1, facing: Math.PI },
+];
+const NPC_RADIUS = 0.4;
+// Shop counter in front of the shopkeeper.
+const COUNTER = { minX: 4.9, maxX: 7.1, minZ: -6.55, maxZ: -5.85 };
 
 export const PROP_RADIUS = { bench: 0.7, barrel: 0.45, crate: 0.5, mailbox: 0.2, well: 1.1, stump: 0.5, log: 0.8, bush: 0.7, signpost: 0.2, umbrella: 0.15, buoy: 0, tacklebox: 0.35, bucket: 0.25 };
 
@@ -99,6 +108,7 @@ function solidRects() {
   const rects = WORLD.buildings.map(b => ({ minX: b.x - b.w / 2, maxX: b.x + b.w / 2, minZ: b.z - b.d / 2, maxZ: b.z + b.d / 2 }));
   const wb = WORLD.wallboard;
   rects.push({ minX: wb.x - wb.w / 2, maxX: wb.x + wb.w / 2, minZ: wb.z - wb.d / 2, maxZ: wb.z + wb.d / 2 });
+  rects.push(COUNTER);
   return rects;
 }
 const SOLIDS = solidRects();
@@ -115,6 +125,7 @@ export function isWalkable(x, z, area, unlocked = []) {
   const pr = PLAYER_RADIUS;
   if (area === "offshore") return inRect(x, z, WORLD.offshore, pr * 0.8);
   if (isLockedAt(x, z, unlocked) || isLockedAt(x + pr, z + pr, unlocked)) return false;
+  for (const n of NPCS) if (Math.hypot(x - n.x, z - n.z) < NPC_RADIUS + pr) return false;
   if (WORLD.walkways.some(w => inRect(x, z, w, 0.1))) return true;
   if (!inRect(x, z, WORLD.land, pr)) return false;
   const l = WORLD.lake;

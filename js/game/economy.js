@@ -1,5 +1,5 @@
 // Inventory, collection, selling, shop and boat rules on plain state.
-import { GEAR, TACKLE_BY_ID, BOAT_PRICE, REGIONS, RARITY_RANK, DISCOVERY_BONUS, BAGS } from "./content.js";
+import { GEAR, TACKLE_BY_ID, BOAT_PRICE, REGIONS, RARITY_RANK, BAGS } from "./content.js";
 
 export const bagCapacity = state => BAGS[state.bag].slots;
 export const bagFull = state => state.inventory.length >= bagCapacity(state);
@@ -11,32 +11,47 @@ export function isBetterRecord(a, b) {
   return a.sizeCm > b.sizeCm;
 }
 
+/** A species not yet on the wallboard: its catch waits for the player's choice (wallboard or bag). */
+export const isNewSpecies = (state, encounter) => !state.discovered.includes(encounter.speciesId);
+
+function logRecord(state, encounter, fish, released, mounted) {
+  const id = encounter.speciesId;
+  const better = isBetterRecord(encounter, state.records[id]);
+  if (better) state.records[id] = { rarity: encounter.rarity, sizeCm: encounter.sizeCm, value: encounter.value, uid: fish ? fish.uid : null, sold: false, released, mounted };
+  return better;
+}
+
 /**
- * Register a caught fish. The first catch of a species goes to the wallboard (not sellable) and pays a
- * discovery bonus; later copies go to the bag, or are released when the bag is full.
- * Any catch can become the species' best-catch record.
+ * Register a caught fish of an already-mounted species: it goes to the bag, or is released when the bag
+ * is full. New species go through placeNewSpecies() instead. Any catch can become the best-catch record.
  */
 export function addCatch(state, encounter) {
-  const id = encounter.speciesId;
-  const discovered = !state.discovered.includes(id);
-  let fish = null;
-  let bonus = 0;
-  let released = false;
-  if (discovered) {
-    state.discovered.push(id);
-    bonus = Math.max(1, Math.round(encounter.value * DISCOVERY_BONUS));
-    state.coins += bonus;
-  } else if (bagFull(state)) {
-    released = true;
-  } else {
+  let fish = null, released = false;
+  if (bagFull(state)) released = true;
+  else {
     fish = { uid: state.nextFishUid++, ...encounter };
     state.inventory.push(fish);
   }
-  const newRecord = isBetterRecord(encounter, state.records[id]);
-  if (newRecord) {
-    state.records[id] = { rarity: encounter.rarity, sizeCm: encounter.sizeCm, value: encounter.value, uid: fish ? fish.uid : null, sold: false, released };
+  const hadRecord = !!state.records[encounter.speciesId];
+  const better = logRecord(state, encounter, fish, released, false);
+  return { discovered: false, fish, released, newRecord: better && hadRecord };
+}
+
+/**
+ * The player's choice for a first catch: "wall" mounts it on the wallboard (no coins, species discovered),
+ * "bag" keeps it as a sellable fish (the wallboard slot stays empty until a later catch is mounted).
+ */
+export function placeNewSpecies(state, encounter, choice) {
+  if (choice === "wall") {
+    if (!state.discovered.includes(encounter.speciesId)) state.discovered.push(encounter.speciesId);
+    logRecord(state, encounter, null, false, true);
+    return { discovered: true, fish: null, released: false };
   }
-  return { discovered, fish, bonus, released, newRecord: newRecord && !discovered };
+  if (bagFull(state)) return null;
+  const fish = { uid: state.nextFishUid++, ...encounter };
+  state.inventory.push(fish);
+  logRecord(state, encounter, fish, false, false);
+  return { discovered: false, fish, released: false };
 }
 
 function markSold(state, fish) {
@@ -69,9 +84,12 @@ export function buyBag(state) {
   return true;
 }
 
+/** Regions open in order: a region's prerequisite must be cleared first. */
+export const regionAvailable = (state, id) => !REGIONS[id].requires || state.unlocked.includes(REGIONS[id].requires);
+
 export function unlockRegion(state, id) {
   const region = REGIONS[id];
-  if (!region || state.unlocked.includes(id) || state.coins < region.price) return false;
+  if (!region || state.unlocked.includes(id) || !regionAvailable(state, id) || state.coins < region.price) return false;
   state.coins -= region.price;
   state.unlocked.push(id);
   return true;

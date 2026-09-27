@@ -73,8 +73,9 @@ export function deserialize(data) {
   if (data.version === 1) s.unlocked = Object.keys(REGIONS); // v1 had every area open
   else if (Array.isArray(data.unlocked)) s.unlocked = Object.keys(REGIONS).filter(id => data.unlocked.includes(id));
   if (data.records && typeof data.records === "object") {
-    for (const id of s.discovered) {
+    for (const id of Object.keys(data.records)) {
       const r = data.records[id];
+      if (!FISH_BY_ID[id]) continue;
       if (!r || !RARITIES.includes(r.rarity)) continue;
       s.records[id] = {
         rarity: r.rarity,
@@ -83,6 +84,7 @@ export function deserialize(data) {
         uid: Number.isInteger(r.uid) ? r.uid : null,
         sold: r.sold === true,
         released: r.released === true,
+        mounted: r.mounted === true || (r.uid === null && r.released !== true),
       };
     }
   }

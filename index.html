@@ -61,12 +61,17 @@
   </section>
 
   <section id="catch-card" class="catch-card" hidden aria-live="assertive">
+    <div class="golden-banner" aria-hidden="true">✦ New species! ✦</div>
     <div class="catch-art" id="catch-art"></div>
     <h2 id="catch-title">Caught!</h2>
     <p id="catch-details"></p>
     <p id="catch-note" class="catch-note"></p>
     <p id="catch-extra" class="catch-extra"></p>
     <button type="button" id="catch-ok" class="primary">Continue <span class="key">E</span></button>
+    <div id="catch-choice" class="catch-choice" hidden>
+      <button type="button" id="catch-wall" class="choice-btn wall"><span class="choice-ico" data-icon="board"></span><span><b>Put on the wallboard</b><small>Collect it · no coins</small></span><span class="key">E</span></button>
+      <button type="button" id="catch-bag" class="choice-btn bag"><span class="choice-ico" data-icon="bag"></span><span><b>Keep in bag</b><small id="catch-bag-sub">Sell it later</small></span><span class="key">B</span></button>
+    </div>
   </section>
 
   <div id="joystick" class="joystick" aria-hidden="true"><div id="joystick-knob" class="knob"></div></div>

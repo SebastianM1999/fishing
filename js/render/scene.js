@@ -1,8 +1,8 @@
 // Three.js view of the game state. Holds no gameplay rules; reads plain state each frame.
 import * as THREE from "three";
-import { WORLD, CAST_DISTANCE } from "../game/world.js";
+import { WORLD, CAST_DISTANCE, NPCS } from "../game/world.js";
 import { FISH_BY_ID, BOAT_PRICE } from "../game/content.js";
-import { dayFraction } from "../game/time.js";
+import { dayFraction, bucketProgress } from "../game/time.js";
 import { createMaterials, TIME, G, Kit, Batch, GroupSink, waveHeight } from "./kit.js";
 import { buildEnvironment, SEA_Y, RIVER_Y, LAKE_Y } from "./environment.js";
 import * as models from "./models.js";
@@ -24,6 +24,10 @@ const KEYS = [
   { f: 0.95, sky: "#1a2448", sun: "#a8b8ff", sunI: 0.65, hemiSky: "#3a5088", hemiGround: "#1c2234", hemiI: 0.65, lamps: 1 },
   { f: 1.0, sky: "#6a6f9a", sun: "#ffb894", sunI: 0.9, hemiSky: "#8594c4", hemiGround: "#4a4656", hemiI: 0.85, lamps: 0.6 },
 ];
+// Sun/moon direction per bucket: dawn low east, day high, dusk low west (long shadows), night moon.
+const SUN_DIRS = [[26, 12, 10], [9, 30, 14], [-26, 12, 10], [-10, 26, 14]].map(v => new THREE.Vector3(...v));
+const SUN_BLEND = 0.08; // fraction of a bucket (~15 s) spent blending into the next direction
+
 const KEY_COLORS = KEYS.map(k => ({
   sky: new THREE.Color(k.sky), sun: new THREE.Color(k.sun),
   hemiSky: new THREE.Color(k.hemiSky), hemiGround: new THREE.Color(k.hemiGround),
@@ -119,6 +123,39 @@ export function createRenderer(canvas) {
   // Player, rod line, bobber, splash
   const P = models.makePlayer();
   scene.add(P.root);
+
+  // Villagers: turn their heads toward the player and wave hello when they come close.
+  const npcs = NPCS.map(n => {
+    const rig = models.makeCharacter(models.OUTFITS[n.outfit]);
+    rig.root.position.set(n.x, n.x > 2.9 && n.z > 15 ? 0.2 : 0.02, n.z);
+    rig.root.rotation.y = n.facing;
+    scene.add(rig.root);
+    return { n, rig, near: false, waveUntil: 0, look: 0, phase: Math.random() * 6 };
+  });
+  function animateNpcs(p, dt, t, busy) {
+    const k = 1 - Math.exp(-dt * 6);
+    for (const npc of npcs) {
+      const { n, rig } = npc;
+      const dx = p.x - n.x, dz = p.z - n.z, dist = p.area === "land" ? Math.hypot(dx, dz) : Infinity;
+      const near = dist < 4.5;
+      if (near && !npc.near && !busy) npc.waveUntil = t + 2.4;
+      npc.near = near;
+      let yaw = 0;
+      if (dist < 8) { yaw = Math.atan2(dx, dz) - n.facing; yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw)); yaw = Math.max(-1.1, Math.min(1.1, yaw)); }
+      npc.look += (yaw - npc.look) * k;
+      rig.head.rotation.y = npc.look;
+      rig.torso.rotation.y = npc.look * 0.25;
+      rig.torso.scale.y = 1 + Math.sin(t * 2 + npc.phase) * 0.012;
+      const waving = t < npc.waveUntil;
+      const [armL, armR] = rig.arms;
+      armR.arm.rotation.x += ((waving ? -2.8 : n.outfit === "shopkeeper" ? -0.55 : 0.05) - armR.arm.rotation.x) * k;
+      armR.arm.rotation.z = waving ? 0.35 + Math.sin(t * 9) * 0.3 : armR.arm.rotation.z * (1 - k) + 0.08 * k;
+      armR.fore.rotation.x = waving ? -0.3 : n.outfit === "shopkeeper" ? -0.9 : -0.15;
+      armL.arm.rotation.x += ((n.outfit === "shopkeeper" ? -0.55 : 0.05) - armL.arm.rotation.x) * k;
+      armL.arm.rotation.z = n.outfit === "sailor" ? 0.9 : -0.08; // captain: hand on hip
+      armL.fore.rotation.x = n.outfit === "shopkeeper" ? -0.9 : n.outfit === "sailor" ? -1.5 : -0.15;
+    }
+  }
   const bobber = new THREE.Group();
   const bk = new Kit({ add: (geo, mat, m) => { const x = new THREE.Mesh(geo, mat); m.decompose(x.position, x.quaternion, x.scale); bobber.add(x); } });
   bk.part(G.sphere(0.16, 10, 8), M.red, [0, 0, 0]);
@@ -172,7 +209,8 @@ export function createRenderer(canvas) {
   // --- Frame state ----------------------------------------------------------------
   const tmp = { m: new THREE.Matrix4(), p: new THREE.Vector3(), s: new THREE.Vector3(), q: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2) };
   const tipWorld = new THREE.Vector3();
-  const camTarget = new THREE.Vector3(), camLook = new THREE.Vector3(), sunDir = new THREE.Vector3();
+  const camTarget = new THREE.Vector3(), camLook = new THREE.Vector3(), sunDir = SUN_DIRS[1].clone();
+  const lightBasis = { dir: new THREE.Vector3(), right: new THREE.Vector3(), up: new THREE.Vector3() }, shadowFocus = new THREE.Vector3();
   const raycaster = new THREE.Raycaster();
   const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   let camInit = false, shownFacing = Math.PI, walkPhase = 0, heldSpecies = null, footstep = false;
@@ -205,11 +243,6 @@ export function createRenderer(canvas) {
     M.window.emissiveIntensity = lamps * 1.6;
     M.lampGlass.emissiveIntensity = 0.2 + lamps * 2.2;
     flyMat.opacity = Math.max(0, lamps - 0.3) * 1.2;
-    // Sun arc: rises east at dawn, high by day, low west at dusk (long shadows), moon at night.
-    const dayArc = f < 0.75 ? f / 0.75 : (f - 0.75) / 0.25;
-    const ang = dayArc * Math.PI;
-    const elev = f < 0.75 ? 0.25 + Math.sin(ang) * 0.9 : 0.6 + Math.sin(ang) * 0.5;
-    sunDir.set(Math.cos(ang) * 30, elev * 30, 12);
     return lamps;
   }
 
@@ -318,6 +351,7 @@ export function createRenderer(canvas) {
     const active = session && session.phase !== "done" ? session : null;
     const mode = result === "caught" ? "celebrate" : result ? "sad" : active ? (active.phase === "cast" ? "cast" : active.phase === "fight" ? "fight" : active.phase === "bite" ? "bite" : "wait") : walking ? "walk" : "idle";
     animatePlayer(mode, active, dt, elapsed);
+    animateNpcs(p, dt, elapsed, !!session);
     setHeldFish(result === "caught" ? session?.encounter.speciesId : null);
 
     // Bobber + line
@@ -402,6 +436,11 @@ export function createRenderer(canvas) {
 
     // Lighting from time of day (also drives day/night critters)
     const lamps = applyLighting(dayFraction(state.timeMs));
+    {
+      const b = Math.floor(dayFraction(state.timeMs) * 4) % 4, p = bucketProgress(state.timeMs);
+      const k = p > 1 - SUN_BLEND ? THREE.MathUtils.smoothstep(p, 1 - SUN_BLEND, 1) : 0;
+      sunDir.copy(SUN_DIRS[b]).lerp(SUN_DIRS[(b + 1) % 4], k);
+    }
     butterflies.forEach((b, i) => {
       const h = b.userData.home;
       b.visible = lamps < 0.3;
@@ -442,8 +481,17 @@ export function createRenderer(canvas) {
     else camera.position.lerp(camTarget, 1 - Math.exp(-dt * 6));
     camLook.copy(camera.position).sub(CAMERA_OFFSET);
     camera.lookAt(camLook);
-    sun.target.position.copy(camLook);
-    sun.position.copy(camLook).add(sunDir);
+    {
+      const L = lightBasis.dir.copy(sunDir).normalize();
+      lightBasis.right.crossVectors(lightBasis.up.set(0, 1, 0), L).normalize();
+      lightBasis.up.crossVectors(L, lightBasis.right);
+      const texel = (sun.shadow.camera.right - sun.shadow.camera.left) / sun.shadow.mapSize.x;
+      const snap = v => Math.round(v / texel) * texel;
+      const x = snap(camLook.dot(lightBasis.right)), y = snap(camLook.dot(lightBasis.up)), z = camLook.dot(L);
+      shadowFocus.copy(lightBasis.right).multiplyScalar(x).addScaledVector(lightBasis.up, y).addScaledVector(L, z);
+      sun.target.position.copy(shadowFocus);
+      sun.position.copy(shadowFocus).add(sunDir);
+    }
 
     renderer.render(scene, camera);
     return { footstep };

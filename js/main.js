@@ -81,10 +81,32 @@ const ui = createUI({
   setPref: (name, value) => audio.setPref(name, value),
   onDialogOpened: () => audio.play("open"),
   onCatchContinue: closeCatchCard,
+  onCatchChoice: chooseFirstCatch,
 });
 
+/** Golden first-catch card: mount the new species on the wallboard or keep it to sell. */
+function chooseFirstCatch(choice) {
+  const s = game.session;
+  if (!s || !ui.catchIsChoice() || !ui.catchReady()) return;
+  if (choice === "bag" && !ui.bagChoiceAvailable()) return;
+  const res = economy.placeNewSpecies(state, s.encounter, choice);
+  if (!res) return;
+  const name = content.FISH_BY_ID[s.encounter.speciesId].name;
+  if (choice === "wall") {
+    ui.toast(`${name} mounted on the wallboard (${state.discovered.length} / 20)`);
+    audio.play("discover");
+  } else {
+    ui.toast(`${name} is in your bag — mount a later catch to fill its wallboard slot`);
+    audio.play("coin");
+  }
+  renderer.setWallboard(state.discovered);
+  saveNow();
+  ui.hideCatchResult();
+  game.session = null;
+}
+
 function closeCatchCard() {
-  if (!ui.catchVisible() || !ui.catchReady()) return;
+  if (!ui.catchVisible() || !ui.catchReady() || ui.catchIsChoice()) return;
   ui.hideCatchResult();
   game.session = null;
   audio.play("ui");
@@ -120,11 +142,13 @@ addEventListener("touchstart", markTouch, { once: true, passive: true });
 addEventListener("keydown", e => {
   const consume = () => { e.stopImmediatePropagation(); e.preventDefault(); input.cancelInteract(); };
   if (e.code === "KeyE" && !e.repeat && (ui.catchVisible() || ui.anyDialogOpen())) {
-    if (ui.catchVisible()) closeCatchCard();
+    if (ui.catchIsChoice()) chooseFirstCatch("wall");
+    else if (ui.catchVisible()) closeCatchCard();
     else ui.dialogPrimary();
     consume();
     return;
   }
+  if (e.code === "KeyB" && !e.repeat && ui.catchIsChoice()) { chooseFirstCatch("bag"); consume(); return; }
   if (e.code === "Escape" && ui.catchVisible()) { closeCatchCard(); return; }
 }, { capture: true });
 
@@ -163,7 +187,9 @@ function interact(it) {
     case "return": travel(TRAVEL.toShore); break;
     case "barrier": {
       const region = content.REGIONS[it.region];
+      const needs = region.requires && !economy.regionAvailable(state, region.id) ? content.REGIONS[region.requires] : null;
       ui.openPurchase(state, {
+        blocked: needs ? `Clear the ${needs.name.toLowerCase()} first!` : null,
         title: region.name, art: "barrier", price: region.price, confirmLabel: "Pay the builders", onConfirm: () => unlockRegion(region.id),
         text: region.sign + ". The builders will clear the barricades for good once they're paid.",
       });
@@ -174,6 +200,9 @@ function interact(it) {
 
 function actionLabelFor(it) {
   if (it.type === "dock" && !state.boatOwned) return { label: `Buy the boat — ${content.BOAT_PRICE} coins`, locked: state.coins < content.BOAT_PRICE };
+  if (it.type === "barrier" && !economy.regionAvailable(state, it.region)) {
+    return { label: `${content.REGIONS[it.region].name} — clear the ${content.REGIONS[content.REGIONS[it.region].requires].name.toLowerCase()} first`, locked: true };
+  }
   if (it.type === "barrier") return { label: `${content.REGIONS[it.region].name} — clear for ${content.REGIONS[it.region].price} coins`, locked: state.coins < content.REGIONS[it.region].price };
   return { label: it.label, locked: false };
 }
@@ -192,12 +221,15 @@ function startFishing(spot) {
 function finishSession() {
   const s = game.session;
   if (s.outcome === "caught") {
-    game.sessionResult = economy.addCatch(state, s.encounter);
-    renderer.setWallboard(state.discovered);
-    saveNow();
     audio.play("catch");
-    if (game.sessionResult.discovered) audio.play("discover");
-    else if (game.sessionResult.newRecord) audio.play("record");
+    if (economy.isNewSpecies(state, s.encounter)) {
+      game.sessionResult = { newSpecies: true };
+      audio.play("discover");
+    } else {
+      game.sessionResult = economy.addCatch(state, s.encounter);
+      saveNow();
+      if (game.sessionResult.newRecord) audio.play("record");
+    }
   } else {
     game.sessionResult = null;
     if (s.outcome === "broke") audio.play("snap");

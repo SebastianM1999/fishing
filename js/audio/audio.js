@@ -198,12 +198,13 @@ export function createAudio() {
   const SFX = {
     step(surface) {
       const t = ctx.currentTime, v = rand(0.85, 1.15);
-      const thud = (freq, peak) => tone(S(), { freq: freq * v, glide: freq * 0.6, t, peak, attack: 0.008, decay: 0.07 });
-      const texture = (freq, peak, decay) => noise(S(), { t, peak, type: "lowpass", freq: freq * v, q: 0.5, attack: 0.012, decay });
-      if (surface === "wood") { thud(170, 0.035); texture(900, 0.006, 0.04); }
-      else if (surface === "path") { thud(110, 0.018); texture(1500, 0.009, 0.05); }
-      else if (surface === "sand") { thud(90, 0.014); texture(700, 0.012, 0.09); }
-      else { thud(95, 0.016); texture(550, 0.01, 0.06); }
+      // Audible on small speakers: energy sits in the 250 Hz – 3 kHz range, soft attack, no harsh highs.
+      const knock = (freq, peak) => tone(S(), { freq: freq * v, glide: freq * 0.7, type: "triangle", t, peak, attack: 0.006, decay: 0.06 });
+      const brush = (freq, q, peak, decay) => noise(S(), { t, peak, type: "bandpass", freq: freq * v, q, attack: 0.012, decay });
+      if (surface === "wood") { knock(320, 0.07); brush(1300, 1.2, 0.02, 0.04); }
+      else if (surface === "path") { brush(1900, 1.1, 0.1, 0.05); brush(2900, 2, 0.035, 0.03); knock(240, 0.035); }
+      else if (surface === "sand") { brush(1200, 0.7, 0.11, 0.1); knock(200, 0.02); }
+      else { brush(1500, 0.9, 0.09, 0.07); knock(220, 0.03); }
     },
     cast() { const t = ctx.currentTime; noise(S(), { t, peak: 0.12, freq: 500, sweep: 2600, q: 1.2, attack: 0.08, decay: 0.3 }); },
     plop() { const t = ctx.currentTime; tone(S(), { freq: 700, glide: 170, t, peak: 0.16, decay: 0.12 }); noise(S(), { t, peak: 0.06, type: "lowpass", freq: 900, decay: 0.2 }); },

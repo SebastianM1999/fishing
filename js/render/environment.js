@@ -144,6 +144,24 @@ export function buildEnvironment(M) {
     barriers[id] = { group, warn };
   }
 
+  // Shop sign by the entrance: painted board on two posts with a fish on top.
+  {
+    const sign = new THREE.Group();
+    const sk = new Kit(new GroupSink(sign));
+    for (const x of [-0.8, 0.8]) sk.part(G.box(0.12, 2.1, 0.12), M.woodDark, [x, 1.05, 0]);
+    sk.part(G.sphere(0.3, 10, 8), M.yellow, [0.05, 2.45, 0], [0, 0, 0], [1.9, 0.9, 0.35]);
+    sk.part(G.cone(0.26, 0.45, 4), M.yellow, [-0.7, 2.45, 0], [0, 0, Math.PI / 2], [1, 1, 0.35]);
+    sk.part(G.sphere(0.05, 6, 4), M.black, [0.45, 2.52, 0.1]);
+    const tex = createSignTexture([["TACKLE", 74], ["SHOP", 74]], { bg: "#f7efdf", border: "#5f7f5a", fg: "#4c6a48" });
+    const board = new THREE.Mesh(new THREE.BoxGeometry(1.9, 1.0, 0.08), [M.woodDark, M.woodDark, M.woodDark, M.woodDark, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8 }), M.woodDark]);
+    board.position.set(0, 1.55, 0.07);
+    board.castShadow = true;
+    sign.add(board);
+    sign.position.set(9.5, 0, -6.85);
+    sign.rotation.y = 0.25;
+    root.add(sign);
+  }
+
   // Fishing-spot / dock markers
   const markers = INTERACTIONS.filter(i => ["fish", "dock", "return"].includes(i.type)).map(it => {
     const m = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.75, 24).rotateX(-Math.PI / 2), M.spot);

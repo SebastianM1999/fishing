@@ -211,10 +211,11 @@ export function building(k, M, b) {
   k.part(prism, wallMat, [0, base + h, 0], [0, PI / 2, 0]);
   const slope = Math.atan2(rh, half), slopeLen = Math.hypot(half, rh), rows = 6;
   for (const s of [1, -1]) for (let r = 0; r < rows; r++) {
-    const t = (r + 0.5) / rows;
-    k.part(G.box(len, 0.09, (slopeLen / rows) * 1.12), r % 2 ? roofB : roofA, [0, base + h + rh * (1 - t) + 0.06, s * half * t], [s * slope, 0, 0]);
+    const t = (r + 0.5) / rows, lift = 0.06 + r * 0.025;
+    k.part(G.box(len, 0.09, (slopeLen / rows) * 1.12), r % 2 ? roofB : roofA,
+      [0, base + h + rh * (1 - t) + lift * Math.cos(slope), s * (half * t + lift * Math.sin(slope))], [s * slope, 0, 0]);
   }
-  k.part(G.box(len + 0.1, 0.2, 0.26), roofB, [0, base + h + rh + 0.06, 0]);
+  k.part(G.box(len + 0.1, 0.22, 0.3), roofB, [0, base + h + rh + 0.1, 0]);
   for (const x of [-1, 1]) k.part(G.sphere(0.28, 10, 8), M.white, [x * (w / 2 + 0.46), base + h + rh * 0.42, 0], [0, 0, 0], [0.2, 1, 1]);
   // Door with frame, knob, step
   k.part(G.box(1.35, 2.15, 0.14), M.woodDark, [0, base + 1.07, d / 2 + 0.04]);
@@ -231,22 +232,28 @@ export function building(k, M, b) {
     k.part(G.box(0.95, 0.18, 0.95), M.stoneDark, [-w / 4, base + h + 2.15, -0.7]);
     for (let j = 0; j < 6; j++) k.part(G.cyl(0.16, 0.16, 0.9, 7), M.trunk, [w / 2 + 0.45, 0.18 + Math.floor(j / 3) * 0.3, -1.3 + (j % 3) * 0.33 + (j >= 3 ? 0.16 : 0)], [PI / 2, 0, 0]);
   } else {
-    // Striped awning on brackets, hanging sign with a fish, crates of the day's catch
+    // Striped awning on brackets, a big fish weathervane on the ridge, counter with the day's catch
     for (let j = 0; j < 8; j++) k.part(G.box(w / 8, 0.08, 1.3), j % 2 ? M.cream : M.roofGreen, [-w / 2 + w / 16 + (j * w) / 8, base + 2.55, d / 2 + 0.6], [0.38, 0, 0]);
     for (let j = 0; j < 8; j++) k.part(G.cone(w / 16, 0.22, 3), j % 2 ? M.cream : M.roofGreen, [-w / 2 + w / 16 + (j * w) / 8, base + 2.18, d / 2 + 1.22], [PI, 0, 0]);
     for (const x of [-w / 2 + 0.2, w / 2 - 0.2]) k.part(G.box(0.08, 0.08, 1.2), M.woodDark, [x, base + 2.4, d / 2 + 0.55], [0.4, 0, 0]);
-    k.part(G.box(2.6, 0.9, 0.12), M.woodLight, [0, base + h + 0.2, d / 2 + 0.25]);
-    k.part(G.box(2.75, 1.05, 0.08), M.woodDark, [0, base + h + 0.2, d / 2 + 0.2]);
-    k.part(G.sphere(0.3, 10, 8), M.yellow, [0.1, base + h + 0.2, d / 2 + 0.35], [0, 0, 0], [2.1, 0.95, 0.35]);
-    k.part(G.cone(0.3, 0.5, 4), M.yellow, [-0.72, base + h + 0.2, d / 2 + 0.35], [0, 0, PI / 2], [1, 1, 0.35]);
-    k.part(G.sphere(0.06, 6, 4), M.black, [0.62, base + h + 0.28, d / 2 + 0.44]);
-    // Counter with fish on ice
-    k.part(G.box(2.2, 0.9, 0.7), M.wood, [w / 2 - 1.3, 0.45, d / 2 + 0.55]);
-    k.part(G.box(2.1, 0.08, 0.62), M.petalWhite, [w / 2 - 1.3, 0.93, d / 2 + 0.55]);
+    const vy = base + h + rh + 0.2;
+    k.part(G.cyl(0.05, 0.06, 1.3, 6), M.metal, [0, vy + 0.6, 0]);
+    k.part(G.sphere(0.45, 12, 8), M.yellow, [0.1, vy + 1.35, 0], [0, 0, 0], [2.1, 0.95, 0.4]);
+    k.part(G.cone(0.42, 0.7, 4), M.yellow, [-1.15, vy + 1.35, 0], [0, 0, PI / 2], [1, 1, 0.4]);
+    k.part(G.cone(0.18, 0.4, 3), M.orange, [0.1, vy + 1.85, 0], [0, 0, -0.3], [1.2, 1, 0.4]);
+    for (const z of [-0.19, 0.19]) k.part(G.sphere(0.08, 8, 6), M.black, [0.8, vy + 1.45, z]);
+    k.part(G.box(0.7, 0.05, 0.05), M.metal, [0, vy + 0.85, 0]);
+    k.part(G.box(0.05, 0.05, 0.7), M.metal, [0, vy + 0.85, 0]);
+    // Counter with fish on ice (the shopkeeper stands behind it, against the wall)
+    const cx = -w / 2 + 1.5, cz = d / 2 + 1.3;
+    k.part(G.box(2.2, 0.9, 0.7), M.wood, [cx, 0.45, cz]);
+    for (let j = 0; j < 3; j++) k.part(G.box(2.24, 0.06, 0.74), M.woodDark, [cx, 0.15 + j * 0.3, cz]);
+    k.part(G.box(2.1, 0.08, 0.62), M.petalWhite, [cx, 0.93, cz]);
     for (let j = 0; j < 4; j++) {
-      k.part(G.sphere(0.13, 8, 5), [M.blue, M.orange, M.stoneLight, M.leafStill][j], [w / 2 - 2.05 + j * 0.5, 1.01, d / 2 + 0.55], [0, 0.3, 0], [2.2, 0.55, 0.8]);
-      k.part(G.cone(0.1, 0.18, 3), [M.blue, M.orange, M.stoneLight, M.leafStill][j], [w / 2 - 2.4 + j * 0.5, 1.01, d / 2 + 0.52], [0, 0.3, PI / 2]);
+      k.part(G.sphere(0.13, 8, 5), [M.blue, M.orange, M.stoneLight, M.leafStill][j], [cx - 0.75 + j * 0.5, 1.01, cz], [0, 0.3, 0], [2.2, 0.55, 0.8]);
+      k.part(G.cone(0.1, 0.18, 3), [M.blue, M.orange, M.stoneLight, M.leafStill][j], [cx - 1.1 + j * 0.5, 1.01, cz - 0.03], [0, 0.3, PI / 2]);
     }
+    k.part(G.box(0.35, 0.3, 0.25), M.metal, [cx + 0.85, 1.12, cz - 0.1]); // cash box
   }
   k.pop();
 }
@@ -387,7 +394,23 @@ export function makeHeldFish(art) {
  * Player: straw hat, neckerchief, plaid shirt + fishing vest with pockets, wicker creel on the back,
  * jointed arms/legs, boots, and a rod with cork grip, reel and line guides.
  */
+/** The angler (player). NPCs reuse the same rig with a different outfit via makeCharacter(). */
 export function makePlayer() {
+  return makeCharacter({});
+}
+
+export const OUTFITS = {
+  // Shopkeeper: flat cap, white shirt, striped apron, grey mustache.
+  shopkeeper: { hat: "cap", vest: false, creel: false, rod: false, apron: true, mustache: true,
+    colors: { shirt: "#f2ede0", shirtDark: "#d6cdb8", denim: "#5d5048", denimLight: "#74665c", hair: "#8d8d8d", cap: "#5f7f5a", apron: "#4f86c6", scarf: "#c9463d" } },
+  // Boat seller: sailor cap, blue-striped shirt, full beard.
+  sailor: { hat: "sailor", vest: false, creel: false, rod: false, stripes: true, beard: true,
+    colors: { shirt: "#f4f1ea", shirtDark: "#3f6e8c", denim: "#2f3f5a", denimLight: "#44567a", hair: "#b0764a", skin: "#e8b88f", scarf: "#3f6e8c" } },
+};
+
+export function makeCharacter(opts) {
+  const o = { hat: "straw", vest: true, creel: true, rod: true, ...opts };
+  const col = { ...o.colors };
   const C = c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.9, flatShading: true });
   const M = {
     skin: C("#f0c9a0"), cheek: C("#eaa38c"), hair: C("#6b4a32"), eye: C("#2a211c"), white: C("#ffffff"),
@@ -396,6 +419,7 @@ export function makePlayer() {
     belt: C("#3d2e22"), gold: C("#e2b34a"), straw: C("#e4c46c"), strawDark: C("#c9a44c"), band: C("#b8433a"),
     scarf: C("#e8b93e"), leaf: C("#6f9d58"), wicker: C("#c49a5a"), wickerDark: C("#9c7640"), cork: C("#c8a070"), rod: C("#3b3029"), metal: C("#9aa0a6"),
   };
+  for (const [k, c] of Object.entries(col)) M[k] = C(c);
   const root = new THREE.Group();
   const body = new THREE.Group(); // bobbing
   root.add(body);
@@ -421,21 +445,31 @@ export function makePlayer() {
   torso.add(mesh(G.box(0.1, 0.08, 0.04), M.gold, 0, 0.1, 0.26));
   torso.add(mesh(G.cyl(0.24, 0.27, 0.6, 10), M.shirt, 0, 0.44, 0));
   torso.add(mesh(G.box(0.03, 0.5, 0.02), M.shirtDark, 0, 0.44, 0.255)); // button placket
-  for (let j = 0; j < 3; j++) torso.add(mesh(G.box(0.24, 0.025, 0.02), M.shirtDark, 0, 0.26 + j * 0.16, 0.25 - j * 0.004)); // plaid lines
-  const gap = 1.1;
-  torso.add(mesh(new THREE.CylinderGeometry(0.29, 0.3, 0.5, 14, 1, true, gap / 2, 2 * PI - gap), M.vest, 0, 0.4, 0));
-  for (const s of [-1, 1]) {
-    torso.add(mesh(G.box(0.14, 0.14, 0.05), M.vestDark, s * 0.18, 0.32, 0.23, 0, s * 0.62, 0));
-    torso.add(mesh(G.box(0.15, 0.04, 0.06), M.vest, s * 0.18, 0.4, 0.235, 0, s * 0.62, 0));
-    torso.add(mesh(G.box(0.1, 0.1, 0.04), M.vestDark, s * 0.2, 0.52, 0.215, 0, s * 0.7, 0));
+  if (o.stripes) for (let j = 0; j < 5; j++) torso.add(mesh(G.cyl(0.255 + j * 0.006, 0.255 + j * 0.006, 0.045, 12), M.shirtDark, 0, 0.2 + j * 0.11, 0));
+  else for (let j = 0; j < 3; j++) torso.add(mesh(G.box(0.24, 0.025, 0.02), M.shirtDark, 0, 0.26 + j * 0.16, 0.25 - j * 0.004)); // plaid lines
+  if (o.vest) {
+    const gap = 1.1;
+    torso.add(mesh(new THREE.CylinderGeometry(0.29, 0.3, 0.5, 14, 1, true, gap / 2, 2 * PI - gap), M.vest, 0, 0.4, 0));
+    for (const s of [-1, 1]) {
+      torso.add(mesh(G.box(0.14, 0.14, 0.05), M.vestDark, s * 0.18, 0.32, 0.23, 0, s * 0.62, 0));
+      torso.add(mesh(G.box(0.15, 0.04, 0.06), M.vest, s * 0.18, 0.4, 0.235, 0, s * 0.62, 0));
+      torso.add(mesh(G.box(0.1, 0.1, 0.04), M.vestDark, s * 0.2, 0.52, 0.215, 0, s * 0.7, 0));
+    }
+  }
+  if (o.apron) {
+    torso.add(mesh(G.box(0.46, 0.72, 0.04), M.apron, 0, 0.18, 0.27, -0.08, 0, 0));
+    for (let j = 0; j < 4; j++) torso.add(mesh(G.box(0.07, 0.72, 0.045), M.white, -0.15 + j * 0.1, 0.18, 0.275, -0.08, 0, 0));
+    torso.add(mesh(G.box(0.2, 0.12, 0.05), M.white, 0, 0.08, 0.3, -0.08, 0, 0)); // pocket
   }
   torso.add(mesh(G.torus(0.15, 0.06, 6, 12), M.scarf, 0, 0.74, 0.02, PI / 2, 0, 0));
   torso.add(mesh(G.cone(0.08, 0.16, 4), M.scarf, 0, 0.64, 0.17, PI, 0, 0, [1, 1, 0.5]));
-  // Creel basket with strap
-  torso.add(mesh(G.box(0.44, 0.4, 0.24), M.wicker, 0, 0.42, -0.36));
-  for (let j = 0; j < 4; j++) torso.add(mesh(G.box(0.45, 0.03, 0.25), M.wickerDark, 0, 0.26 + j * 0.1, -0.36));
-  torso.add(mesh(G.box(0.48, 0.06, 0.28), M.wickerDark, 0, 0.64, -0.36, -0.1, 0, 0));
-  torso.add(mesh(G.box(0.05, 0.75, 0.04), M.belt, 0.1, 0.42, 0.01, 0, 0, 0.62));
+  if (o.creel) {
+    // Creel basket with strap
+    torso.add(mesh(G.box(0.44, 0.4, 0.24), M.wicker, 0, 0.42, -0.36));
+    for (let j = 0; j < 4; j++) torso.add(mesh(G.box(0.45, 0.03, 0.25), M.wickerDark, 0, 0.26 + j * 0.1, -0.36));
+    torso.add(mesh(G.box(0.48, 0.06, 0.28), M.wickerDark, 0, 0.64, -0.36, -0.1, 0, 0));
+    torso.add(mesh(G.box(0.05, 0.75, 0.04), M.belt, 0.1, 0.42, 0.01, 0, 0, 0.62));
+  }
   // Neck + head
   torso.add(mesh(G.cyl(0.1, 0.11, 0.16, 8), M.skin, 0, 0.78, 0));
   const head = new THREE.Group();
@@ -453,20 +487,42 @@ export function makePlayer() {
     head.add(mesh(G.box(0.08, 0.18, 0.09), M.hair, s * 0.3, 0.05, 0.06));
   }
   head.add(mesh(new THREE.TorusGeometry(0.05, 0.014, 4, 8, PI), M.eye, 0, -0.14, 0.31, 0, 0, PI)); // smile
+  if (o.mustache) for (const s of [-1, 1]) head.add(mesh(G.sphere(0.07, 8, 6), M.hair, s * 0.06, -0.1, 0.32, 0, 0, s * 0.4, [1.4, 0.6, 0.6]));
+  if (o.beard) {
+    head.add(mesh(G.sphere(0.3, 12, 8), M.hair, 0, -0.14, 0.08, 0, 0, 0, [1.05, 0.75, 0.95]));
+    head.add(mesh(new THREE.TorusGeometry(0.05, 0.014, 4, 8, PI), M.eye, 0, -0.1, 0.33, 0, 0, PI));
+  }
   head.add(mesh(G.ico(0.32, 0), M.hair, 0, 0.08, -0.13, 0, 0, 0, [1.05, 0.8, 0.85]));
   head.add(mesh(G.ico(0.12, 0), M.hair, 0.08, 0.22, 0.2, 0.4, 0, 0, [1.4, 0.5, 0.8])); // fringe under the hat
-  // Straw hat, tipped back to show the face
   const hat = new THREE.Group();
-  hat.position.set(0, 0.23, -0.04);
-  hat.rotation.x = -0.38;
   head.add(hat);
-  hat.add(mesh(G.cyl(0.47, 0.5, 0.05, 18), M.straw, 0, 0.02, 0));
-  hat.add(mesh(G.torus(0.485, 0.025, 4, 18), M.strawDark, 0, 0.02, 0, PI / 2, 0, 0));
-  hat.add(mesh(G.cyl(0.28, 0.33, 0.28, 12), M.straw, 0, 0.18, 0));
-  hat.add(mesh(G.cyl(0.335, 0.335, 0.08, 12), M.band, 0, 0.09, 0));
-  hat.add(mesh(G.sphere(0.28, 12, 6), M.strawDark, 0, 0.3, 0, 0, 0, 0, [1, 0.25, 1]));
-  hat.add(mesh(G.box(0.04, 0.16, 0.1), M.gold, 0.31, 0.12, 0.12, 0, 0.5, 0.3));
-  hat.add(mesh(G.cone(0.05, 0.3, 4), M.leaf, 0.3, 0.2, -0.05, 0.2, 0, -0.5)); // feather
+  if (o.hat === "cap") {
+    // Flat cap with a short brim
+    hat.position.set(0, 0.22, 0);
+    hat.rotation.x = -0.15;
+    hat.add(mesh(G.sphere(0.33, 14, 8), M.cap, 0, 0.02, -0.02, 0, 0, 0, [1.05, 0.42, 1.08]));
+    hat.add(mesh(G.box(0.42, 0.04, 0.2), M.cap, 0, -0.02, 0.3, 0.2, 0, 0));
+    hat.add(mesh(G.sphere(0.04, 6, 4), M.cap, 0, 0.16, 0));
+  } else if (o.hat === "sailor") {
+    // White sailor cap with a navy band and anchor badge
+    hat.position.set(0, 0.25, -0.02);
+    hat.rotation.x = -0.2;
+    hat.add(mesh(G.cyl(0.36, 0.3, 0.16, 14), M.white, 0, 0.08, 0));
+    hat.add(mesh(G.cyl(0.305, 0.305, 0.08, 14), M.shirtDark, 0, -0.01, 0));
+    hat.add(mesh(G.box(0.36, 0.035, 0.18), M.eye, 0, -0.04, 0.3, 0.25, 0, 0));
+    hat.add(mesh(G.box(0.07, 0.09, 0.02), M.gold, 0, 0.02, 0.31));
+  } else {
+    // Straw hat, tipped back to show the face
+    hat.position.set(0, 0.23, -0.04);
+    hat.rotation.x = -0.38;
+    hat.add(mesh(G.cyl(0.47, 0.5, 0.05, 18), M.straw, 0, 0.02, 0));
+    hat.add(mesh(G.torus(0.485, 0.025, 4, 18), M.strawDark, 0, 0.02, 0, PI / 2, 0, 0));
+    hat.add(mesh(G.cyl(0.28, 0.33, 0.28, 12), M.straw, 0, 0.18, 0));
+    hat.add(mesh(G.cyl(0.335, 0.335, 0.08, 12), M.band, 0, 0.09, 0));
+    hat.add(mesh(G.sphere(0.28, 12, 6), M.strawDark, 0, 0.3, 0, 0, 0, 0, [1, 0.25, 1]));
+    hat.add(mesh(G.box(0.04, 0.16, 0.1), M.gold, 0.31, 0.12, 0.12, 0, 0.5, 0.3));
+    hat.add(mesh(G.cone(0.05, 0.3, 4), M.leaf, 0.3, 0.2, -0.05, 0.2, 0, -0.5)); // feather
+  }
   hat.traverse(o => { o.castShadow = false; }); // keep the face lit from above
 
   // Arms (pivot at shoulder, elbow joint)
@@ -507,7 +563,7 @@ export function makePlayer() {
   backSocket.position.set(0.12, 0.1, -0.52);
   backSocket.rotation.set(-0.15, 0, -0.45);
   torso.add(backSocket);
-  backSocket.add(rod);
+  if (o.rod) backSocket.add(rod);
 
   const heldFish = new THREE.Group();
   heldFish.position.set(0, -0.05, 0.1);

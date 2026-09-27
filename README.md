@@ -22,7 +22,9 @@ Open http://localhost:8080/. Append `?debug` to expose a `window.cozy` test hook
 
 ## Progression
 
-Start at the lake with 30 coins. Construction barriers close off the **river bank (250 coins)** and the **beach & docks (750 coins)**; pay the builders at the barrier to open them for good. The **boat (1000 coins, bought at the sea dock)** then unlocks offshore fishing from the dock. The bag holds 8 sellable fish (upgrades at the shop: 15 for 200, 30 for 600); when it's full, new species still count but other catches are released. The first catch of each species goes to the wallboard and pays a bonus equal to its value; the wallboard remembers your best specimen per species (rarest, then biggest) — hover, focus or tap a slot to see it.
+Start at the lake with 30 coins. Construction barriers close off the **river bank (250 coins)** and then the **beach & docks (750 coins, after the river)**; pay the builders at the barrier to open them for good. **Captain Olsen** on the sea dock sells the **boat (1000 coins)** for offshore fishing. **Mira** runs the tackle shop (gear, tackle, bag upgrades, selling).
+
+The bag holds 8 sellable fish (upgrades: 15 for 200, 30 for 600); when it's full, other catches are released. The **first catch of a species** opens a golden card: mount it on the wallboard (no coins) or keep it in the bag to sell — the wallboard slot stays empty until you mount one. The wallboard remembers your best specimen per species (rarest, then biggest) — hover, focus or tap a slot to see it.
 
 ## Audio
 

@@ -36,6 +36,7 @@ export function createUI(handlers) {
     fishing: $("fishing"), status: $("fishing-status"), statusIco: $("fishing-status-ico"), statusText: $("fishing-status-text"), minigame: $("minigame"),
     mgBehavior: $("mg-behavior"), mgBehaviorIco: $("mg-behavior-ico"), mgPhase: $("mg-phase"), zone: $("mg-zone"), laneFish: $("mg-fish"),
     progressVal: $("mg-progress-val"), tensionVal: $("mg-tension-val"), catchOk: $("catch-ok"),
+    catchChoice: $("catch-choice"), catchWall: $("catch-wall"), catchBag: $("catch-bag"), catchBagSub: $("catch-bag-sub"),
     progress: $("mg-progress"), tension: $("mg-tension"),
     catchCard: $("catch-card"), catchArt: $("catch-art"), catchTitle: $("catch-title"), catchDetails: $("catch-details"), catchNote: $("catch-note"),
     toasts: $("toasts"), fade: $("fade"),
@@ -92,11 +93,12 @@ export function createUI(handlers) {
     const rec = state.records[f.id];
     let html;
     if (!found) {
-      html = `<strong>Undiscovered</strong><span>Found at the ${LOCATION_LABELS[f.location]} · ${f.times.map(t => TIME_LABELS[t]).join(", ")}</span>`;
+      html = `<strong>Undiscovered</strong><span>Found at the ${LOCATION_LABELS[f.location]} · ${f.times.map(t => TIME_LABELS[t]).join(", ")}</span>`
+        + (rec ? `<span class="tip-label">Caught, not mounted yet</span><span>Best so far: ${rec.sizeCm.toFixed(1)} cm ${rarityHtml(rec.rarity, 18)}</span>` : "");
     } else if (!rec) {
       html = `<strong>${f.name}</strong><span>No record yet — catch another one to log your best.</span>`;
     } else {
-      const fate = rec.sold ? `Sold for ${coinHtml(rec.value)}` : rec.released ? `Released (bag was full) · worth ${coinHtml(rec.value)}` : rec.uid === null ? `Kept on the wallboard · worth ${coinHtml(rec.value)}` : `In your bag · worth ${coinHtml(rec.value)}`;
+      const fate = rec.sold ? `Sold for ${coinHtml(rec.value)}` : rec.released ? `Released (bag was full) · worth ${coinHtml(rec.value)}` : rec.mounted ? `Mounted on the wallboard · worth ${coinHtml(rec.value)}` : `In your bag · worth ${coinHtml(rec.value)}`;
       html = `<div class="tip-art">${fishSvg(f, { size: 200 })}</div>
         <strong>${f.name} ${rarityHtml(rec.rarity, 22)}</strong>
         <span class="tip-label">Best catch</span>
@@ -143,6 +145,9 @@ export function createUI(handlers) {
 
   el.action.addEventListener("click", () => handlers.onAction());
   el.catchOk.addEventListener("click", () => handlers.onCatchContinue());
+  el.catchWall.addEventListener("click", () => handlers.onCatchChoice("wall"));
+  el.catchBag.addEventListener("click", () => handlers.onCatchChoice("bag"));
+  el.catchCard.querySelectorAll("[data-icon]").forEach(n => { n.innerHTML = ICONS[n.dataset.icon]; });
   // Space/Enter are catching keys: never let them activate the Continue button.
   el.catchOk.addEventListener("keydown", e => { if (e.code === "Space" || e.code === "Enter") e.preventDefault(); });
   el.catchOk.addEventListener("keyup", e => { if (e.code === "Space" || e.code === "Enter") e.preventDefault(); });
@@ -219,7 +224,7 @@ export function createUI(handlers) {
     const cap = BAGS[state.bag].slots, n = state.inventory.length;
     const slots = `<div class="bag-slots ${n >= cap ? "full" : ""}" title="${n} of ${cap} slots used">${Array.from({ length: cap }, (_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</div>`;
     el.bagBody.innerHTML = `<div class="list-head"><span class="bag-count">${ICONS.bag} ${n} / ${cap}</span>${slots}<span>worth ${coinHtml(state.inventory.reduce((a, f) => a + f.value, 0))}</span></div>
-      <p class="bag-note">${ICONS.board} The first catch of each species goes to the wallboard, not your bag.${n >= cap ? " <b>Bag full — sell at the shop.</b>" : ""}</p>
+      <p class="bag-note">${ICONS.board} First catches: you choose — mount them on the wallboard or keep them to sell.${n >= cap ? " <b>Bag full — sell at the shop.</b>" : ""}</p>
       ${n ? `<ul class="fish-list">${state.inventory.map(f => fishRow(f, { sellable: false })).join("")}</ul>` : `<p class="empty">Your bag is empty. Go fishing!</p>`}`;
   }
 
@@ -245,7 +250,7 @@ export function createUI(handlers) {
   function openBag() { renderBag(); showModal(el.bag); }
   function openBoard() { renderBoard(); showModal(el.board); }
   /** Generic confirm-purchase dialog: construction barriers, the boat at the dock. */
-  function openPurchase(s, { title, art, text, price, confirmLabel, onConfirm }) {
+  function openPurchase(s, { title, art, text, price, confirmLabel, onConfirm, blocked }) {
     state = s;
     purchase = { onConfirm };
     el.unlockTitle.textContent = title;
@@ -254,7 +259,8 @@ export function createUI(handlers) {
     el.unlockPrice.textContent = price;
     el.unlockHave.textContent = s.coins >= price ? `(you have ${s.coins})` : `(you have ${s.coins} — keep fishing!)`;
     el.unlockPay.innerHTML = `${confirmLabel} <span class="key">E</span>`;
-    el.unlockPay.disabled = s.coins < price;
+    el.unlockPay.disabled = s.coins < price || !!blocked;
+    if (blocked) el.unlockHave.textContent = blocked;
     last.dialogOpenedAt = performance.now();
     showModal(el.unlock);
   }
@@ -361,26 +367,41 @@ export function createUI(handlers) {
         el.catchExtra.textContent = "";
       } else {
         el.catchArt.innerHTML = fishSvg(species, { size: 160 });
-        el.catchTitle.textContent = `${species.name}`;
         el.catchTitle.innerHTML = `${rarityHtml(enc.rarity, 28)} ${species.name}`;
         el.catchDetails.innerHTML = `${RARITY_LABELS[enc.rarity]} · ${enc.sizeCm.toFixed(1)} cm · value ${coinHtml(enc.value)}`;
         const cap = BAGS[state.bag].slots;
-        el.catchNote.textContent = result.discovered
-          ? `New discovery! Kept on the wallboard (${state.discovered.length} / 20).`
-          : result.released ? `Your bag is full (${state.inventory.length}/${cap}) — you let it go.` : `Added to your bag (${state.inventory.length}/${cap}).`;
+        if (result.newSpecies) {
+          el.catchNote.textContent = `First ${species.name} you've caught! Where should it go?`;
+          el.catchExtra.textContent = "";
+          const full = state.inventory.length >= cap;
+          el.catchBag.dataset.full = String(full);
+          el.catchBagSub.innerHTML = full ? `Bag full (${state.inventory.length}/${cap})` : `Sell later for ${coinHtml(enc.value)}`;
+        } else {
+          el.catchNote.textContent = result.released
+            ? `Your bag is full (${state.inventory.length}/${cap}) — you let it go.`
+            : `Added to your bag (${state.inventory.length}/${cap}).`;
+          el.catchExtra.innerHTML = result.newRecord ? `${ICONS.star} New personal best for this species!` : "";
+        }
         el.catchNote.classList.toggle("warn", !!result.released);
-        el.catchExtra.innerHTML = result.discovered
-          ? `Wallboard bonus ${coinHtml(`+${result.bonus}`)}`
-          : result.newRecord ? `${ICONS.star} New personal best for this species!` : "";
       }
+      const choice = !!result?.newSpecies;
+      el.catchCard.classList.toggle("golden", choice);
+      el.catchChoice.hidden = !choice;
+      el.catchOk.hidden = choice;
       el.catchCard.hidden = false;
-      // Brief guard so a reeling tap/click can't land on Continue by accident.
-      el.catchOk.disabled = true;
+      // Brief guard so a reeling tap/click can't land on a button by accident.
+      const buttons = [el.catchOk, el.catchWall, el.catchBag];
+      buttons.forEach(b => { b.disabled = true; });
       clearTimeout(last.catchGuard);
-      last.catchGuard = setTimeout(() => { el.catchOk.disabled = false; }, 700);
+      last.catchGuard = setTimeout(() => {
+        el.catchOk.disabled = el.catchWall.disabled = false;
+        el.catchBag.disabled = el.catchBag.dataset.full === "true";
+      }, 700);
     },
     hideCatchResult() { el.catchCard.hidden = true; },
-    catchReady: () => !el.catchOk.disabled,
+    catchReady: () => !(el.catchChoice.hidden ? el.catchOk : el.catchWall).disabled,
+    catchIsChoice: () => !el.catchCard.hidden && !el.catchChoice.hidden,
+    bagChoiceAvailable: () => !el.catchBag.disabled,
     /** E inside a dialog: confirm a purchase (after a short guard), otherwise close the dialog. */
     dialogPrimary() {
       const open = [el.unlock, el.shop, el.bag, el.board, el.settings].find(d => d.open);

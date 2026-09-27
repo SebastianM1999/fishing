@@ -14,7 +14,7 @@ export const BOAT_PRICE = 1000;
 // Construction barriers: areas that must be cleared with coins before they can be entered.
 export const REGIONS = {
   river: { id: "river", name: "River bank", price: 250, sign: "River bank closed for repairs" },
-  sea: { id: "sea", name: "Beach & docks", price: 750, sign: "Beach & docks under construction" },
+  sea: { id: "sea", name: "Beach & docks", price: 750, sign: "Beach & docks under construction", requires: "river" },
 };
 
 // Fish bag tiers: sellable fish you can carry. First catches go to the wallboard and take no space.
@@ -24,8 +24,7 @@ export const BAGS = [
   { id: "bag_creel", name: "Big Creel", price: 600, slots: 30 },
 ];
 
-// First catch of a species pays a wallboard bonus equal to this fraction of the specimen's value.
-export const DISCOVERY_BONUS = 1.0;
+
 
 /** @typedef {"calm"|"darting"|"zigzag"|"heavy"|"frenzy"} Behavior */
 
