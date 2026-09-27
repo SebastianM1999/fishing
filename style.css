@@ -87,7 +87,7 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 
 /* Fishing ---------------------------------------------------------------- */
 .fishing-panel {
-  position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
+  position: fixed; left: 50%; bottom: 20px; translate: -50% 0;
   width: min(520px, calc(100vw - 24px)); padding: 12px 18px 14px;
   background: var(--paper); border-radius: var(--radius); box-shadow: var(--shadow); text-align: center;
   touch-action: none;
@@ -122,7 +122,7 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 .mg-hint { margin: 8px 0 0; font-size: 12px; color: var(--ink-soft); }
 
 .catch-card {
-  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  position: fixed; left: 50%; top: 50%; translate: -50% -50%;
   width: min(360px, calc(100vw - 24px)); padding: 18px 22px; text-align: center;
   background: var(--paper); border-radius: 20px; box-shadow: 0 12px 40px rgb(40 28 18 / 0.35);
   animation: pop 0.25s ease-out;
@@ -185,8 +185,8 @@ dialog::backdrop { background: rgb(40 32 26 / 0.35); }
 .fish-row svg { width: 64px; height: auto; }
 .fish-row .name { font-weight: 800; }
 .fish-row .meta { font-size: 13px; color: var(--ink-soft); }
-.fish-row .value { font-weight: 800; display: inline-flex; align-items: center; gap: 4px; }
-.fish-row .value .coin-icon { width: 14px; height: 14px; }
+.value { font-weight: 800; display: inline-flex; align-items: center; gap: 4px; vertical-align: middle; }
+.value .coin-icon { width: 14px; height: 14px; }
 .list-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; font-weight: 700; }
 .empty { color: var(--ink-soft); text-align: center; padding: 20px 0; }
 

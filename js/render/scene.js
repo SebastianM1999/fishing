@@ -250,24 +250,27 @@ export function createRenderer(canvas) {
   });
 
   // Boats
+  // Boat: pointed hull outline extruded upward, painted stripe, plank deck, mast + sail.
+  const hullOutline = [[-1.1, -2.3], [1.1, -2.3], [1.15, 1.2], [0, 3.0], [-1.15, 1.2]];
+  function hullGeo(scale, height) {
+    const shape = new THREE.Shape(hullOutline.map(([x, z]) => new THREE.Vector2(x * scale, -z * scale)));
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false });
+    geo.rotateX(-Math.PI / 2);
+    return geo;
+  }
+  const boatGeos = { hull: hullGeo(1, 0.8), stripe: hullGeo(1.03, 0.14), deck: hullGeo(0.86, 0.06) };
+  const sailGeo = new THREE.BufferGeometry();
+  sailGeo.setAttribute("position", new THREE.Float32BufferAttribute([0, 1.2, -0.5, 0, 3.8, -0.5, 0, 1.2, 1.5], 3));
+  sailGeo.computeVertexNormals();
+  const sailMat = M.sail.clone();
+  sailMat.side = THREE.DoubleSide;
   function makeBoat(scale = 1) {
     const g = new THREE.Group();
-    const hull = mesh(new THREE.BoxGeometry(2.2, 0.8, 4.6), M.boatHull, { y: 0.1 });
-    g.add(hull);
-    const bow = mesh(new THREE.CylinderGeometry(0, 1.1, 1.6, 4, 1), M.boatHull, { y: 0.1, z: 2.9 });
-    bow.rotation.x = Math.PI / 2;
-    bow.rotation.y = Math.PI / 4;
-    bow.scale.set(1.41, 1, 0.52);
-    g.add(bow);
-    g.add(mesh(new THREE.BoxGeometry(2.3, 0.18, 4.7), M.boatTrim, { y: 0.52 }));
-    g.add(mesh(new THREE.BoxGeometry(1.9, 0.08, 4.2), M.plank, { y: 0.48 }));
-    g.add(mesh(new THREE.CylinderGeometry(0.08, 0.08, 3.2, 6), M.woodDark, { y: 2.0, z: -0.4 }));
-    const sail = mesh(new THREE.BufferGeometry(), M.sail, {});
-    sail.geometry.setAttribute("position", new THREE.Float32BufferAttribute([0, 0.8, -0.3, 0, 3.4, -0.3, 0, 0.8, 1.6], 3));
-    sail.geometry.computeVertexNormals();
-    sail.material = M.sail.clone();
-    sail.material.side = THREE.DoubleSide;
-    g.add(sail);
+    g.add(mesh(boatGeos.hull, M.boatHull, { y: -0.3 }));
+    g.add(mesh(boatGeos.stripe, M.boatTrim, { y: 0.2, cast: false }));
+    g.add(mesh(boatGeos.deck, M.plank, { y: 0.47, cast: false }));
+    g.add(mesh(new THREE.CylinderGeometry(0.08, 0.08, 3.6, 6), M.woodDark, { y: 2.2, z: -0.5 }));
+    g.add(mesh(sailGeo, sailMat, { x: 0.05 }));
     g.scale.setScalar(scale);
     return g;
   }
@@ -278,7 +281,7 @@ export function createRenderer(canvas) {
   // Offshore anchored boat (the walkable deck area)
   const off = WORLD.offshore;
   const bigBoat = makeBoat(1.55);
-  bigBoat.position.set(off.cx, SEA_Y - 0.35, off.cz - 0.3);
+  bigBoat.position.set(off.cx, SEA_Y - 0.12, off.cz - 0.3);
   world.add(bigBoat);
   // Distant islets offshore
   for (const [x, z, s] of [[-14, 70, 2.5], [16, 92, 3], [-20, 96, 2]]) {
@@ -472,7 +475,7 @@ export function createRenderer(canvas) {
 
     mooredBoat.visible = state.boatOwned && p.area === "land";
     mooredBoat.position.y = SEA_Y + 0.05 + Math.sin(elapsed * 1.3) * 0.05;
-    bigBoat.position.y = SEA_Y - 0.35 + Math.sin(elapsed * 1.1) * 0.04;
+    bigBoat.position.y = SEA_Y - 0.12 + Math.sin(elapsed * 1.1) * 0.04;
     bigBoat.rotation.z = Math.sin(elapsed * 0.9) * 0.015;
     for (const m of spotMarkers) m.material.opacity = 0.3 + Math.sin(elapsed * 2) * 0.15;
 

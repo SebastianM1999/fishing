@@ -57,7 +57,7 @@ export function createInput({ canvas, joystick, knob, reelPad }) {
   joystick.addEventListener("pointerdown", e => {
     e.preventDefault();
     stick.id = e.pointerId;
-    joystick.setPointerCapture(e.pointerId);
+    try { joystick.setPointerCapture(e.pointerId); } catch { /* capture is a nicety */ }
     updateStick(e);
   });
   joystick.addEventListener("pointermove", e => { if (e.pointerId === stick.id) updateStick(e); });
