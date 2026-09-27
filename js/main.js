@@ -373,6 +373,7 @@ function updateSession(actions, dtMs) {
   if (before === "cast" && s.phase === "wait") audio.play("plop");
   if (ev === "secondwind") { audio.play("secondwind"); ui.toast("Second wind! The line holds."); }
   if (ev === "rage") audio.play("rage");
+  if (["ink", "grab", "glow", "charge", "jolt"].includes(ev)) audio.play(ev);
   if (ev === "bite") {
     audio.play(content.FISH_BY_ID[s.encounter.speciesId].legendary ? "legendbite" : "bite");
     if (document.body.classList.contains("touch") && navigator.userActivation?.hasBeenActive) navigator.vibrate?.(80);

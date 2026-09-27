@@ -1,9 +1,12 @@
 // Cast -> wait -> bite/hook -> catch minigame. Pure simulation on plain data; no DOM or Three.js.
 import {
   FISH, FISH_BY_ID, RARITY_WEIGHTS, RARITY_MULTIPLIER, RARITY_FIGHT, BEHAVIORS, EXHAUSTED,
-  HOOK, BITE_WAIT_MS, MINIGAME, GEAR, LEGENDARIES, BOSS_FIGHT, WEATHER, LOCATION_GATES,
+  HOOK, BITE_WAIT_MS, MINIGAME, GEAR, LEGENDARIES, BOSS_FIGHT, WEATHER, LOCATION_GATES, MECHANICS, SPECIAL_FIGHT, MOON, LOCATION_LABELS, SKILLS_BY_ID, regularAt,
 } from "./content.js";
-import { skillEffects } from "./skills.js";
+import { skillEffects, rankOf, levelOf } from "./skills.js";
+
+/** Moon phase index for a day (0 = new moon, MOON.full = full moon). */
+export const moonPhase = day => ((day % MOON.cycle) + MOON.cycle) % MOON.cycle;
 
 const CAST_MS = 600;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -67,9 +70,22 @@ export function huntGear(state, species) {
 export const gearReady = (state, species) => Object.values(huntGear(state, species)).every(([need, has]) => has >= need);
 export const inHuntWindow = (species, bucket, progress) => species.hunt.bucket === bucket && progress >= species.hunt.window[0] && progress <= species.hunt.window[1];
 
-/** The legendary that can bite here right now (time window + gear), or null. */
+/** Every condition of a hunt besides the time window, each with { icon, label, ok } (shown as ✓ / ✗ in the Rumours). */
+export function huntChecks(state, species) {
+  const h = species.hunt, checks = [];
+  for (const [slot, [need, has]] of Object.entries(huntGear(state, species))) checks.push({ icon: slot, label: GEAR[slot][need].name, ok: has >= need });
+  if (h.moon) checks.push({ icon: "moon", label: MOON.names[MOON[h.moon]], ok: moonPhase(state.day) === MOON[h.moon] });
+  if (h.complete) checks.push({ icon: "fish", label: `Every ${LOCATION_LABELS[h.complete]} fish found`, ok: regularAt(h.complete).every(f => state.discovered.includes(f.id)) });
+  if (h.minSpecies) checks.push({ icon: "board", label: `${h.minSpecies} species found`, ok: state.discovered.length >= h.minSpecies });
+  if (h.skill) checks.push({ icon: SKILLS_BY_ID[h.skill].icon, label: `${SKILLS_BY_ID[h.skill].name} skill`, ok: rankOf(state, h.skill) > 0 });
+  if (h.level) checks.push({ icon: "star", label: `Level ${h.level}`, ok: levelOf(state.xp) >= h.level });
+  return checks;
+}
+export const huntReady = (state, species) => huntChecks(state, species).every(c => c.ok);
+
+/** The legend or myth that can bite here right now (time window + every condition), or null. */
 export function huntAt(state, location, bucket, progress) {
-  return LEGENDARIES.find(f => f.location === location && inHuntWindow(f, bucket, progress) && gearReady(state, f)) ?? null;
+  return LEGENDARIES.find(f => f.location === location && inHuntWindow(f, bucket, progress) && huntReady(state, f)) ?? null;
 }
 
 export function rarityWeights(location, rareWeightMult = 1) {
@@ -152,17 +168,33 @@ function createFight(session, rng, stats) {
     zonePos: 0.35,
     zoneTarget: 0.35,
     zoneWidth: stats.zoneWidth,
-    progress: MINIGAME.startProgress + (perfect ? stats.perfectProgressBonus : 0),
+    // Boss fights start lower, so even a perfect hook begins in round 1 (below the first rage threshold).
+    progress: species.legendary
+      ? Math.min(BOSS_FIGHT.rageAt[0] - 0.03, BOSS_FIGHT.startProgress + (perfect ? stats.perfectProgressBonus : 0))
+      : MINIGAME.startProgress + (perfect ? stats.perfectProgressBonus : 0),
     tensionLimit: stats.tensionLimit,
     tension: stats.tensionLimit * (MINIGAME.startTensionFrac - (perfect ? HOOK.perfectTensionReduction : 0)),
     inside: false,
     elapsed: 0,
     secondWind: stats.secondWind, // unused Second Wind charge for this fight
     boss: !!species.legendary,
+    special: !!species.special,
     rage: 0, // enraged bursts triggered so far (boss fights)
+    mech: BEHAVIORS[species.behavior].mech ?? null, // extra rule (ink / sting / tentacle / jolt / kraken)
+    inkLeft: 0, // s the fish marker stays hidden
+    grabLeft: 0, grabDir: 0, // tentacle dragging the zone
+    pulseIn: rng.range(...MECHANICS.sting.every), pulseLeft: 0, // jelly glow
+    joltIn: rng.range(...MECHANICS.jolt.every), jolt: null, joltLeft: 0, zapped: false, // "charge" -> "zap"
+    event: null, // mechanic event raised inside enterPhase, returned by updateFight
   };
   enterPhase(fight, "normal", rng);
   return fight;
+}
+
+/** The extra rules active right now (the Kraken changes its tricks each round). */
+export function activeMechs(fight) {
+  if (fight.mech === "kraken") return MECHANICS.kraken[Math.min(fight.rage, 2)];
+  return fight.mech ? [fight.mech] : [];
 }
 
 function enterPhase(fight, phase, rng) {
@@ -174,6 +206,41 @@ function enterPhase(fight, phase, rng) {
   else if (phase === "burst") fight.phaseLeft = rng.range(...b.burstTime);
   else fight.phaseLeft = rng.range(...EXHAUSTED.time);
   fight.retargetIn = 0;
+  if (phase === "burst") {
+    const mechs = activeMechs(fight);
+    if (mechs.includes("ink")) { fight.inkLeft = MECHANICS.ink.time; fight.event = "ink"; }
+    if (mechs.includes("tentacle")) {
+      fight.grabLeft = MECHANICS.tentacle.time;
+      fight.grabDir = fight.zonePos >= fight.fishPos ? 1 : -1; // drag the zone away from the creature
+      fight.event = "grab";
+    }
+  }
+}
+
+/** Sting and jolt run on their own timers. Returns an event name or null. */
+function updateMechs(f, dt, held, rng) {
+  const mechs = activeMechs(f);
+  let event = null;
+  f.inkLeft = Math.max(0, f.inkLeft - dt);
+  f.grabLeft = Math.max(0, f.grabLeft - dt);
+  if (mechs.includes("sting")) {
+    const M = MECHANICS.sting;
+    if (f.pulseLeft > 0) {
+      f.pulseLeft -= dt;
+      if (f.inside) f.tension += M.tension * dt;
+      if (f.pulseLeft <= 0) f.pulseIn = rng.range(...M.every);
+    } else if ((f.pulseIn -= dt) <= 0) { f.pulseLeft = M.glow; event = "glow"; }
+  }
+  if (mechs.includes("jolt")) {
+    const M = MECHANICS.jolt;
+    if (!f.jolt && (f.joltIn -= dt) <= 0) { f.jolt = "charge"; f.joltLeft = M.charge; event = "charge"; }
+    else if (f.jolt && (f.joltLeft -= dt) <= 0) {
+      if (f.jolt === "charge") { f.jolt = "zap"; f.joltLeft = M.zap; f.zapped = false; }
+      else { f.jolt = null; f.joltIn = rng.range(...M.every); }
+    }
+    if (f.jolt === "zap" && held && !f.zapped) { f.zapped = true; f.tension += f.tensionLimit * M.tension; event = "jolt"; }
+  }
+  return event;
 }
 
 function retarget(fight, rng) {
@@ -241,20 +308,21 @@ function updateFight(session, dt, held, rng, stats) {
   const rageK = f.enraged ? BOSS_FIGHT.rageSpeed : 1;
   let speed = (burst || f.enraged ? b.burstSpeed * r.burstStrength * stats.burstMult : b.speed) * rageK;
   if (exhausted) speed *= EXHAUSTED.speedMult;
+  if (f.jolt === "charge") speed = 0; // the eel holds still while it charges
   const delta = f.fishTarget - f.fishPos;
   f.fishPos += Math.sign(delta) * Math.min(Math.abs(delta), speed * dt);
 
   // Player zone: control moves an eased target; the zone never snaps.
   const half = f.zoneWidth / 2;
   const zoneSpeed = (held ? MINIGAME.zoneRise : -MINIGAME.zoneFall) * stats.zoneSpeedMult;
-  f.zoneTarget = clamp(f.zoneTarget + zoneSpeed * dt, half, 1 - half);
+  f.zoneTarget = clamp(f.zoneTarget + (zoneSpeed + (f.grabLeft > 0 ? f.grabDir * MECHANICS.tentacle.pull : 0)) * dt, half, 1 - half);
   const ease = 1 - Math.exp(-MINIGAME.zoneEase * stats.zoneEaseMult * dt);
   f.zonePos += (f.zoneTarget - f.zonePos) * ease;
 
   // Catch progress.
   f.inside = Math.abs(f.fishPos - f.zonePos) <= half;
   if (f.inside) {
-    f.progress += MINIGAME.progressGain * stats.reelSpeed * r.progressGain * (f.boss ? BOSS_FIGHT.progressGain : 1) * (exhausted ? EXHAUSTED.progressGainMult : 1) * dt;
+    f.progress += MINIGAME.progressGain * stats.reelSpeed * r.progressGain * (f.boss ? BOSS_FIGHT.progressGain : f.special ? SPECIAL_FIGHT.progressGain : 1) * (exhausted ? EXHAUSTED.progressGainMult : 1) * dt;
   } else {
     f.progress -= MINIGAME.progressLoss * stats.progressLossMult * dt;
   }
@@ -266,6 +334,10 @@ function updateFight(session, dt, held, rng, stats) {
   } else {
     f.tension = Math.max(0, f.tension - MINIGAME.tensionRecovery * stats.reelRecovery * dt);
   }
+
+  const mechEvent = updateMechs(f, dt, held, rng);
+  if (f.event) { event = event ?? f.event; f.event = null; }
+  event = event ?? mechEvent;
 
   if (f.tension >= f.tensionLimit && f.secondWind) { f.secondWind = false; f.tension = f.tensionLimit * 0.5; f.secondWindAt = f.elapsed; return "secondwind"; }
   if (f.tension >= f.tensionLimit) { session.phase = "done"; session.outcome = "broke"; return "broke"; }
