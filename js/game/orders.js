@@ -1,5 +1,5 @@
 // Village orders on the notice board: 3 optional requests per in-game day, paying more than the market.
-import { FISH, FISH_BY_ID, LOCATIONS, LOCATION_LABELS, RARITIES, RARITY_LABELS, RARITY_RANK, TIME_BUCKETS, TIME_LABELS, ORDERS } from "./content.js";
+import { FISH, FISH_BY_ID, LOCATIONS, LOCATION_GATES, LOCATION_LABELS, RARITIES, RARITY_LABELS, RARITY_RANK, TIME_BUCKETS, TIME_LABELS, ORDERS } from "./content.js";
 import { createRng } from "./rng.js";
 import { priceOf } from "./economy.js";
 import { addXp } from "./skills.js";
@@ -9,10 +9,12 @@ const avg = list => list.reduce((a, b) => a + b, 0) / list.length;
 /** Locations the player can fish at right now. */
 export function reachableLocations(state) {
   return LOCATIONS.filter(l => l === "lake" || (l === "river" && state.unlocked.includes("river"))
-    || (l === "sea" && state.unlocked.includes("sea")) || (l === "offshore" && state.boatOwned));
+    || (l === "sea" && state.unlocked.includes("sea")) || (l === "offshore" && state.boatOwned)
+    || (l === "trench" && state.boatOwned && state.gear.line >= LOCATION_GATES.trench.gear.line));
 }
 
-const orderFish = loc => FISH.filter(f => f.location === loc && !f.legendary && !f.weather);
+// Order templates only ask for regular fish (weather-only fish, odd catches and legends are too random to request).
+const orderFish = loc => FISH.filter(f => f.location === loc && !f.legendary && !f.weather && !f.special);
 
 // Each template builds one order from a seeded rng. Rewards are ORDERS.rewardMult x the plain market price.
 const TEMPLATES = {

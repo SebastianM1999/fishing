@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portrait sheet</title>
+<!-- Dev tool: every species portrait, discovered and silhouette, for art consistency checks. Not precached. -->
+<style>
+  body { margin: 0; padding: 16px; background: #b98a58; font: 12px/1.2 "Segoe UI", system-ui, sans-serif; color: #3b3129; }
+  h2 { margin: 12px 0 6px; color: #fbf4e4; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--w, 150px), 1fr)); gap: 8px; }
+  .cell { background: #fbf4e4; border-radius: 10px; padding: 6px; text-align: center; }
+  .cell.sil { background: #d9ccb4; }
+  .cell svg { width: 100%; height: auto; }
+  .cell b { display: block; font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="out"></div>
+<script type="module">
+  import { COLLECTION, LOCATIONS, LOCATION_LABELS, kindOf } from "../js/game/content.js";
+  import { fishSvg } from "../js/ui/fishArt.js";
+  const q = new URLSearchParams(location.search), sil = q.has("sil"), only = q.get("only")?.split(",");
+  document.getElementById("out").innerHTML = LOCATIONS.map(loc => `<h2>${LOCATION_LABELS[loc]}</h2><div class="grid">${
+    COLLECTION.filter(f => f.location === loc && (!only || only.some(o => f.id.includes(o)))).map(f => `<div class="cell">${fishSvg(f, { size: 150 })}<b>${f.name}</b><small>${kindOf(f)}</small></div>`
+      + (sil ? `<div class="cell sil">${fishSvg(f, { silhouette: true, size: 150 })}<b>???</b></div>` : "")).join("")}</div>`).join("");
+  if (q.get("w")) document.body.style.setProperty("--w", `${q.get("w")}px`);
+  document.body.dataset.ready = "1";
+</script>
+</body>
+</html>

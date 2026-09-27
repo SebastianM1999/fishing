@@ -253,7 +253,10 @@ function travel(to) {
 
 function interact(it) {
   switch (it.type) {
-    case "fish": startFishing(it); break;
+    case "fish":
+      if (fishing.locationOpen(state, it.location)) startFishing(it);
+      else ui.toast(content.LOCATION_GATES[it.location].hint);
+      break;
     case "shop": ui.openShop(state); break;
     case "board": ui.openBoard(); break;
     case "trophies": ui.openTrophies(); break;
@@ -287,6 +290,7 @@ function actionLabelFor(it) {
     return { label: `${content.REGIONS[it.region].name} — clear the ${content.REGIONS[content.REGIONS[it.region].requires].name.toLowerCase()} first`, locked: true };
   }
   if (it.type === "barrier") return { label: `${content.REGIONS[it.region].name} — clear for ${content.REGIONS[it.region].price} coins`, locked: state.coins < content.REGIONS[it.region].price };
+  if (it.type === "fish" && !fishing.locationOpen(state, it.location)) return { label: `${it.label} — needs a ${content.GEAR.line[content.LOCATION_GATES[it.location].gear.line].name}`, locked: true };
   return { label: it.label, locked: false };
 }
 
@@ -446,7 +450,7 @@ function frame(now) {
       const { label, locked } = actionLabelFor(it);
       ui.setAction(label, locked);
       if (it.type === "fish" && skills.skillEffects(state).fishFinder) {
-        finder = fishing.fishTable(it.location, bucket, wx);
+        finder = fishing.fishTable(it.location, bucket, wx, state.gear);
         finderHunt = fishing.huntAt(state, it.location, bucket, bucketProgress(state.timeMs));
       }
       if (actions.interact) interact(it);
