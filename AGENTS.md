@@ -17,7 +17,10 @@ Project skills live in `.claude/skills/`:
 - a golden first-catch card where the player chooses the wallboard (0 coins) or the bag;
 - construction barriers: river 250 coins, then sea 750;
 - the boat is sold by an NPC at the sea dock;
-- shopkeeper and boat-seller NPCs.
+- shopkeeper, boat-seller and notice-board (Nell) NPCs;
+- leveling + skill tree (coins buy gear, XP buys technique), no hooks or tackle;
+- an enterable house with the collection board and a 3-spot trophy shelf;
+- daily village orders, catch streaks and 4 named legendary fish (collection 24).
 
 Don't "fix" these back to the spec.
 
@@ -49,7 +52,7 @@ Don't "fix" these back to the spec.
   - `E` interacts everywhere, including Continue and confirming or closing dialogs.
   - `Space` or mouse click hooks and reels. Catching inputs must never close the catch card.
   - `B` keeps a first catch in the bag.
-  - `I` opens the bag, `C` the collection, and `Esc` closes.
+  - `I` opens the bag, `K` the skill tree, and `Esc` closes. There is no collection hotkey: the collection board and trophy shelf only open inside the house.
 - The user prefers icons over text in the UI and a warm, cozy look over generic styling.
 
 ## Git
