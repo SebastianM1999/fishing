@@ -78,6 +78,7 @@ export const INTERACTIONS = [
   { id: "spot_sea", type: "fish", location: "sea", area: "land", x: -8, z: 18, r: 1.6, facing: 0, label: "Fish from the shore" },
   { id: "spot_offshore", type: "fish", location: "offshore", area: "offshore", x: 0, z: 82.8, r: 1.4, facing: 0, label: "Fish offshore" },
   { id: "shop", type: "shop", area: "land", x: 6, z: -5.1, r: 2.1, label: "Talk to Mira (shop)" },
+  { id: "notices", type: "quests", area: "land", x: 0, z: -10.1, r: 1.9, label: "Talk to Nell (orders)" },
   { id: "enter_home", type: "enter", area: "land", x: -8, z: -6.7, r: 1.2, label: "Go inside" },
   { id: "exit_home", type: "exit", area: "home", x: -150, z: -146.1, r: 1.3, label: "Go outside" },
   { id: "board", type: "board", area: "home", x: -152.6, z: -153.2, r: 1.9, label: "View the collection" },
@@ -92,6 +93,7 @@ export const INTERACTIONS = [
 export const NPCS = [
   { id: "shopkeeper", name: "Mira", outfit: "shopkeeper", x: 6, z: -7.05, facing: 0 },
   { id: "boatseller", name: "Captain Olsen", outfit: "sailor", x: 4.72, z: 21.1, facing: Math.PI },
+  { id: "courier", name: "Nell", outfit: "courier", x: -2.9, z: -10.3, facing: 0.4 },
 ];
 const NPC_RADIUS = 0.4;
 // Shop counter in front of the shopkeeper.

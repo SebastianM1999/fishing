@@ -406,6 +406,9 @@ export const OUTFITS = {
   // Boat seller: sailor cap, blue-striped shirt, full beard.
   sailor: { hat: "sailor", vest: false, creel: false, rod: false, stripes: true, beard: true,
     colors: { shirt: "#f4f1ea", shirtDark: "#3f6e8c", denim: "#2f3f5a", denimLight: "#44567a", hair: "#b0764a", skin: "#e8b88f", scarf: "#3f6e8c" } },
+  // Notice-board courier: hair bun with a flower, rosy cardigan, satchel full of letters.
+  courier: { hat: "bun", vest: false, creel: false, rod: false, satchel: true,
+    colors: { shirt: "#d98a8a", shirtDark: "#b86a6a", denim: "#6b5a7a", denimLight: "#85749a", hair: "#9a5a34", scarf: "#f2cf5b", satchel: "#8a6242" } },
 };
 
 export function makeCharacter(opts) {
@@ -463,6 +466,11 @@ export function makeCharacter(opts) {
   }
   torso.add(mesh(G.torus(0.15, 0.06, 6, 12), M.scarf, 0, 0.74, 0.02, PI / 2, 0, 0));
   torso.add(mesh(G.cone(0.08, 0.16, 4), M.scarf, 0, 0.64, 0.17, PI, 0, 0, [1, 1, 0.5]));
+  if (o.satchel) {
+    torso.add(mesh(G.box(0.05, 0.75, 0.04), M.satchel, -0.1, 0.42, 0.01, 0, 0, -0.62));
+    torso.add(mesh(G.box(0.3, 0.26, 0.12), M.satchel, 0.27, 0.12, 0.08, 0, 0.5, 0));
+    torso.add(mesh(G.box(0.18, 0.12, 0.02), M.white, 0.22, 0.28, 0.14, 0, 0.5, 0.1));
+  }
   if (o.creel) {
     // Creel basket with strap
     torso.add(mesh(G.box(0.44, 0.4, 0.24), M.wicker, 0, 0.42, -0.36));
@@ -496,7 +504,12 @@ export function makeCharacter(opts) {
   head.add(mesh(G.ico(0.12, 0), M.hair, 0.08, 0.22, 0.2, 0.4, 0, 0, [1.4, 0.5, 0.8])); // fringe under the hat
   const hat = new THREE.Group();
   head.add(hat);
-  if (o.hat === "cap") {
+  if (o.hat === "bun") {
+    // No hat: hair bun with a flower, hair falling behind the ears
+    hat.add(mesh(G.sphere(0.17, 10, 8), M.hair, 0, 0.28, -0.18));
+    hat.add(mesh(G.sphere(0.06, 6, 4), M.scarf, 0.14, 0.34, -0.08));
+    hat.add(mesh(G.box(0.5, 0.36, 0.14), M.hair, 0, -0.08, -0.25));
+  } else if (o.hat === "cap") {
     // Flat cap with a short brim
     hat.position.set(0, 0.22, 0);
     hat.rotation.x = -0.15;
