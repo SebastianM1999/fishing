@@ -1,31 +1,37 @@
 // Cast -> wait -> bite/hook -> catch minigame. Pure simulation on plain data; no DOM or Three.js.
 import {
   FISH, FISH_BY_ID, RARITY_WEIGHTS, RARITY_MULTIPLIER, RARITY_FIGHT, BEHAVIORS, EXHAUSTED,
-  HOOK, BITE_WAIT_MS, MINIGAME, GEAR, TACKLE_BY_ID,
+  HOOK, BITE_WAIT_MS, MINIGAME, GEAR,
 } from "./content.js";
+import { skillEffects } from "./skills.js";
 
 const CAST_MS = 600;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
-/** Effective fishing stats from equipped gear + tackle. */
-export function getStats(state) {
+/** Effective fishing stats from equipped gear + learned skills. bucket = time of day (Twilight Angler). */
+export function getStats(state, bucket) {
   const rod = GEAR.rod[state.gear.rod];
   const reel = GEAR.reel[state.gear.reel];
   const line = GEAR.line[state.gear.line];
-  const hook = GEAR.hook[state.gear.hook];
-  const tackle = state.equippedTackle ? TACKLE_BY_ID[state.equippedTackle] : null;
+  const fx = skillEffects(state, bucket);
   return {
-    zoneWidth: rod.zoneWidth,
+    zoneWidth: rod.zoneWidth + fx.zoneWidthBonus,
     reelSpeed: reel.speed,
-    reelRecovery: reel.recovery,
+    reelRecovery: reel.recovery * fx.tensionRecoveryMult,
     tensionLimit: line.tensionLimit,
-    hookWindowMs: hook.hookWindowMs,
-    progressLossMult: hook.progressLossMult,
-    zoneEaseMult: tackle?.zoneEaseMult ?? 1,
-    burstMult: tackle?.burstMult ?? 1,
-    zoneSpeedMult: tackle?.zoneSpeedMult ?? 1,
-    rareWeightMult: tackle?.rareWeightMult ?? 1,
-    biteWaitExtraMs: tackle?.biteWaitExtraMs ?? 0,
+    tensionGrowthMult: fx.tensionGrowthMult,
+    hookWindowMs: 900 + fx.hookWindowBonusMs,
+    perfectMs: HOOK.perfectMs + fx.perfectBonusMs,
+    perfectProgressBonus: HOOK.perfectProgressBonus + fx.perfectProgressBonus,
+    progressLossMult: 1,
+    zoneEaseMult: fx.zoneEaseMult,
+    burstMult: fx.burstMult,
+    zoneSpeedMult: 1,
+    rareWeightMult: fx.rareWeightMult,
+    biteWaitMult: fx.biteWaitMult,
+    secondWind: fx.secondWind,
+    fishWhisperer: fx.fishWhisperer,
+    xpMult: fx.xpMult,
   };
 }
 
@@ -64,7 +70,7 @@ export function rollEncounter(rng, location, bucket, stats) {
 
 /** Start a cast. The fish table is chosen from location + current time bucket at cast time. */
 export function startCast(rng, location, bucket, stats) {
-  const waitMs = rng.range(BITE_WAIT_MS[0], BITE_WAIT_MS[1] + stats.biteWaitExtraMs);
+  const waitMs = rng.range(BITE_WAIT_MS[0] * stats.biteWaitMult, BITE_WAIT_MS[1] * stats.biteWaitMult);
   return {
     phase: "cast",
     location,
@@ -73,6 +79,8 @@ export function startCast(rng, location, bucket, stats) {
     castMs: CAST_MS,
     biteAtMs: CAST_MS + waitMs,
     hookWindowMs: stats.hookWindowMs,
+    perfectMs: stats.perfectMs,
+    whisper: stats.fishWhisperer,
     encounter: rollEncounter(rng, location, bucket, stats),
     hookQuality: null,
     fight: null,
@@ -88,7 +96,7 @@ export function pressAction(session, rng, stats) {
     return "early";
   }
   if (session.phase === "bite") {
-    session.hookQuality = session.t <= HOOK.perfectMs ? "perfect" : "good";
+    session.hookQuality = session.t <= session.perfectMs ? "perfect" : "good";
     session.phase = "fight";
     session.fight = createFight(session, rng, stats);
     return "hooked";
@@ -111,11 +119,12 @@ function createFight(session, rng, stats) {
     zonePos: 0.35,
     zoneTarget: 0.35,
     zoneWidth: stats.zoneWidth,
-    progress: MINIGAME.startProgress + (perfect ? HOOK.perfectProgressBonus : 0),
+    progress: MINIGAME.startProgress + (perfect ? stats.perfectProgressBonus : 0),
     tensionLimit: stats.tensionLimit,
     tension: stats.tensionLimit * (MINIGAME.startTensionFrac - (perfect ? HOOK.perfectTensionReduction : 0)),
     inside: false,
     elapsed: 0,
+    secondWind: stats.secondWind, // unused Second Wind charge for this fight
   };
   enterPhase(fight, "normal", rng);
   return fight;
@@ -146,7 +155,7 @@ function retarget(fight, rng) {
 
 /**
  * Advance a session by dtMs. input.reelHeld = the player's active control.
- * Returns an event name ("bite", "missed", "caught", "broke", "escaped") or null.
+ * Returns an event name ("bite", "missed", "caught", "broke", "escaped", "secondwind") or null.
  */
 export function updateFishing(session, dtMs, input, rng, stats) {
   session.t += dtMs;
@@ -207,11 +216,12 @@ function updateFight(session, dt, held, rng, stats) {
   // Line tension.
   if (held) {
     const spike = burst ? b.tensionSpike * r.burstStrength * stats.burstMult : 1;
-    f.tension += MINIGAME.tensionGrowth * spike * (exhausted ? EXHAUSTED.tensionGrowthMult : 1) * dt;
+    f.tension += MINIGAME.tensionGrowth * stats.tensionGrowthMult * spike * (exhausted ? EXHAUSTED.tensionGrowthMult : 1) * dt;
   } else {
     f.tension = Math.max(0, f.tension - MINIGAME.tensionRecovery * stats.reelRecovery * dt);
   }
 
+  if (f.tension >= f.tensionLimit && f.secondWind) { f.secondWind = false; f.tension = f.tensionLimit * 0.5; f.secondWindAt = f.elapsed; return "secondwind"; }
   if (f.tension >= f.tensionLimit) { session.phase = "done"; session.outcome = "broke"; return "broke"; }
   if (f.progress >= 1) { f.progress = 1; session.phase = "done"; session.outcome = "caught"; return "caught"; }
   if (f.progress <= 0) { f.progress = 0; session.phase = "done"; session.outcome = "escaped"; return "escaped"; }

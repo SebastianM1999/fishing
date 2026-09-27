@@ -1,7 +1,8 @@
 // Inventory, collection, selling, shop and boat rules on plain state.
-import { GEAR, TACKLE_BY_ID, BOAT_PRICE, REGIONS, RARITY_RANK, BAGS } from "./content.js";
+import { GEAR, BOAT_PRICE, REGIONS, RARITY_RANK, BAGS, FISH_BY_ID } from "./content.js";
+import { skillEffects, normalizedSize } from "./skills.js";
 
-export const bagCapacity = state => BAGS[state.bag].slots;
+export const bagCapacity = state => BAGS[state.bag].slots + skillEffects(state).bagBonus;
 export const bagFull = state => state.inventory.length >= bagCapacity(state);
 
 /** True if catch a beats catch b as a species record: rarer first, then bigger. */
@@ -13,6 +14,8 @@ export function isBetterRecord(a, b) {
 
 /** A species not yet on the wallboard: its catch waits for the player's choice (wallboard or bag). */
 export const isNewSpecies = (state, encounter) => !state.discovered.includes(encounter.speciesId);
+/** Never caught before (no record either): earns the first-catch XP bonus once, whatever the player chooses. */
+export const isFirstCatch = (state, encounter) => isNewSpecies(state, encounter) && !state.records[encounter.speciesId];
 
 function logRecord(state, encounter, fish, released, mounted) {
   const id = encounter.speciesId;
@@ -54,23 +57,37 @@ export function placeNewSpecies(state, encounter, choice) {
   return { discovered: false, fish, released: false };
 }
 
-function markSold(state, fish) {
+/** Sell price today: fish.value (base) plus Haggler, Tall Tales and Trophy Hunter bonuses. */
+export function priceOf(state, fish) {
+  const fx = skillEffects(state);
+  let mult = 1 + fx.sellBonus + fx.tallTales * normalizedSize(FISH_BY_ID[fish.speciesId], fish.sizeCm);
+  if (fx.trophyHunter) mult += state.discovered.length * 0.01 + (fish.rarity === "legendary" ? 0.5 : 0);
+  return Math.max(1, Math.round(fish.value * mult));
+}
+export const inventoryWorth = state => state.inventory.reduce((sum, f) => sum + priceOf(state, f), 0);
+
+function markSold(state, fish, price) {
   const rec = state.records[fish.speciesId];
-  if (rec && rec.uid === fish.uid) rec.sold = true;
+  if (rec && rec.uid === fish.uid) { rec.sold = true; rec.soldFor = price; }
 }
 
 export function sellOne(state, uid) {
   const i = state.inventory.findIndex(f => f.uid === uid);
   if (i < 0) return 0;
+  const price = priceOf(state, state.inventory[i]);
   const [fish] = state.inventory.splice(i, 1);
-  markSold(state, fish);
-  state.coins += fish.value;
-  return fish.value;
+  markSold(state, fish, price);
+  state.coins += price;
+  return price;
 }
 
 export function sellAll(state) {
-  const total = state.inventory.reduce((sum, f) => sum + f.value, 0);
-  for (const fish of state.inventory) markSold(state, fish);
+  let total = 0;
+  for (const fish of state.inventory) {
+    const price = priceOf(state, fish);
+    markSold(state, fish, price);
+    total += price;
+  }
   state.inventory = [];
   state.coins += total;
   return total;
@@ -104,21 +121,6 @@ export function buyGear(state, slot) {
   if (!item || state.coins < item.price) return false;
   state.coins -= item.price;
   state.gear[slot] += 1; // new tier is equipped automatically
-  return true;
-}
-
-export function buyTackle(state, id) {
-  const item = TACKLE_BY_ID[id];
-  if (!item || state.ownedTackle.includes(id) || state.coins < item.price) return false;
-  state.coins -= item.price;
-  state.ownedTackle.push(id);
-  state.equippedTackle = id;
-  return true;
-}
-
-export function equipTackle(state, id) {
-  if (!state.ownedTackle.includes(id)) return false;
-  state.equippedTackle = id;
   return true;
 }
 

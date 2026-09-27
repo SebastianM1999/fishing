@@ -123,30 +123,57 @@ export const GEAR = {
     { id: "line_braided", name: "Braided Line", price: 350, tensionLimit: 135 },
     { id: "line_heavy", name: "Heavy Line", price: 650, tensionLimit: 160 },
   ],
-  hook: [
-    { id: "hook_standard", name: "Standard Hook", price: 0, hookWindowMs: 900, progressLossMult: 1.0 },
-    { id: "hook_wide", name: "Wide Hook", price: 120, hookWindowMs: 1050, progressLossMult: 1.0 },
-    { id: "hook_barbed", name: "Barbed Hook", price: 300, hookWindowMs: 1200, progressLossMult: 0.95 },
-  ],
 };
 
-export const GEAR_SLOTS = ["rod", "reel", "line", "hook"];
-export const GEAR_LABELS = { rod: "Rod", reel: "Reel", line: "Line", hook: "Hook", tackle: "Tackle" };
-
-// Tackle: buy any, equip one.
-export const TACKLE = [
-  { id: "tackle_float", name: "Float", price: 150, effect: "Zone movement 12% smoother", zoneEaseMult: 1.12 },
-  { id: "tackle_heavy_sinker", name: "Heavy Sinker", price: 200, effect: "Burst intensity -10%, zone speed -8%", burstMult: 0.9, zoneSpeedMult: 0.92 },
-  { id: "tackle_spinner", name: "Spinner", price: 350, effect: "Rare/Legendary +25% weighting; bite wait +1s max", rareWeightMult: 1.25, biteWaitExtraMs: 1000 },
-];
-export const TACKLE_BY_ID = Object.fromEntries(TACKLE.map(t => [t.id, t]));
+export const GEAR_SLOTS = ["rod", "reel", "line"];
+export const GEAR_LABELS = { rod: "Rod", reel: "Reel", line: "Line" };
 
 export function gearEffectText(slot, item) {
   switch (slot) {
     case "rod": return `Zone width ${Math.round(item.zoneWidth * 100)}%`;
     case "reel": return `Speed ${item.speed.toFixed(2)}x, recovery ${item.recovery.toFixed(2)}x`;
     case "line": return `Tension limit ${item.tensionLimit}`;
-    case "hook": return `Hook window ${item.hookWindowMs} ms${item.progressLossMult < 1 ? ", 5% slower progress loss" : ""}`;
     default: return "";
   }
 }
+
+// Leveling: XP from catches; XP needed from level L to L+1 = 40 + 25 * (L - 1). One skill point per level gained.
+export const LEVEL_CAP = 25;
+export const RARITY_XP = { common: 1, rare: 2.5, legendary: 6 };
+export const XP_FIRST_CATCH = 50;
+export const XP_PERFECT_HOOK = 5;
+export const RESPEC_FEE_PER_LEVEL = 25;
+
+// Skill tree: 3 branches x 3 tiers. A tier opens once enough points are spent in its branch.
+export const TIER_POINTS = [0, 3, 7];
+export const SKILL_BRANCHES = [
+  { id: "angler", name: "Angler", icon: "rod", color: "#b8683a", about: "The fight" },
+  { id: "naturalist", name: "Naturalist", icon: "leaf", color: "#5f8f4e", about: "Finding fish" },
+  { id: "merchant", name: "Merchant", icon: "coin", color: "#c9962a", about: "Money" },
+];
+
+const pctText = v => `${+(v * 100).toFixed(1)}%`;
+// per: effect value per rank; text(rank) describes the total effect at that rank.
+export const SKILLS = [
+  { id: "steady_hands", branch: "angler", tier: 0, name: "Steady Hands", icon: "width", max: 3, per: 0.015, text: r => `+${pctText(r * 0.015)} catch zone width` },
+  { id: "quick_reflexes", branch: "angler", tier: 0, name: "Quick Reflexes", icon: "timer", max: 3, per: 150, text: r => `+${r * 150} ms hook window` },
+  { id: "iron_grip", branch: "angler", tier: 1, name: "Iron Grip", icon: "tension", max: 3, per: 0.08, text: r => `−${r * 8}% tension growth, +${r * 8}% tension recovery` },
+  { id: "float_touch", branch: "angler", tier: 1, name: "Float Touch", icon: "smooth", max: 2, per: 0.12, text: r => `Zone movement ${r * 12}% smoother` },
+  { id: "perfect_strike", branch: "angler", tier: 1, name: "Perfect Strike", icon: "star", max: 2, per: 75, text: r => `Perfect-hook window ${250 + r * 75} ms, +${10 + r * 5}% perfect head start` },
+  { id: "second_wind", branch: "angler", tier: 2, name: "Second Wind", icon: "recovery", max: 1, per: 0.5, text: r => (r ? "Once per fight, a snapping line drops to 50% tension instead" : "No second chance when the line would snap") },
+
+  { id: "fish_finder", branch: "naturalist", tier: 0, name: "Fish Finder", icon: "eye", max: 1, per: 1, text: r => (r ? "See which fish can bite at a spot right now" : "Fishing spots keep their secrets") },
+  { id: "patience", branch: "naturalist", tier: 0, name: "Patience", icon: "wait", max: 3, per: 0.1, text: r => `−${r * 10}% bite wait` },
+  { id: "fishing_journal", branch: "naturalist", tier: 0, name: "Fishing Journal", icon: "book", max: 3, per: 0.1, text: r => `+${r * 10}% XP` },
+  { id: "keen_eye", branch: "naturalist", tier: 1, name: "Keen Eye", icon: "gem", max: 3, per: 0.1, text: r => `+${r * 10}% rare & legendary weighting` },
+  { id: "tire_them_out", branch: "naturalist", tier: 1, name: "Tire Them Out", icon: "burst", max: 2, per: 0.08, text: r => `Fish bursts −${r * 8}%` },
+  { id: "twilight_angler", branch: "naturalist", tier: 1, name: "Twilight Angler", icon: "moon", max: 1, per: 1, text: r => (r ? "At Dawn and Night: +15% rare weighting, +25% XP" : "Dawn and Night are like any other time") },
+  { id: "fish_whisperer", branch: "naturalist", tier: 2, name: "Fish Whisperer", icon: "whisper", max: 1, per: 1, text: r => (r ? "See the biting fish's silhouette and rarity before you hook it" : "Bites are a surprise") },
+
+  { id: "haggler", branch: "merchant", tier: 0, name: "Haggler", icon: "coin", max: 5, per: 0.05, text: r => `+${r * 5}% sell price` },
+  { id: "extra_pockets", branch: "merchant", tier: 0, name: "Extra Pockets", icon: "bag", max: 3, per: 2, text: r => `+${r * 2} bag slots` },
+  { id: "tall_tales", branch: "merchant", tier: 1, name: "Tall Tales", icon: "ruler", max: 2, per: 0.15, text: r => `Big fish worth up to +${r * 15}% (scales with size)` },
+  { id: "fish_courier", branch: "merchant", tier: 1, name: "Fish Courier", icon: "crate", max: 1, per: 1, text: r => (r ? "Sell fish from your bag anywhere" : "Fish are sold at the shop only") },
+  { id: "trophy_hunter", branch: "merchant", tier: 2, name: "Trophy Hunter", icon: "trophy", max: 1, per: 1, text: r => (r ? "Legendary fish +50%, +1% on all sales per mounted species" : "Trophies are just for show") },
+];
+export const SKILLS_BY_ID = Object.fromEntries(SKILLS.map(s => [s.id, s]));

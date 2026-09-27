@@ -6,6 +6,7 @@ import { advanceTime, timeBucket, bucketProgress } from "./game/time.js";
 import { PLAYER_SPEED, isWalkable, nearestInteraction, regionName, surfaceAt, TRAVEL } from "./game/world.js";
 import * as fishing from "./game/fishing.js";
 import * as economy from "./game/economy.js";
+import * as skills from "./game/skills.js";
 import { createInput } from "./input/input.js";
 import { createUI } from "./ui/ui.js";
 import { createRenderer } from "./render/scene.js";
@@ -68,14 +69,18 @@ const ui = createUI({
       audio.play("buy"); afterChange();
     }
   },
-  buyTackle(id) {
-    if (economy.buyTackle(state, id)) { ui.toast(`Equipped ${content.TACKLE_BY_ID[id].name}`); audio.play("buy"); afterChange(); }
-  },
   buyBag() {
     if (economy.buyBag(state)) { ui.toast(`${content.BAGS[state.bag].name}: ${economy.bagCapacity(state)} slots`); audio.play("buy"); afterChange(); }
   },
-  equipTackle(id) {
-    if (economy.equipTackle(state, id)) { ui.toast(`Equipped ${content.TACKLE_BY_ID[id].name}`); audio.play("ui"); afterChange(); }
+  learnSkill(id) {
+    if (!skills.learn(state, id)) { audio.play("denied"); return; }
+    const s = content.SKILLS_BY_ID[id];
+    ui.toast(`${s.name} ${skills.rankOf(state, id)} / ${s.max}`);
+    audio.play("buy"); afterChange();
+  },
+  respec() {
+    const cost = skills.respecCost(state);
+    if (skills.respec(state)) { ui.toast(`Skills refunded for ${cost} coins — spend your points again (press K)`); audio.play("unlock"); afterChange(); }
   },
   getPrefs: () => audio.prefs,
   setPref: (name, value) => audio.setPref(name, value),
@@ -156,6 +161,7 @@ addEventListener("keydown", e => {
   if (e.repeat || ui.anyDialogOpen() || game.session) return;
   if (e.code === "KeyI") ui.openBag();
   if (e.code === "KeyC") ui.openBoard();
+  if (e.code === "KeyK") ui.openSkills();
 });
 
 // --- Interactions ------------------------------------------------------------
@@ -209,8 +215,8 @@ function actionLabelFor(it) {
 
 function startFishing(spot) {
   if (economy.bagFull(state)) ui.toast(`Bag full (${state.inventory.length}/${economy.bagCapacity(state)}) — only new species can be kept. Sell at the shop!`);
-  const stats = fishing.getStats(state);
   const bucket = timeBucket(state.timeMs);
+  const stats = fishing.getStats(state, bucket);
   game.session = fishing.startCast(rng, spot.location, bucket, stats);
   game.session.spot = spot;
   game.moveTarget = null;
@@ -218,9 +224,30 @@ function startFishing(spot) {
   audio.play("cast");
 }
 
+/** XP for a landed fish; level-ups earn a skill point each. */
+function awardCatchXp(s) {
+  const species = content.FISH_BY_ID[s.encounter.speciesId];
+  const xp = skills.catchXp(species, s.encounter.rarity, s.encounter.sizeCm, {
+    first: economy.isFirstCatch(state, s.encounter), perfect: s.hookQuality === "perfect", mult: fishing.getStats(state, s.bucket).xpMult,
+  });
+  const levels = skills.addXp(state, xp);
+  if (levels > 0) {
+    const level = skills.levelOf(state.xp);
+    setTimeout(() => {
+      ui.toast(`Level ${level}! +${levels} skill point${levels > 1 ? "s" : ""} (press K)`);
+      ui.levelUp();
+      audio.play("levelup");
+    }, 650);
+  }
+  return xp;
+}
+
 function finishSession() {
   const s = game.session;
+  let xp = 0;
   if (s.outcome === "caught") {
+    xp = awardCatchXp(s);
+    saveSoon();
     audio.play("catch");
     if (economy.isNewSpecies(state, s.encounter)) {
       game.sessionResult = { newSpecies: true };
@@ -236,12 +263,12 @@ function finishSession() {
     else if (s.outcome !== "early") audio.play("lose");
   }
   if (s.outcome === "early") { ui.toast("Reeled in — nothing on the line yet."); game.session = null; return; }
-  ui.showCatchResult(s, game.sessionResult);
+  ui.showCatchResult(s, game.sessionResult, xp);
 }
 
 function updateSession(actions, dtMs) {
   const s = game.session;
-  const stats = fishing.getStats(state);
+  const stats = fishing.getStats(state, s.bucket);
   if (ui.catchVisible()) return; // closed only by its Continue button or Esc
   const reelIn = actions.interact && (s.phase === "cast" || s.phase === "wait");
   const hook = actions.hook && s.phase === "bite";
@@ -254,6 +281,7 @@ function updateSession(actions, dtMs) {
   const before = s.phase;
   const ev = fishing.updateFishing(s, dtMs, { reelHeld: s.reelHeld }, rng, stats);
   if (before === "cast" && s.phase === "wait") audio.play("plop");
+  if (ev === "secondwind") { audio.play("secondwind"); ui.toast("Second wind! The line holds."); }
   if (ev === "bite") {
     audio.play("bite");
     if (document.body.classList.contains("touch") && navigator.userActivation?.hasBeenActive) navigator.vibrate?.(80);
@@ -306,6 +334,8 @@ function frame(now) {
   const dialogOpen = ui.anyDialogOpen();
   advanceTime(state, dt * 1000);
 
+  const bucket = timeBucket(state.timeMs);
+  let finder = null;
   if (game.travelling || dialogOpen) {
     game.walking = false;
     ui.setAction(null);
@@ -321,11 +351,12 @@ function frame(now) {
     if (it) {
       const { label, locked } = actionLabelFor(it);
       ui.setAction(label, locked);
+      if (it.type === "fish" && skills.skillEffects(state).fishFinder) finder = fishing.fishTable(it.location, bucket);
       if (actions.interact) interact(it);
     } else ui.setAction(null);
   }
+  ui.setFinder(game.session ? null : finder, state.discovered);
 
-  const bucket = timeBucket(state.timeMs);
   ui.updateHud(state, bucket, bucketProgress(state.timeMs), regionName(state.player));
   ui.updateFishing(game.session);
   const result = ui.catchVisible() && game.session ? (game.session.outcome === "caught" ? "caught" : "lost") : null;
@@ -361,7 +392,7 @@ async function boot() {
   if (params.has("debug")) {
     window.cozy = {
       get state() { return state; }, get game() { return game; }, get rng() { return rng; },
-      content, fishing, economy, saveNow, deleteSave, audio, camera: renderer.camera,
+      content, fishing, economy, skills, saveNow, deleteSave, audio, camera: renderer.camera,
       renderInfo: () => ({ ...renderer.renderer.info.render, geometries: renderer.renderer.info.memory.geometries }),
       setTime(ms) { state.timeMs = ms; },
       teleport(x, z, area = "land") { Object.assign(state.player, { x, z, area }); },
