@@ -211,6 +211,16 @@ dialog::backdrop { background: rgb(40 32 26 / 0.35); }
 .boat-row { background: #e6f0f2; }
 
 .board-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+.board-tabs { display: flex; gap: 6px; padding: 12px 18px 0; flex-wrap: wrap; }
+.board-tab { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 3px solid #e2d3b4; border-radius: 999px; background: #fffaf0; font: inherit; font-weight: 800; font-size: 14px; color: var(--ink-soft); cursor: pointer; }
+.board-tab.active { background: var(--wood); border-color: var(--wood-dark); color: #fffaf0; }
+.board-tab .tab-count { font-size: 12px; opacity: 0.85; }
+.board-tab.done:not(.active) { border-color: var(--leaf); color: var(--leaf-dark); }
+.board-body { display: grid; gap: 6px; align-content: start; }
+.board-section { display: flex; align-items: center; gap: 6px; margin: 4px 0 0; font-size: 15px; color: var(--wood-dark); }
+.board-section svg { width: 18px; height: 18px; }
+.board-slot.legend.found { border-color: #e2b84a; background: linear-gradient(#fffaf0, #fff1c8); }
+.board-tip .tip-flavor { font-size: 13px; color: var(--ink-soft); }
 .board-slot { position: relative; display: grid; justify-items: center; gap: 2px; padding: 8px 4px; background: #fffaf0; border: 3px solid #e2d3b4; border-radius: 14px; text-align: center; font: inherit; color: inherit; cursor: pointer; transition: transform 0.12s, box-shadow 0.12s; }
 .board-slot:hover, .board-slot:focus-visible { transform: translateY(-2px); box-shadow: 0 6px 14px rgb(40 28 18 / 0.18); }
 .slot-rarity { position: absolute; top: 6px; right: 6px; }

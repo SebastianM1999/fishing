@@ -538,6 +538,7 @@ export function createRenderer(canvas) {
       m.material.opacity = Math.pow(Math.sin(Math.PI * u), 1.5) * 0.75;
     });
     for (const m of env.markers) m.material.opacity = 0.3 + Math.sin(elapsed * 2) * 0.15;
+    { const t = env.trenchPatch.position; t.y = SEA_Y + 0.14 + waveHeight(t.x, t.z, elapsed); }
     env.buoys.forEach((b, i) => { b.position.y = SEA_Y + waveHeight(b.position.x, b.position.z, elapsed); b.rotation.z = Math.sin(elapsed * 1.3 + i) * 0.18; });
     M.foam.opacity = 0.35 + Math.sin(elapsed * 1.2) * 0.2;
     env.seaFoam.position.z = WORLD.land.maxZ + 2.0 + Math.sin(elapsed * 1.2) * 0.35;

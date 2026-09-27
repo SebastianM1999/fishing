@@ -2,6 +2,7 @@
 import {
   FISH, FISH_BY_ID, TIME_LABELS, WEATHER, LOCATION_LABELS, RARITY_LABELS, GEAR, GEAR_SLOTS, GEAR_LABELS,
   BAGS, SKILLS, SKILLS_BY_ID, SKILL_BRANCHES, TIER_POINTS, STREAK, LEGENDARIES,
+  LOCATIONS, COLLECTION, KINDS, KIND_LABELS, kindOf,
 } from "../game/content.js";
 import { priceOf, inventoryWorth, bagCapacity, bagFull, streakBonus } from "../game/economy.js";
 import { orderText, matchingFish, canHandIn } from "../game/orders.js";
@@ -39,7 +40,7 @@ export function createUI(handlers) {
     toasts: $("toasts"), fade: $("fade"),
     shop: $("shop-dialog"), shopCoins: $("shop-coins"), market: $("shop-market"), gear: $("shop-gear"),
     bag: $("bag-dialog"), bagBody: $("bag-body"),
-    board: $("board-dialog"), boardBody: $("board-body"), boardCount: $("board-count"), boardTip: $("board-tip"),
+    board: $("board-dialog"), boardBody: $("board-body"), boardTabs: $("board-tabs"), boardCount: $("board-count"), boardTip: $("board-tip"),
     unlock: $("unlock-dialog"), unlockTitle: $("unlock-title"), unlockText: $("unlock-text"), unlockPrice: $("unlock-price"), unlockHave: $("unlock-have"), unlockPay: $("unlock-pay"),
     catchExtra: $("catch-extra"), catchXp: $("catch-xp"),
     settings: $("settings-dialog"),
@@ -114,6 +115,7 @@ export function createUI(handlers) {
       const fate = rec.sold ? `Sold for ${coinHtml(rec.soldFor ?? rec.value)}` : rec.released ? `Released (bag was full) · worth ${worth}` : rec.mounted ? `Mounted on the wallboard · worth ${worth}` : `In your bag · worth ${worth}`;
       html = `<div class="tip-art">${fishSvg(f, { size: 200 })}</div>
         <strong>${f.name} ${rarityHtml(rec.rarity, 22)}</strong>
+        ${f.flavor ? `<em class="tip-flavor">${f.flavor}</em>` : ""}
         <span class="tip-label">Best catch</span>
         <span class="tip-stat">${rec.sizeCm.toFixed(1)} cm · ${RARITY_LABELS[rec.rarity]}</span>
         <span>${fate}</span>`;
@@ -258,17 +260,37 @@ export function createUI(handlers) {
       ${n ? `<ul class="fish-list">${state.inventory.map(f => fishRow(f, { sellable: courier })).join("")}</ul>` : `<p class="empty">Your bag is empty. Go fishing!</p>`}`;
   }
 
+  // Collection: one tab per location, split into fish / odd catches / legends & myths.
+  const KIND_ICONS = { fish: "fish", odd: "gem", legend: "star", mythic: "moon" };
+  let boardTab = "lake";
   function renderBoard() {
     el.boardCount.textContent = `${state.discovered.length} / ${FISH.length}`;
-    el.boardBody.innerHTML = FISH.map(f => {
-      const found = state.discovered.includes(f.id);
-      const rec = state.records[f.id];
-      return `<button type="button" class="board-slot ${found ? "found" : ""}" data-species="${f.id}" aria-label="${found ? f.name : "Undiscovered fish"}">
-        ${rec ? `<span class="slot-rarity">${rarityHtml(rec.rarity, 20)}</span>` : ""}
-        ${fishSvg(f, { silhouette: !found, size: 120 })}
-        <span class="name">${found ? f.name : "???"}</span><span class="loc">${LOCATION_LABELS[f.location]}</span></button>`;
+    el.boardTabs.innerHTML = LOCATIONS.map(loc => {
+      const list = COLLECTION.filter(f => f.location === loc), n = list.filter(f => state.discovered.includes(f.id)).length;
+      return `<button type="button" role="tab" class="board-tab ${loc === boardTab ? "active" : ""} ${n === list.length ? "done" : ""}" data-tab="${loc}" aria-selected="${loc === boardTab}">
+        ${LOCATION_LABELS[loc]} <span class="tab-count">${n}/${list.length}</span></button>`;
+    }).join("");
+    const inTab = COLLECTION.filter(f => f.location === boardTab);
+    const groups = [["fish"], ["odd"], ["legend", "mythic"]].map(kinds => inTab.filter(f => kinds.includes(kindOf(f)))).filter(g => g.length);
+    el.boardBody.innerHTML = groups.map(list => {
+      const kind = kindOf(list[0]), label = kind === "fish" || kind === "odd" ? KIND_LABELS[kind] : "Legends & myths";
+      const n = list.filter(f => state.discovered.includes(f.id)).length;
+      return `<h3 class="board-section">${ICONS[KIND_ICONS[kind]]} ${label} <span class="muted">${n} / ${list.length}</span></h3><div class="board-grid">${list.map(f => {
+        const found = state.discovered.includes(f.id);
+        const rec = state.records[f.id];
+        return `<button type="button" class="board-slot ${found ? "found" : ""} ${f.legendary ? "legend" : ""}" data-species="${f.id}" aria-label="${found ? f.name : "Undiscovered creature"}">
+          ${rec ? `<span class="slot-rarity">${rarityHtml(rec.rarity, 20)}</span>` : ""}
+          ${fishSvg(f, { silhouette: !found, size: 120 })}
+          <span class="name">${found ? f.name : "???"}</span></button>`;
+      }).join("")}</div>`;
     }).join("");
   }
+  el.boardTabs.addEventListener("click", e => {
+    const tab = e.target.closest("[data-tab]");
+    if (!tab) return;
+    boardTab = tab.dataset.tab;
+    renderBoard();
+  });
 
   function refreshOpenPanels() {
     if (el.shop.open) { el.shopCoins.textContent = state.coins; renderMarket(); renderGear(); }

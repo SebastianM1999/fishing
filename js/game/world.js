@@ -77,6 +77,7 @@ export const INTERACTIONS = [
   { id: "spot_river", type: "fish", location: "river", area: "land", x: 14, z: -6, r: 1.6, facing: Math.PI / 2, label: "Fish in the river" },
   { id: "spot_sea", type: "fish", location: "sea", area: "land", x: -8, z: 18, r: 1.6, facing: 0, label: "Fish from the shore" },
   { id: "spot_offshore", type: "fish", location: "offshore", area: "offshore", x: 0, z: 82.8, r: 1.4, facing: 0, label: "Fish offshore" },
+  { id: "spot_trench", type: "fish", location: "trench", area: "offshore", x: 1.15, z: 80.2, r: 1.2, facing: Math.PI / 2, label: "Fish the deep trench" },
   { id: "shop", type: "shop", area: "land", x: 6, z: -5.1, r: 2.1, label: "Talk to Mira (shop)" },
   { id: "notices", type: "quests", area: "land", x: 0, z: -10.1, r: 1.9, label: "Talk to Nell (orders)" },
   { id: "enter_home", type: "enter", area: "land", x: -8, z: -6.7, r: 1.2, label: "Go inside" },

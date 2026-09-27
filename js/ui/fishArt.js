@@ -20,6 +20,8 @@ const SHAPES = {
   billfish: { L: 70, H: 19, peak: 0.55, belly: 1, blunt: 0.2, ny: 0, pH: 0.18, tail: "lunate", dorsal: [0, 0.45, 22, "sickle"], anal: [-0.45, -0.2, 12], eye: [0.74, -0.2], eyeR: 5, gill: 0.5 },
   mahi: { L: 66, H: 28, peak: 0.85, belly: 0.8, blunt: 0.95, ny: 0.15, pH: 0.2, tail: "fork", dorsal: [-0.85, 0.75, 11, "long"], anal: [-0.85, -0.05, 9], eye: [0.76, -0.05], eyeR: 5, gill: 0.55 },
   flat: { L: 56, H: 34, peak: 0.5, belly: 1, blunt: 0.5, ny: 0.1, pH: 0.3, tail: "round", eye: [0.64, -0.3], eyeR: 4.5, gill: 0.4 },
+  puffer: { L: 42, H: 33, peak: 0.55, belly: 1, blunt: 0.85, ny: 0.1, pH: 0.24, tail: "truncate", dorsal: [-0.6, -0.28, 11, "soft"], anal: [-0.6, -0.3, 10], eye: [0.6, -0.32], eyeR: 7.5, gill: 0.38 },
+  angler: { L: 50, H: 38, peak: 0.72, belly: 0.95, blunt: 0.95, ny: 0.15, pH: 0.24, tail: "forkSoft", dorsal: [-0.6, -0.25, 11, "soft"], anal: [-0.62, -0.3, 10], eye: [0.5, -0.5], eyeR: 4.2, gill: 0.28, noGill: true },
   shark: { L: 80, H: 20, peak: 0.55, belly: 0.85, blunt: 0.25, ny: 0.12, pH: 0.18, tail: "hetero", dorsal: [0.02, 0.32, 24, "shark"], dorsal2: [-0.62, -0.52, 7, "shark"], anal: [-0.62, -0.5, 6], eye: [0.74, -0.25], eyeR: 3.6, gill: "slits" },
 };
 
@@ -148,6 +150,14 @@ export function fishSvg(species, { silhouette = false, size = 96 } = {}) {
       }
     }
   }
+  // Puffer spikes stick out all round the body (behind it, so only the tips show).
+  if (a.spikes) {
+    for (let i = 0; i < 9; i++) {
+      const x = cx - L * 0.7 + i * L * 0.19;
+      finPaths.push(`M${f1(x - 2.5)} ${f1(topY(x) + 3)} L${f1(x - 1)} ${f1(topY(x) - 6)} L${f1(x + 2.5)} ${f1(topY(x) + 3)} Z`);
+      finPaths.push(`M${f1(x - 2.5)} ${f1(botY(x) - 3)} L${f1(x - 1)} ${f1(botY(x) + 6)} L${f1(x + 2.5)} ${f1(botY(x) - 3)} Z`);
+    }
+  }
   // Pelvic fin (lower, behind body)
   if (a.shape !== "flat") {
     const x = cx + L * 0.1;
@@ -184,6 +194,15 @@ export function fishSvg(species, { silhouette = false, size = 96 } = {}) {
       case "stripe2": for (const dy of [-0.15, 0.2]) marks += `<path d="M${tailX} ${f1(cy + dy * H)} Q${cx} ${f1(cy + dy * H - 3)} ${cx + L * 0.7} ${f1(cy + dy * H - 2)}" stroke="${pc}" stroke-width="2.6" fill="none" opacity="0.9"/>`; break;
       case "vbars": for (let i = 0; i < 12; i++) { const x = cx - L * 0.75 + i * L * 0.12; marks += `<path d="M${f1(x)} ${cy - H} q2 ${H} 0 ${f1(H * 1.3)}" stroke="${pc}" stroke-width="2.4" opacity="0.7" fill="none"/>`; } break;
       case "orangespots": marks += scatter(16, -0.85, 0.85, (x, y) => `<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(2.2 + rnd() * 1.4)}" fill="${pc}" stroke="${shade(a.back, -0.2)}" stroke-width="0.8" opacity="0.9"/>`); break;
+      case "glow": {
+        const rows = a.shape === "slim" ? [0.1, 0.55] : [0.35];
+        for (const row of rows) for (let i = 0; i < 9; i++) {
+          const x = cx - L * 0.72 + i * L * 0.17, y = cy + H * row + (row > 0.3 ? Math.sin(i) : 0);
+          if (!within(x, y)) continue;
+          marks += `<circle cx="${f1(x)}" cy="${f1(y)}" r="3.4" fill="${pc}" opacity="0.35"/><circle cx="${f1(x)}" cy="${f1(y)}" r="1.5" fill="${pc}" opacity="0.95"/>`;
+        }
+        break;
+      }
       case "lateral": marks += `<path d="M${tailX} ${cy - 2} Q${cx} ${cy - H * 0.35} ${cx + L * 0.55} ${cy - H * 0.25}" stroke="${pc}" stroke-width="2" fill="none" opacity="0.8"/>`; break;
     }
     if (a.stripe) marks += `<path d="M${tailX} ${cy + 1} Q${cx} ${cy - 3} ${cx + L * 0.62} ${cy - 1}" stroke="${a.stripe}" stroke-width="${f1(H * 0.38)}" stroke-linecap="round" fill="none" opacity="0.55"/>`;
@@ -204,7 +223,7 @@ export function fishSvg(species, { silhouette = false, size = 96 } = {}) {
     const gillC = shade(a.back, -0.3);
     if (S.gill === "slits") {
       for (let i = 0; i < 5; i++) head += `<path d="M${f1(cx + L * 0.44 - i * 3.5)} ${f1(cy - H * 0.3)} q2 ${f1(H * 0.35)} 0 ${f1(H * 0.6)}" stroke="${gillC}" stroke-width="1.1" fill="none" opacity="0.7"/>`;
-    } else if (a.shape !== "flat") {
+    } else if (a.shape !== "flat" && !S.noGill) {
       const gx = cx + L * S.gill;
       head += `<path d="M${f1(gx + 4)} ${f1(topY(gx) + 4)} Q${f1(gx - 7)} ${cy} ${f1(gx + 2)} ${f1(botY(gx) - 3)}" stroke="${gillC}" stroke-width="1.6" fill="none" opacity="0.75"/>`;
       head += `<path d="M${f1(gx + 10)} ${f1(topY(gx) + 8)} Q${f1(gx + 2)} ${f1(cy + 2)} ${f1(gx + 7)} ${f1(botY(gx) - 6)}" stroke="${gillC}" stroke-width="0.9" fill="none" opacity="0.4"/>`;
@@ -218,6 +237,17 @@ export function fishSvg(species, { silhouette = false, size = 96 } = {}) {
       case "duck": head += `<path d="M${nx + 1} ${f1(my)} L${f1(nx - L * 0.3)} ${f1(my + 2)}" stroke="${outline}" stroke-width="1.5" fill="none" stroke-linecap="round"/>`; break;
       case "shark": head += `<path d="M${f1(nx - L * 0.12)} ${f1(my + H * 0.4)} q-8 4 -14 1" stroke="${outline}" stroke-width="1.5" fill="none" stroke-linecap="round"/>`; break;
       case "sword": case "spear": break;
+      case "fangs": {
+        head += `<path d="M${nx} ${f1(my)} L${f1(nx - L * 0.2)} ${f1(my + 3)}" stroke="${outline}" stroke-width="1.5" fill="none" stroke-linecap="round"/>`;
+        for (const [dx, h] of [[4, 6], [10, 4.5], [15, 3.5]]) head += `<path d="M${f1(nx - dx - 1.6)} ${f1(my + 0.6)} L${f1(nx - dx)} ${f1(my + h)} L${f1(nx - dx + 1.6)} ${f1(my + 0.4)} Z" fill="#fbf6ea" stroke="${outline}" stroke-width="0.6"/>`;
+        break;
+      }
+      case "angler": {
+        head += `<path d="M${f1(nx + 1)} ${f1(my - 4)} Q${f1(nx - 10)} ${f1(my + 12)} ${f1(nx - L * 0.42)} ${f1(my + 4)}" stroke="${outline}" stroke-width="1.8" fill="none" stroke-linecap="round"/>`;
+        for (let i = 0; i < 5; i++) { const t = 0.12 + i * 0.17, x = nx - 2 - t * L * 0.4, y = my - 2 + Math.sin(t * Math.PI) * 9; head += `<path d="M${f1(x - 1.3)} ${f1(y - 0.5)} L${f1(x)} ${f1(y - 4)} L${f1(x + 1.3)} ${f1(y - 0.5)} Z" fill="#fbf6ea" stroke="${outline}" stroke-width="0.5"/>`; }
+        break;
+      }
+      case "chin": head += `<path d="M${nx} ${f1(my)} q-6 3 -9 1" stroke="${outline}" stroke-width="1.4" fill="none" stroke-linecap="round"/><path d="M${f1(nx - 8)} ${f1(botY(nx - 8) - 2)} q-1 6 -4 9" stroke="${shade(a.fin, -0.2)}" stroke-width="1.5" fill="none" stroke-linecap="round"/>`; break;
       default: head += `<path d="M${nx} ${f1(my)} q-6 3 -9 1" stroke="${outline}" stroke-width="1.4" fill="none" stroke-linecap="round"/>`;
     }
     if (a.mouth === "barbels") {
@@ -242,11 +272,22 @@ export function fishSvg(species, { silhouette = false, size = 96 } = {}) {
   if (a.mouth === "sword") bill = `<path d="M${cx + L - 4} ${f1(noseY - 3)} L${cx + L + 34} ${f1(noseY - 1)} L${cx + L - 4} ${f1(noseY + 3)} Z" fill="${fill ?? shade(a.back, -0.1)}" stroke="${outline}" stroke-width="1.2"/>`;
   if (a.mouth === "spear") bill = `<path d="M${cx + L - 4} ${f1(noseY - 2.5)} Q${cx + L + 14} ${f1(noseY - 2)} ${cx + L + 28} ${f1(noseY)} Q${cx + L + 14} ${f1(noseY + 1.5)} ${cx + L - 4} ${f1(noseY + 3)} Z" fill="${fill ?? shade(a.back, -0.1)}" stroke="${outline}" stroke-width="1.2"/>`;
 
+  if (a.mouth === "angler") {
+    const bx = cx + L * 0.2, by = topY(bx) + 2, lx = cx + L + 12, ly = noseY - H * 1.05;
+    bill += `<path d="M${f1(bx)} ${f1(by)} Q${f1(bx + 8)} ${f1(ly - 14)} ${f1(lx)} ${f1(ly)}" stroke="${silhouette ? SIL.stroke : outline}" stroke-width="2" fill="none" stroke-linecap="round"/>`;
+    if (!silhouette) bill += `<circle cx="${f1(lx)}" cy="${f1(ly + 3)}" r="9" fill="${a.patternGlow}" opacity="0.3"/>`;
+    bill += `<circle cx="${f1(lx)}" cy="${f1(ly + 3)}" r="4.2" fill="${silhouette ? SIL.fill : a.patternGlow}" stroke="${silhouette ? SIL.stroke : shade(a.patternGlow, -0.35)}" stroke-width="1"/>`;
+    if (!silhouette) bill += `<circle cx="${f1(lx - 1.3)}" cy="${f1(ly + 1.8)}" r="1.4" fill="#fff" opacity="0.9"/>`;
+  }
+
   // Pectoral fin (in front of the body)
   const pecX = a.shape === "flat" ? cx + 18 : cx + L * (S.gill === "slits" ? 0.3 : S.gill - 0.1);
   const pecY = a.shape === "flat" ? cy + 8 : cy + H * 0.25;
   const pecLen = a.shape === "shark" ? 26 : a.shape === "mahi" || a.shape === "tuna" || a.shape === "billfish" ? 20 : 15;
-  const pectoral = `<path d="M${f1(pecX)} ${f1(pecY - 3)} Q${f1(pecX - pecLen * 0.6)} ${f1(pecY - 6)} ${f1(pecX - pecLen)} ${f1(pecY + pecLen * 0.35)} Q${f1(pecX - pecLen * 0.4)} ${f1(pecY + 5)} ${f1(pecX)} ${f1(pecY + 3)} Z" fill="${finFill}" opacity="${silhouette ? 1 : 0.9}" stroke="${silhouette ? SIL.stroke : shade(a.fin, -0.3)}" stroke-width="0.8"/>`;
+  const pectoral = a.wings
+    ? `<path d="M${f1(pecX)} ${f1(pecY - 3)} Q${f1(pecX - 14)} ${f1(pecY - 40)} ${f1(pecX - 50)} ${f1(pecY - 46)} Q${f1(pecX - 40)} ${f1(pecY - 24)} ${f1(pecX - 56)} ${f1(pecY - 8)} Q${f1(pecX - 24)} ${f1(pecY + 2)} ${f1(pecX)} ${f1(pecY + 3)} Z" fill="${finFill}" opacity="${silhouette ? 1 : 0.92}" stroke="${silhouette ? SIL.stroke : shade(a.fin, -0.3)}" stroke-width="1"/>`
+      + (silhouette ? "" : [0, 1, 2, 3].map(i => `<path d="M${f1(pecX - 3)} ${f1(pecY - 1)} L${f1(pecX - 48 - i * 2)} ${f1(pecY - 42 + i * 11)}" stroke="${shade(a.fin, -0.3)}" stroke-width="0.8" opacity="0.6"/>`).join(""))
+    : `<path d="M${f1(pecX)} ${f1(pecY - 3)} Q${f1(pecX - pecLen * 0.6)} ${f1(pecY - 6)} ${f1(pecX - pecLen)} ${f1(pecY + pecLen * 0.35)} Q${f1(pecX - pecLen * 0.4)} ${f1(pecY + 5)} ${f1(pecX)} ${f1(pecY + 3)} Z" fill="${finFill}" opacity="${silhouette ? 1 : 0.9}" stroke="${silhouette ? SIL.stroke : shade(a.fin, -0.3)}" stroke-width="0.8"/>`;
 
   const defs = silhouette ? "" : `<defs>
     <linearGradient id="${id}body" x1="0" y1="0" x2="0" y2="1">
