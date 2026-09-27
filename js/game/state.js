@@ -48,8 +48,9 @@ export function deserialize(data) {
   s.coins = Math.max(0, Math.floor(num(data.coins, s.coins)));
   if (data.gear && typeof data.gear === "object") {
     for (const slot of GEAR_SLOTS) {
-      const tier = Math.floor(num(data.gear[slot], 0));
-      s.gear[slot] = Math.min(Math.max(tier, 0), GEAR[slot].length - 1);
+      const tier = num(data.gear[slot], 0);
+      // Out-of-range tiers are treated as corrupt and reset, never promoted to better gear.
+      s.gear[slot] = Number.isInteger(tier) && tier >= 0 && tier < GEAR[slot].length ? tier : 0;
     }
   }
   if (Array.isArray(data.ownedTackle)) s.ownedTackle = [...new Set(data.ownedTackle.filter(id => TACKLE_BY_ID[id]))];
