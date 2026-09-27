@@ -3,7 +3,7 @@ import {
   FISH, FISH_BY_ID, TIME_LABELS, LOCATION_LABELS, RARITY_LABELS, GEAR, GEAR_SLOTS, GEAR_LABELS,
   BAGS, SKILLS, SKILLS_BY_ID, SKILL_BRANCHES, TIER_POINTS,
 } from "../game/content.js";
-import { priceOf, inventoryWorth, bagCapacity } from "../game/economy.js";
+import { priceOf, inventoryWorth, bagCapacity, bagFull } from "../game/economy.js";
 import { levelInfo, pointsFree, pointsSpent, rankOf, tierOpen, canLearn, respecCost, skillEffects, branchOf } from "../game/skills.js";
 import { fishSvg, rarityIcon } from "./fishArt.js";
 import { ICONS } from "./icons.js";
@@ -44,13 +44,15 @@ export function createUI(handlers) {
     level: $("hud-level"), levelChip: $("hud-level-chip"), xpBar: $("hud-xp-bar"), skillPoints: $("skill-points"), finder: $("finder"), whisper: $("fishing-whisper"),
     skills: $("skills-dialog"), skillsBody: $("skills-body"), skillsLevel: $("skills-level"), skillsXpFill: $("skills-xp-fill"), skillsXpText: $("skills-xp-text"),
     skillsPoints: $("skills-points"), skillsDetail: $("skills-detail"),
+    trophy: $("trophy-dialog"), trophyBody: $("trophy-body"),
   };
+  let trophyPick = null; // shelf slot whose bag-fish picker is open
   let purchase = null;
   const last = {};
   let state = null;
 
   // --- Dialog wiring ------------------------------------------------------
-  for (const d of [el.shop, el.bag, el.board, el.unlock, el.settings, el.skills]) {
+  for (const d of [el.shop, el.bag, el.board, el.unlock, el.settings, el.skills, el.trophy]) {
     d.addEventListener("click", e => {
       if (e.target === d || e.target.closest("[data-close]")) d.close();
     });
@@ -60,7 +62,6 @@ export function createUI(handlers) {
   $("tab-market").insertAdjacentHTML("afterbegin", ICONS.fish);
   $("tab-gear").insertAdjacentHTML("afterbegin", ICONS.rod);
   $("btn-bag").insertAdjacentHTML("afterbegin", ICONS.bag);
-  $("btn-board").insertAdjacentHTML("afterbegin", ICONS.board);
   $("btn-skills").insertAdjacentHTML("afterbegin", ICONS.sprout);
   $("btn-settings").insertAdjacentHTML("afterbegin", ICONS.gear);
   function selectTab(name) {
@@ -159,7 +160,13 @@ export function createUI(handlers) {
   document.querySelectorAll("#fishing [data-icon]").forEach(n => { n.innerHTML = ICONS[n.dataset.icon]; });
   el.laneFish.innerHTML = `<svg viewBox="0 0 64 32" aria-hidden="true"><path d="M4 16c8-11 30-13 42-4l12-9v26l-12-9C34 29 12 27 4 16Z" fill="currentColor"/><path d="M22 8c4-5 12-6 16-3-5 1-9 3-11 6Z" fill="currentColor"/><circle cx="13" cy="14" r="2.2" fill="#fff" opacity="0.9"/></svg><span class="fish-zzz">z</span>`;
   $("btn-bag").addEventListener("click", () => openBag());
-  $("btn-board").addEventListener("click", () => openBoard());
+  el.trophyBody.addEventListener("click", e => {
+    const b = e.target.closest("button");
+    if (!b || b.disabled) return;
+    if (b.dataset.pick !== undefined) { trophyPick = trophyPick === Number(b.dataset.pick) ? null : Number(b.dataset.pick); renderTrophies(); }
+    if (b.dataset.mount) { handlers.mountTrophy(Number(b.dataset.mount), trophyPick); trophyPick = null; }
+    if (b.dataset.unmount !== undefined) handlers.unmountTrophy(Number(b.dataset.unmount));
+  });
   $("btn-skills").addEventListener("click", () => openSkills());
 
   // Skill tree: click learns a rank; hover / focus explains the node.
@@ -244,7 +251,7 @@ export function createUI(handlers) {
   }
 
   function renderBoard() {
-    el.boardCount.textContent = `${state.discovered.length} / 20`;
+    el.boardCount.textContent = `${state.discovered.length} / ${FISH.length}`;
     el.boardBody.innerHTML = FISH.map(f => {
       const found = state.discovered.includes(f.id);
       const rec = state.records[f.id];
@@ -260,6 +267,32 @@ export function createUI(handlers) {
     if (el.bag.open) renderBag();
     if (el.board.open) renderBoard();
     if (el.skills.open) renderSkills();
+    if (el.trophy.open) renderTrophies();
+  }
+
+  function renderTrophies() {
+    const full = bagFull(state);
+    const plaques = state.trophies.map((t, i) => {
+      if (!t) {
+        return `<article class="trophy-plaque empty"><div class="trophy-art">${ICONS.star}</div><strong>Empty spot</strong>
+          <button type="button" class="primary small" data-pick="${i}" ${state.inventory.length ? "" : "disabled"}>Mount a fish</button></article>`;
+      }
+      const f = FISH_BY_ID[t.speciesId];
+      return `<article class="trophy-plaque ${t.rarity}"><div class="trophy-art">${fishSvg(f, { size: 120 })}</div>
+        <strong>${rarityHtml(t.rarity, 20)} ${f.name}</strong><span class="meta">${t.sizeCm.toFixed(1)} cm · worth ${coinHtml(priceOf(state, t))}</span>
+        <div class="trophy-actions">
+          <button type="button" class="secondary small" data-pick="${i}" ${state.inventory.length ? "" : "disabled"}>Swap</button>
+          <button type="button" class="secondary small" data-unmount="${i}" ${full ? "disabled title=\"Your bag is full\"" : ""}>Take down</button>
+        </div></article>`;
+    }).join("");
+    const pick = trophyPick === null ? "" : state.inventory.length
+      ? `<h3 class="section-title">Pick a fish from your bag <span class="muted">for spot ${trophyPick + 1}</span></h3>
+        <ul class="fish-list trophy-pick">${state.inventory.map(f => `<li class="fish-row">${fishSvg(FISH_BY_ID[f.speciesId], { size: 64 })}
+          <div><div class="name">${rarityHtml(f.rarity, 20)} ${FISH_BY_ID[f.speciesId].name}</div><div class="meta">${f.sizeCm.toFixed(1)} cm</div></div>
+          ${coinHtml(priceOf(state, f))}<button type="button" class="primary small" data-mount="${f.uid}">Mount</button></li>`).join("")}</ul>`
+      : "";
+    const note = full ? `<p class="bag-note"><b>Your bag is full</b> — make room before taking a trophy down.</p>` : !state.inventory.length ? `<p class="bag-note">Catch some fish first: trophies come from your bag.</p>` : "";
+    el.trophyBody.innerHTML = `<div class="trophy-shelf">${plaques}</div>${note}${pick}`;
   }
 
   function renderSkills() {
@@ -298,6 +331,7 @@ export function createUI(handlers) {
   function openShop(s) { state = s; el.shopCoins.textContent = s.coins; renderMarket(); renderGear(); selectTab("market"); showModal(el.shop); }
   function openBag() { renderBag(); showModal(el.bag); }
   function openBoard() { renderBoard(); showModal(el.board); }
+  function openTrophies() { trophyPick = null; renderTrophies(); showModal(el.trophy); }
   function openSkills() { renderSkills(); el.skillsDetail.textContent = SKILL_HINT; showModal(el.skills); }
   /** Generic confirm-purchase dialog: construction barriers, the boat at the dock. */
   function openPurchase(s, { title, art, text, price, confirmLabel, onConfirm, blocked }) {
@@ -328,8 +362,8 @@ export function createUI(handlers) {
 
   return {
     bind(s) { state = s; },
-    anyDialogOpen: () => el.shop.open || el.bag.open || el.board.open || el.unlock.open || el.settings.open || el.skills.open,
-    openShop, openBag, openBoard, openSkills, openPurchase, toast, refreshOpenPanels,
+    anyDialogOpen: () => el.shop.open || el.bag.open || el.board.open || el.unlock.open || el.settings.open || el.skills.open || el.trophy.open,
+    openShop, openBag, openBoard, openSkills, openTrophies, openPurchase, toast, refreshOpenPanels,
 
     updateHud(s, bucket, bucketProgress, region) {
       state = s;
@@ -338,7 +372,7 @@ export function createUI(handlers) {
       if (last.bucket !== bucket) { last.bucket = bucket; el.timeChip.dataset.bucket = bucket; }
       el.timeBar.style.width = `${Math.round(bucketProgress * 100)}%`;
       setText(el.region, "region", region);
-      setText(el.collection, "collection", `${s.discovered.length} / 20`);
+      setText(el.collection, "collection", `${s.discovered.length} / ${FISH.length}`);
       const cap = bagCapacity(s);
       setText(el.bagCount, "bag", `${s.inventory.length}/${cap}`);
       el.bagCount.classList.toggle("full", s.inventory.length >= cap);
@@ -489,7 +523,7 @@ export function createUI(handlers) {
     bagChoiceAvailable: () => !el.catchBag.disabled,
     /** E inside a dialog: confirm a purchase (after a short guard), otherwise close the dialog. */
     dialogPrimary() {
-      const open = [el.unlock, el.shop, el.bag, el.board, el.settings, el.skills].find(d => d.open);
+      const open = [el.unlock, el.shop, el.bag, el.board, el.settings, el.skills, el.trophy].find(d => d.open);
       if (!open) return;
       if (performance.now() - (last.dialogOpenedAt ?? 0) < 350) return;
       if (open === el.unlock && !el.unlockPay.disabled) el.unlockPay.click();

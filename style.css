@@ -574,3 +574,25 @@ body.touch .finder { left: auto; right: 16px; bottom: 120px; transform: none; }
   .skill-node { padding: 5px 4px 4px; }
   .node-ico { width: 30px; height: 30px; }
 }
+
+/* Trophy shelf ------------------------------------------------------------------ */
+#trophy-dialog { width: min(720px, calc(100vw - 24px)); }
+.trophy-shelf { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 14px 12px 18px; margin-bottom: 12px; border-radius: 16px;
+  background: linear-gradient(transparent 78%, #8a6242 78%, #7a5638 84%, transparent 84%), #f3e6cc; }
+.trophy-plaque {
+  display: grid; justify-items: center; align-content: start; gap: 4px; padding: 12px 8px; text-align: center;
+  background: radial-gradient(ellipse at 50% 35%, #d9ae78, #a8784e 70%); border: 3px solid #7a5638; border-radius: 50% 50% 18px 18px / 30% 30% 18px 18px;
+  box-shadow: 0 4px 0 #6b4a2e, var(--shadow); color: #fff8ea;
+}
+.trophy-plaque strong { display: flex; align-items: center; gap: 4px; font-size: 15px; }
+.trophy-plaque .meta { font-size: 12px; font-weight: 700; opacity: 0.9; display: inline-flex; gap: 4px; align-items: center; }
+.trophy-plaque .value .coin-icon { width: 12px; height: 12px; }
+.trophy-art { display: grid; place-items: center; min-height: 72px; }
+.trophy-art svg { width: 120px; height: auto; filter: drop-shadow(0 3px 2px rgb(40 28 18 / 0.35)); }
+.trophy-art .ico { width: 40px; height: 40px; opacity: 0.55; }
+.trophy-plaque.empty { background: #efe3cb; color: var(--ink-soft); border-style: dashed; box-shadow: none; }
+.trophy-plaque.legendary { box-shadow: 0 4px 0 #6b4a2e, 0 0 16px rgb(255 200 80 / 0.7); }
+.trophy-actions { display: flex; gap: 6px; margin-top: 4px; }
+.trophy-actions .secondary { background: #fff8ea; color: var(--ink); }
+.trophy-pick { max-height: 240px; overflow-y: auto; }
+@media (max-width: 640px) { .trophy-shelf { grid-template-columns: 1fr; background: #f3e6cc; } }

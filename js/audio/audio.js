@@ -33,7 +33,7 @@ export function createAudio() {
   const amb = {};
   let meterNode = null;
   const music = { next: 0, step: 0, melody: 3 };
-  const timers = { bird: 0, cricket: 0, gull: 0, owl: 0, tick: 0, creak: 0 };
+  const timers = { crackle: 0, bird: 0, cricket: 0, gull: 0, owl: 0, tick: 0, creak: 0 };
 
   // --- Graph ------------------------------------------------------------------------------
   function noiseBuffer(seconds, brownian) {
@@ -224,6 +224,8 @@ export function createAudio() {
     levelup() { const t = ctx.currentTime; [60, 64, 67, 72, 76, 79].forEach((n, i) => tone(S(), { freq: midi(n), type: "triangle", t: t + i * 0.08, peak: 0.07, attack: 0.01, decay: 0.5 })); [84, 88].forEach((n, i) => tone(S(), { freq: midi(n), t: t + 0.52 + i * 0.1, peak: 0.04, decay: 0.9 })); },
     secondwind() { const t = ctx.currentTime; noise(S(), { t, peak: 0.1, freq: 400, sweep: 2400, q: 1, attack: 0.1, decay: 0.35 }); [67, 71, 74].forEach((n, i) => tone(S(), { freq: midi(n), type: "triangle", t: t + 0.12 + i * 0.07, peak: 0.07, decay: 0.35 })); },
     ui() { tone(S(), { freq: 880, peak: 0.04, decay: 0.04 }); },
+    door() { const t = ctx.currentTime; tone(S(), { freq: 150, glide: 110, type: "sawtooth", t, peak: 0.03, attack: 0.08, decay: 0.35 }); tone(S(), { freq: 210, type: "triangle", t: t + 0.42, peak: 0.12, decay: 0.08 }); noise(S(), { t: t + 0.42, peak: 0.06, type: "lowpass", freq: 700, decay: 0.08 }); },
+    crackle() { noise(S(), { peak: rand(0.01, 0.035), type: "bandpass", freq: rand(1800, 4200), q: 2, decay: rand(0.01, 0.03) }); },
     open() { tone(S(), { freq: 520, glide: 820, peak: 0.05, attack: 0.01, decay: 0.08 }); },
     denied() { const t = ctx.currentTime; tone(S(), { freq: 220, t, peak: 0.06, decay: 0.12, type: "triangle" }); tone(S(), { freq: 196, t: t + 0.12, peak: 0.06, decay: 0.18, type: "triangle" }); },
     boat() { const t = ctx.currentTime; noise(S(), { t, peak: 0.18, type: "lowpass", freq: 400, sweep: 1500, attack: 0.4, decay: 1.4, buffer: brown }); tone(S(), { freq: 110, glide: 85, type: "sawtooth", t: t + 0.2, peak: 0.02, attack: 0.1, decay: 0.5 }); },
@@ -254,17 +256,23 @@ export function createAudio() {
       if (!prefs.muted && prefs.music > 0) scheduleMusic(env.bucket);
       else music.next = 0;
       // Ambience mix from surroundings
-      const offshore = env.area === "offshore";
-      const seaNear = offshore ? 1 : clamp01((env.z - 3) / 13);
-      const riverNear = offshore ? 0 : clamp01(1 - Math.max(0, 13.5 - env.x) / 11) * (env.z < 14 ? 1 : 0.3);
+      const offshore = env.area === "offshore", indoors = env.area === "home";
+      const seaNear = offshore ? 1 : indoors ? 0 : clamp01((env.z - 3) / 13);
+      const riverNear = offshore || indoors ? 0 : clamp01(1 - Math.max(0, 13.5 - env.x) / 11) * (env.z < 14 ? 1 : 0.3);
       const swell = 0.55 + 0.45 * Math.sin((now * Math.PI * 2) / 6.5);
-      amb.wave.gain.setTargetAtTime((0.012 + seaNear * 0.1) * swell, now, 0.25);
+      amb.wave.gain.setTargetAtTime((indoors ? 0 : 0.012 + seaNear * 0.1) * swell, now, 0.25);
       amb.waveFilter.frequency.setTargetAtTime(offshore ? 380 : 560, now, 1);
       const wash = Math.max(0, Math.sin((now * Math.PI * 2) / 6.5 - 0.6));
       amb.wash.gain.setTargetAtTime((offshore ? 0.012 : seaNear * 0.025) * wash * wash, now, 0.2);
       amb.river.gain.setTargetAtTime(riverNear * 0.045, now, 0.4);
-      amb.wind.gain.setTargetAtTime((offshore ? 0.1 : 0.03) * (0.7 + 0.3 * Math.sin(now * 0.37)), now, 1);
+      amb.wind.gain.setTargetAtTime((offshore ? 0.1 : indoors ? 0.004 : 0.03) * (0.7 + 0.3 * Math.sin(now * 0.37)), now, 1);
       if (prefs.muted || !prefs.ambience) return;
+      if (indoors) {
+        // Muffled indoors: only the fire crackles.
+        if (now > timers.crackle) { this.play("crackle"); timers.crackle = now + rand(0.05, 0.5); }
+        if (env.fightHeld && now > timers.tick) { this.play("reelTick"); timers.tick = now + 0.07; }
+        return;
+      }
       const day = env.bucket === "day" || env.bucket === "dawn";
       const night = env.bucket === "night";
       if (!offshore && env.bucket !== "night" && now > timers.bird) { bird(now + 0.05); timers.bird = now + (day ? rand(0.6, 3) : rand(3, 8)); }

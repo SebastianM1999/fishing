@@ -79,7 +79,7 @@ export function buildEnvironment(M) {
   // Mooring bollards at the dock end
   for (const x of [2.8, 5.2]) { k.part(G.cyl(0.14, 0.16, 0.5, 8), M.metal, [x, 0.4, 23.7]); k.part(G.cyl(0.2, 0.2, 0.08, 8), M.metal, [x, 0.66, 23.7]); }
   for (const b of WORLD.buildings) models.building(k, M, b);
-  models.wallboardFrame(k, M, WORLD.wallboard);
+  models.wallboardFrame(k, M, WORLD.noticeboard);
   for (const [x, z] of WORLD.lamps) { k.push(x, 0, z); models.lampPost(k, M); k.pop(); }
 
   // --- Vegetation & props -----------------------------------------------------------------------
@@ -163,7 +163,7 @@ export function buildEnvironment(M) {
   }
 
   // Fishing-spot / dock markers
-  const markers = INTERACTIONS.filter(i => ["fish", "dock", "return"].includes(i.type)).map(it => {
+  const markers = INTERACTIONS.filter(i => ["fish", "dock", "return", "exit"].includes(i.type)).map(it => {
     const m = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.75, 24).rotateX(-Math.PI / 2), M.spot);
     m.position.set(it.x, 0.22, it.z);
     root.add(m);
@@ -184,4 +184,94 @@ export function buildEnvironment(M) {
   });
 
   return { root, barriers, markers, buoys, seaFoam, lakeFoam, chimney: new THREE.Vector3(-8 - 7 / 4, 0.4 + 3 + 2.3, -10 - 0.7) };
+}
+
+/**
+ * The home interior: a cosy room far from the map. The camera looks in from the south-east, so the
+ * north (back) and west walls are full height and the east/front walls are low sills.
+ */
+export function buildHome(M) {
+  const root = new THREE.Group();
+  const batch = new Batch();
+  const k = new Kit(batch);
+  const h = WORLD.home, W = h.maxX - h.minX, D = h.maxZ - h.minZ, WH = 3.2;
+  const std = c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.95, flatShading: true });
+  const wallpaper = std("#e9d4b0"), wainscot = std("#b98a58"), rugA = std("#b8564a"), rugB = std("#e8c070"), quilt = std("#6f9fc4"), quiltB = std("#f2e6cc");
+  const fire = new THREE.MeshStandardMaterial({ color: "#ffb347", emissive: "#ff7a1a", emissiveIntensity: 1.6, roughness: 1 });
+  k.push(h.cx, 0, h.cz);
+  // Dark void around the room so the outside world never shows.
+  k.part(G.box(90, 0.2, 90), std("#2a1d14"), [0, -0.2, 0]);
+  // Plank floor
+  for (let i = 0; i < 12; i++) k.part(G.box(W, 0.12, D / 12 - 0.03), i % 2 ? M.plank : M.plankDark, [0, 0.0, -D / 2 + (i + 0.5) * (D / 12)]);
+  // Back (north) and west walls: wallpaper over wood panelling, beams on top
+  k.part(G.box(W + 0.4, WH, 0.3), wallpaper, [0, WH / 2, -D / 2 - 0.15]);
+  k.part(G.box(0.3, WH, D + 0.3), wallpaper, [-W / 2 - 0.15, WH / 2, 0]);
+  k.part(G.box(W + 0.4, 0.9, 0.34), wainscot, [0, 0.45, -D / 2 - 0.13]);
+  k.part(G.box(0.34, 0.9, D + 0.3), wainscot, [-W / 2 - 0.13, 0.45, 0]);
+  k.part(G.box(W + 0.5, 0.22, 0.4), M.woodDark, [0, WH, -D / 2 - 0.1]);
+  k.part(G.box(0.4, 0.22, D + 0.4), M.woodDark, [-W / 2 - 0.1, WH, 0]);
+  for (const x of [-W / 2 + 0.1, 0.45, W / 2]) k.part(G.box(0.22, WH, 0.22), M.woodDark, [x, WH / 2, -D / 2 + 0.02]);
+  // Low east and front walls (sills), with the door gap in front
+  k.part(G.box(0.3, 0.55, D + 0.3), wainscot, [W / 2 + 0.15, 0.27, 0]);
+  for (const s of [-1, 1]) k.part(G.box(W / 2 - 0.9, 0.55, 0.3), wainscot, [s * (W / 4 + 0.45), 0.27, D / 2 + 0.15]);
+  for (const s of [-1, 1]) k.part(G.box(0.2, 2.3, 0.3), M.woodDark, [s * 0.9, 1.15, D / 2 + 0.15]);
+  k.part(G.box(1.6, 0.05, 0.9), M.stoneLight, [0, 0.07, D / 2 - 0.35]); // door mat stone
+  k.part(G.box(1.2, 0.03, 0.7), std("#8c6c40"), [0, 0.1, D / 2 - 0.4]);
+  // West wall window (warm daylight) and a cushioned bench under it
+  k.push(-W / 2 + 0.02, 1.8, 2.6, Math.PI / 2);
+  k.part(G.box(1.5, 1.2, 0.1), M.white, [0, 0, 0]);
+  k.part(G.box(1.3, 1.0, 0.06), M.window, [0, 0, 0.05]);
+  k.part(G.box(0.06, 1.0, 0.08), M.white, [0, 0, 0.08]);
+  k.pop();
+  // Fireplace on the west wall
+  k.push(-W / 2 + 0.55, 0, -0.4);
+  k.part(G.box(1.0, 1.5, 2.2), M.stone, [0, 0.75, 0]);
+  k.part(G.box(0.7, 3.0, 1.2), M.stoneDark, [-0.2, 1.5, 0]);
+  k.part(G.box(1.2, 0.16, 2.4), M.woodDark, [0.05, 1.55, 0]);
+  k.part(G.box(0.2, 0.8, 1.3), std("#2a1f18"), [0.42, 0.55, 0]);
+  for (let i = 0; i < 3; i++) k.part(G.cyl(0.09, 0.09, 0.9, 6), M.trunk, [0.45, 0.25 + i * 0.08, -0.25 + i * 0.25], [Math.PI / 2, 0.5 * i, 0]);
+  k.part(G.cone(0.28, 0.55, 5), fire, [0.48, 0.55, 0]);
+  k.part(G.cone(0.18, 0.4, 5), fire, [0.5, 0.5, 0.25]);
+  k.part(G.box(0.2, 0.25, 0.2), M.red, [0.1, 1.76, -0.7]); // mantel jar
+  k.part(G.box(0.14, 0.4, 0.14), M.lampGlass, [0.1, 1.83, 0.7]); // candle
+  k.pop();
+  // Round rug, table with stools, bed, plants, lamp
+  k.part(G.cyl(2.3, 2.3, 0.04, 20), rugA, [0.2, 0.08, 0.3]);
+  k.part(G.cyl(1.7, 1.7, 0.05, 20), rugB, [0.2, 0.09, 0.3]);
+  k.part(G.cyl(1.1, 1.1, 0.06, 20), rugA, [0.2, 0.1, 0.3]);
+  k.push(-3.2, 0, 2.2);
+  k.part(G.cyl(0.75, 0.75, 0.1, 12), M.woodLight, [0, 0.85, 0]);
+  k.part(G.cyl(0.1, 0.16, 0.8, 8), M.woodDark, [0, 0.42, 0]);
+  k.part(G.cyl(0.14, 0.18, 0.2, 8), M.terracotta, [0.15, 1.0, 0]);
+  k.part(G.ico(0.18, 0), M.leafStill, [0.15, 1.2, 0]);
+  for (const [x, z] of [[1.0, 0.1], [-0.9, 0.3]]) { k.part(G.cyl(0.28, 0.24, 0.08, 10), M.wood, [x, 0.5, z]); k.part(G.cyl(0.05, 0.05, 0.46, 5), M.woodDark, [x, 0.23, z]); }
+  k.pop();
+  k.push(4.3, 0, 2.8);
+  k.part(G.box(1.9, 0.5, 2.8), M.wood, [0, 0.3, 0]);
+  k.part(G.box(1.8, 0.2, 2.7), quiltB, [0, 0.62, 0]);
+  k.part(G.box(1.85, 0.12, 1.8), quilt, [0, 0.74, 0.45]);
+  k.part(G.box(1.1, 0.2, 0.55), M.white, [0, 0.78, -1.0]);
+  k.part(G.box(2.0, 1.1, 0.14), M.woodDark, [0, 0.6, -1.45]);
+  k.pop();
+  for (const [x, z] of [[-5.2, 3.6], [5.3, -3.6]]) {
+    k.part(G.cyl(0.3, 0.24, 0.5, 8), M.terracotta, [x, 0.3, z]);
+    for (let i = 0; i < 5; i++) k.part(G.ico(0.28, 0), M.leafStill, [x + Math.cos(i * 1.3) * 0.18, 0.75 + i * 0.1, z + Math.sin(i * 1.3) * 0.18]);
+  }
+  // Collection board frame and trophy shelf on the back wall
+  k.part(G.box(4.8, 2.7, 0.14), M.woodDark, [-2.6, 1.95, -D / 2 + 0.06]);
+  k.part(G.box(4.2, 0.12, 0.5), M.woodDark, [3.2, 1.2, -D / 2 + 0.25]);
+  for (const x of [1.4, 5.0]) k.part(G.box(0.1, 0.4, 0.4), M.woodDark, [x, 1.0, -D / 2 + 0.2]);
+  for (let i = 0; i < 3; i++) k.part(G.cyl(0.62, 0.62, 0.08, 12), M.wood, [1.8 + i * 1.4, 2.1, -D / 2 + 0.06], [Math.PI / 2, 0, 0], [1.1, 1, 0.85]);
+  k.part(G.box(4.3, 0.34, 0.06), std("#e2b34a"), [3.2, 2.95, -D / 2 + 0.05]); // brass plate
+  k.pop();
+  root.add(batch.build({ noShadow: [M.plank, M.plankDark] }));
+
+  const fireLight = new THREE.PointLight("#ffa050", 8, 9, 1.4);
+  fireLight.position.set(h.cx - W / 2 + 1.3, 1.1, h.cz - 0.4);
+  root.add(fireLight);
+  return {
+    root, fireLight, fire,
+    boardPos: new THREE.Vector3(h.cx - 2.6, 1.95, h.minZ + 0.15),
+    trophySlots: [0, 1, 2].map(i => new THREE.Vector3(h.cx + 1.8 + i * 1.4, 2.1, h.minZ + 0.3)),
+  };
 }

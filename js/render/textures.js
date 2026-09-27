@@ -34,14 +34,17 @@ export function createBoardTexture() {
     for (let i = 0; i < 900; i++) { g.fillStyle = i % 2 ? "rgba(90,60,30,0.12)" : "rgba(255,240,210,0.1)"; g.fillRect((i * 97) % 1024, (i * 53) % 560, 3, 3); }
     g.fillStyle = "#6b4a2e"; roundRect(g, 330, 10, 364, 54, 12); g.fill();
     g.fillStyle = "#f7efdf"; g.font = `800 34px ${FONT}`; g.textAlign = "center"; g.textBaseline = "middle";
-    g.fillText(`Collection  ${discovered.length} / 20`, 512, 38);
-    const cw = 190, ch = 112, gx = 30, gy = 76;
+    g.fillText(`Collection  ${discovered.length} / ${FISH.length}`, 512, 38);
+    // Grid sized for the species count (6 columns once legendaries join).
+    const cols = FISH.length > 20 ? 6 : 5, rows = Math.ceil(FISH.length / cols);
+    const gx = 22, gy = 74, gap = 7, cw = (1024 - gx * 2 - gap * (cols - 1)) / cols, ch = (560 - gy - 14 - gap * (rows - 1)) / rows;
+    const iw = Math.min(cw - 20, (ch - 24) * 1.87), ih = iw / 1.87;
     FISH.forEach((f, i) => {
-      const x = gx + (i % 5) * (cw + 8), y = gy + Math.floor(i / 5) * (ch + 7);
+      const x = gx + (i % cols) * (cw + gap), y = gy + Math.floor(i / cols) * (ch + gap);
       const found = discovered.includes(f.id);
       g.fillStyle = found ? "#fbf4e4" : "#d9ccb4"; roundRect(g, x, y, cw, ch, 10); g.fill();
       g.fillStyle = "#c9463d"; g.beginPath(); g.arc(x + cw / 2, y + 7, 6, 0, Math.PI * 2); g.fill(); // pin
-      if (images[i]) g.drawImage(images[i], x + 10, y + 10, 170, 91);
+      if (images[i]) g.drawImage(images[i], x + (cw - iw) / 2, y + 8, iw, ih);
       g.fillStyle = found ? "#3b3129" : "#8a7f70"; g.font = `700 17px ${FONT}`;
       g.fillText(found ? f.name : "???", x + cw / 2, y + ch - 10);
     });

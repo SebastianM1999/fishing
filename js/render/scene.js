@@ -4,7 +4,7 @@ import { WORLD, CAST_DISTANCE, NPCS } from "../game/world.js";
 import { FISH_BY_ID, BOAT_PRICE } from "../game/content.js";
 import { dayFraction, bucketProgress } from "../game/time.js";
 import { createMaterials, TIME, G, Kit, Batch, GroupSink, waveHeight } from "./kit.js";
-import { buildEnvironment, SEA_Y, RIVER_Y, LAKE_Y } from "./environment.js";
+import { buildEnvironment, buildHome, SEA_Y, RIVER_Y, LAKE_Y } from "./environment.js";
 import * as models from "./models.js";
 import { createBoardTexture, createSignTexture } from "./textures.js";
 
@@ -59,13 +59,25 @@ export function createRenderer(canvas) {
   const env = buildEnvironment(M);
   scene.add(env.root);
 
-  // In-world collection board showing real portraits
+  // Home interior: collection board with real portraits and the trophy shelf.
+  const home = buildHome(M);
+  scene.add(home.root);
   const board = createBoardTexture();
-  const wb = WORLD.wallboard;
-  const boardMesh = new THREE.Mesh(new THREE.PlaneGeometry(wb.w - 0.15, 2.3), new THREE.MeshStandardMaterial({ map: board.texture, roughness: 0.9 }));
-  boardMesh.position.set(wb.x, 1.95, wb.z + 0.09);
-  boardMesh.receiveShadow = true;
+  const boardMesh = new THREE.Mesh(new THREE.PlaneGeometry(4.5, 2.46), new THREE.MeshStandardMaterial({ map: board.texture, roughness: 0.9 }));
+  boardMesh.position.copy(home.boardPos);
   scene.add(boardMesh);
+  const trophyGroups = home.trophySlots.map(pos => { const g = new THREE.Group(); g.position.copy(pos); scene.add(g); return g; });
+  const HOME_LIGHT = { sky: new THREE.Color("#ffe6c4"), ground: new THREE.Color("#6a4a30"), sun: new THREE.Color("#ffd9a8"), bg: new THREE.Color("#2a1d14"), dir: new THREE.Vector3(9, 30, 14) };
+
+  // Village notice board (where the collection used to hang)
+  {
+    const nb = WORLD.noticeboard;
+    const tex = createSignTexture([["VILLAGE", 56], ["NOTICES", 56], ["Orders & rumours", 30]], { width: 640, height: 320, bg: "#f7efdf", border: "#7a5638", fg: "#5a3e24" });
+    const notice = new THREE.Mesh(new THREE.PlaneGeometry(nb.w - 0.15, 2.3), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 }));
+    notice.position.set(nb.x, 1.95, nb.z + 0.09);
+    notice.receiveShadow = true;
+    scene.add(notice);
+  }
 
   // Night lamps
   const lampLights = WORLD.lamps.map(([x, z]) => {
@@ -248,6 +260,21 @@ export function createRenderer(canvas) {
 
   function setWallboard(discovered) { board.draw(discovered); }
 
+  let trophyKey = "";
+  function setTrophies(trophies) {
+    const key = trophies.map(t => t?.uid ?? "-").join();
+    if (key === trophyKey) return;
+    trophyKey = key;
+    trophies.forEach((t, i) => {
+      trophyGroups[i].clear();
+      if (!t) return;
+      const f = models.makeHeldFish(FISH_BY_ID[t.speciesId].art);
+      f.scale.setScalar(2.1);
+      f.rotation.y = 0;
+      trophyGroups[i].add(f);
+    });
+  }
+
   function setUnlocked(unlocked) {
     for (const [id, b] of Object.entries(env.barriers)) b.group.visible = !unlocked.includes(id);
   }
@@ -342,7 +369,7 @@ export function createRenderer(canvas) {
     TIME.value = elapsed;
     footstep = false;
     const p = state.player;
-    P.root.position.set(p.x, p.area === "offshore" ? 0.12 : 0.02, p.z);
+    P.root.position.set(p.x, p.area === "offshore" ? 0.12 : p.area === "home" ? 0.07 : 0.02, p.z);
     let dFacing = p.facing - shownFacing;
     dFacing = Math.atan2(Math.sin(dFacing), Math.cos(dFacing));
     shownFacing += dFacing * Math.min(1, dt * 12);
@@ -441,6 +468,18 @@ export function createRenderer(canvas) {
       const k = p > 1 - SUN_BLEND ? THREE.MathUtils.smoothstep(p, 1 - SUN_BLEND, 1) : 0;
       sunDir.copy(SUN_DIRS[b]).lerp(SUN_DIRS[(b + 1) % 4], k);
     }
+    // Indoors: warm, steady light whatever the time of day, with a flickering fire.
+    const indoors = p.area === "home";
+    if (indoors) {
+      scene.background.copy(HOME_LIGHT.bg);
+      hemi.color.copy(HOME_LIGHT.sky); hemi.groundColor.copy(HOME_LIGHT.ground); hemi.intensity = 1.05;
+      sun.color.copy(HOME_LIGHT.sun); sun.intensity = 1.5;
+      sunDir.copy(HOME_LIGHT.dir);
+      M.window.emissiveIntensity = 0.6 + lamps * 0.8;
+    }
+    home.fireLight.intensity = indoors ? 7 + Math.sin(elapsed * 9) * 1.2 + Math.sin(elapsed * 23) * 0.6 : 0;
+    home.fire.emissiveIntensity = 1.4 + Math.sin(elapsed * 11) * 0.3;
+    trophyGroups.forEach((g, i) => { g.rotation.z = Math.sin(elapsed * 0.8 + i) * 0.03; });
     butterflies.forEach((b, i) => {
       const h = b.userData.home;
       b.visible = lamps < 0.3;
@@ -498,5 +537,5 @@ export function createRenderer(canvas) {
   }
 
   resize();
-  return { render, resize, pickGround, screenAxes, setWallboard, setUnlocked, renderer, camera };
+  return { render, resize, pickGround, screenAxes, setWallboard, setTrophies, setUnlocked, renderer, camera };
 }

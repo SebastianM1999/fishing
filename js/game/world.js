@@ -22,7 +22,12 @@ export const WORLD = {
     { id: "home", x: -8, z: -10, w: 7, d: 5, h: 3, wall: "#e9dcc3", roof: "#b8664a" },
     { id: "shop", x: 8, z: -10, w: 7, d: 5, h: 3, wall: "#efe2c8", roof: "#5f7f5a" },
   ],
-  wallboard: { x: 0, z: -11.2, w: 4.6, d: 0.6 },
+  noticeboard: { x: 0, z: -11.2, w: 4.6, d: 0.6 },
+
+  // Inside the home: a room far from the map, reached through the front door (like the offshore deck).
+  home: { minX: -156, maxX: -144, minZ: -154.5, maxZ: -145.5, cx: -150, cz: -150, door: { x: -8, z: -7.5 } },
+  // Furniture collision circles inside the home, relative to its centre: [x, z, radius].
+  homeFurniture: [[-5.2, -0.4, 1.0], [4.3, 2.2, 1.2], [4.3, 3.4, 1.0], [-3.2, 2.2, 0.9], [-5.2, 3.6, 0.5], [5.3, -3.6, 0.5]],
 
   // Offshore fishing area: a small anchored boat deck far from the shore.
   offshore: { minX: -1.5, maxX: 1.5, minZ: 76.6, maxZ: 83.4, cx: 0, cz: 80 },
@@ -73,7 +78,10 @@ export const INTERACTIONS = [
   { id: "spot_sea", type: "fish", location: "sea", area: "land", x: -8, z: 18, r: 1.6, facing: 0, label: "Fish from the shore" },
   { id: "spot_offshore", type: "fish", location: "offshore", area: "offshore", x: 0, z: 82.8, r: 1.4, facing: 0, label: "Fish offshore" },
   { id: "shop", type: "shop", area: "land", x: 6, z: -5.1, r: 2.1, label: "Talk to Mira (shop)" },
-  { id: "board", type: "board", area: "land", x: 0, z: -10.2, r: 2, label: "View wallboard" },
+  { id: "enter_home", type: "enter", area: "land", x: -8, z: -6.7, r: 1.2, label: "Go inside" },
+  { id: "exit_home", type: "exit", area: "home", x: -150, z: -146.1, r: 1.3, label: "Go outside" },
+  { id: "board", type: "board", area: "home", x: -152.6, z: -153.2, r: 1.9, label: "View the collection" },
+  { id: "trophies", type: "trophies", area: "home", x: -146.8, z: -153.2, r: 1.9, label: "Trophy shelf" },
   { id: "dock", type: "dock", area: "land", x: 3.8, z: 22.4, r: 1.7, label: "Sail offshore" },
   { id: "return", type: "return", area: "offshore", x: 0, z: 77.2, r: 1.4, label: "Sail back to shore" },
   { id: "gate_river", type: "barrier", region: "river", area: "land", x: 9.1, z: -5, r: 1.9, label: "Construction site" },
@@ -95,6 +103,8 @@ export const PROP_RADIUS = { bench: 0.7, barrel: 0.45, crate: 0.5, mailbox: 0.2,
 export const TRAVEL = {
   toOffshore: { x: 0, z: 78.5, area: "offshore" },
   toShore: { x: 4, z: 21.5, area: "land" },
+  toHome: { x: -150, z: -146.8, area: "home", facing: Math.PI },
+  fromHome: { x: -8, z: -6.3, area: "land", facing: 0 },
 };
 
 // Where the cast bobber lands relative to a fishing spot (world units).
@@ -106,7 +116,7 @@ function inRect(x, z, r, pad = 0) {
 
 function solidRects() {
   const rects = WORLD.buildings.map(b => ({ minX: b.x - b.w / 2, maxX: b.x + b.w / 2, minZ: b.z - b.d / 2, maxZ: b.z + b.d / 2 }));
-  const wb = WORLD.wallboard;
+  const wb = WORLD.noticeboard;
   rects.push({ minX: wb.x - wb.w / 2, maxX: wb.x + wb.w / 2, minZ: wb.z - wb.d / 2, maxZ: wb.z + wb.d / 2 });
   rects.push(COUNTER);
   return rects;
@@ -124,6 +134,10 @@ export function isLockedAt(x, z, unlocked) {
 export function isWalkable(x, z, area, unlocked = []) {
   const pr = PLAYER_RADIUS;
   if (area === "offshore") return inRect(x, z, WORLD.offshore, pr * 0.8);
+  if (area === "home") {
+    const h = WORLD.home;
+    return inRect(x, z, h, pr * 0.8) && !WORLD.homeFurniture.some(([fx, fz, r]) => Math.hypot(x - h.cx - fx, z - h.cz - fz) < r + pr * 0.6);
+  }
   if (isLockedAt(x, z, unlocked) || isLockedAt(x + pr, z + pr, unlocked)) return false;
   for (const n of NPCS) if (Math.hypot(x - n.x, z - n.z) < NPC_RADIUS + pr) return false;
   if (WORLD.walkways.some(w => inRect(x, z, w, 0.1))) return true;
@@ -158,6 +172,7 @@ export function nearestInteraction(player, unlocked = []) {
 /** Area label for the HUD based on position. */
 export function regionName(player) {
   if (player.area === "offshore") return "Offshore";
+  if (player.area === "home") return "Home";
   const { x, z } = player;
   if (z > WORLD.sandFromZ) return "Sea Shore";
   if (x > 9.5 && z > -12) return "Riverside";
@@ -167,7 +182,7 @@ export function regionName(player) {
 
 /** Ground surface under a point (drives footstep sounds). */
 export function surfaceAt(x, z, area) {
-  if (area === "offshore" || WORLD.walkways.some(w => inRect(x, z, w, 0))) return "wood";
+  if (area === "offshore" || area === "home" || WORLD.walkways.some(w => inRect(x, z, w, 0))) return "wood";
   if (z > WORLD.sandFromZ) return "sand";
   if (WORLD.paths.some(p => Math.abs(x - p.x) <= p.w / 2 && Math.abs(z - p.z) <= p.d / 2)) return "path";
   return "grass";
