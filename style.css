@@ -604,3 +604,34 @@ body.touch .finder { left: auto; right: 16px; bottom: 120px; transform: none; }
 .catch-streak { display: flex; align-items: center; justify-content: center; gap: 4px; font-weight: 800; color: #b4501f; }
 .catch-streak:empty { display: none; }
 .catch-streak .ico { width: 16px; height: 16px; }
+
+/* Village orders --------------------------------------------------------------- */
+#orders-dialog { width: min(700px, calc(100vw - 24px)); }
+.orders-day { padding: 4px 12px; border-radius: 999px; background: var(--wood); color: #fff; font-weight: 900; font-size: 14px; }
+.orders-list { display: grid; gap: 10px; }
+.order-card {
+  display: grid; grid-template-columns: 84px 1fr auto auto; align-items: center; gap: 12px; padding: 10px 14px;
+  background: #fffaf0; border: 2px solid #eadcc0; border-radius: 16px; position: relative;
+  background-image: linear-gradient(transparent 0 calc(100% - 1px), rgb(122 86 56 / 0.08) 0); background-size: 100% 22px;
+}
+.order-card::before { content: ""; position: absolute; top: -6px; left: 50%; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: #c9463d; box-shadow: 0 2px 0 #9c3a30; }
+.order-card.ready { border-color: var(--leaf); box-shadow: 0 0 0 3px rgb(111 154 90 / 0.2); }
+.order-card.done { opacity: 0.6; }
+.order-art { display: grid; place-items: center; }
+.order-art svg { width: 84px; height: auto; }
+.order-glyph { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--paper-2); color: var(--wood-dark); }
+.order-glyph .ico { width: 30px; height: 30px; }
+.order-glyph .time-icon { width: 26px; height: 26px; }
+.order-main { display: grid; gap: 4px; min-width: 0; }
+.order-main strong { font-size: 16px; }
+.order-main .meta { font-size: 13px; color: var(--ink-soft); }
+.order-progress { height: 8px; border-radius: 4px; background: #e6d9bf; overflow: hidden; }
+.order-progress i { display: block; height: 100%; background: var(--leaf); }
+.order-reward { display: grid; justify-items: end; gap: 2px; }
+.order-xp { font-size: 12px; font-weight: 800; color: var(--wood-dark); }
+.order-done { display: inline-flex; align-items: center; gap: 4px; color: var(--leaf-dark); font-weight: 800; }
+@media (max-width: 640px) {
+  .order-card { grid-template-columns: 56px 1fr auto; }
+  .order-art svg { width: 56px; }
+  .order-card > :last-child { grid-column: 2 / -1; justify-self: end; }
+}

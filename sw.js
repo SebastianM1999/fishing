@@ -1,5 +1,5 @@
 // Hand-written service worker: precache the app shell, cache-first for precached same-origin GETs.
-const CACHE = "driftwood-cove-v12";
+const CACHE = "driftwood-cove-v13";
 const PRECACHE = [
   "/",
   "/index.html",
@@ -19,6 +19,7 @@ const PRECACHE = [
   "/js/game/fishing.js",
   "/js/game/economy.js",
   "/js/game/skills.js",
+  "/js/game/orders.js",
   "/js/input/input.js",
   "/js/ui/ui.js",
   "/js/ui/fishArt.js",

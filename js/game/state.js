@@ -2,9 +2,10 @@
 import { STARTING_COINS, DAY_LENGTH_MS, FISH_BY_ID, GEAR, GEAR_SLOTS, RARITIES, FISH, REGIONS, BAGS, XP_FIRST_CATCH, STREAK } from "./content.js";
 import { WORLD, isWalkable } from "./world.js";
 import { catchXp, sanitizeSkills } from "./skills.js";
+import { sanitizeOrders } from "./orders.js";
 
 // v2: construction-barrier unlocks + per-species best-catch records. v3: bag tier. v4: xp + skills; hook & tackle removed.
-// v5: home interior (area "home"), trophy shelf, catch streak.
+// v5: home interior (area "home"), trophy shelf, catch streak, day counter + notice-board orders.
 export const SAVE_VERSION = 5;
 export const TROPHY_SLOTS = 3;
 // Coins refunded for pre-v4 purchases that no longer exist (cumulative hook tier prices, tackle prices).
@@ -30,6 +31,8 @@ export function createState(seed = (Date.now() ^ 0x5eed) >>> 0) {
     nextFishUid: 1,
     player: { x: WORLD.spawn.x, z: WORLD.spawn.z, facing: Math.PI, area: "land" },
     timeMs: 20 * 1000, // start early in Dawn
+    day: 0, // in-game days passed (orders refresh at dawn)
+    orders: null, // { day, list } — generated on demand by orders.ensureOrders
     rngSeed: seed >>> 0,
   };
 }
@@ -53,6 +56,8 @@ export function serialize(state, rng) {
     nextFishUid: state.nextFishUid,
     player: { ...state.player },
     timeMs: Math.floor(state.timeMs),
+    day: state.day,
+    orders: state.orders ? structuredClone(state.orders) : null,
     rngSeed: rng ? rng.seed : state.rngSeed,
   };
 }
@@ -124,6 +129,8 @@ export function deserialize(data) {
   }
   s.timeMs = ((num(data.timeMs, s.timeMs) % DAY_LENGTH_MS) + DAY_LENGTH_MS) % DAY_LENGTH_MS;
   s.rngSeed = Math.floor(num(data.rngSeed, s.rngSeed)) >>> 0;
+  s.day = Math.max(0, Math.floor(num(data.day, 0)));
+  s.orders = sanitizeOrders(data.orders, s.day);
   return s;
 }
 

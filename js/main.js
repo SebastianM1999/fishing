@@ -7,6 +7,7 @@ import { PLAYER_SPEED, isWalkable, nearestInteraction, regionName, surfaceAt, TR
 import * as fishing from "./game/fishing.js";
 import * as economy from "./game/economy.js";
 import * as skills from "./game/skills.js";
+import * as orders from "./game/orders.js";
 import { createInput } from "./input/input.js";
 import { createUI } from "./ui/ui.js";
 import { createRenderer } from "./render/scene.js";
@@ -81,6 +82,15 @@ const ui = createUI({
   unmountTrophy(slot) {
     if (!economy.unmountTrophy(state, slot)) { ui.toast("Your bag is full — make room first"); audio.play("denied"); return; }
     ui.toast("Trophy back in your bag"); audio.play("ui"); afterChange();
+  },
+  handIn(id) {
+    const order = state.orders?.list.find(o => o.id === id);
+    const res = orders.handIn(state, id);
+    if (!res) { audio.play("denied"); return; }
+    ui.toast(`Order done: ${orders.orderText(order)} · +${res.coins} coins, +${res.xp} XP`);
+    audio.play("coin"); setTimeout(() => audio.play("coin"), 140);
+    if (res.levels > 0) announceLevelUp(res.levels);
+    afterChange();
   },
   learnSkill(id) {
     if (!skills.learn(state, id)) { audio.play("denied"); return; }
@@ -194,6 +204,7 @@ function interact(it) {
     case "shop": ui.openShop(state); break;
     case "board": ui.openBoard(); break;
     case "trophies": ui.openTrophies(); break;
+    case "quests": orders.ensureOrders(state); ui.openOrders(); break;
     case "enter": travel(TRAVEL.toHome); break;
     case "exit": travel(TRAVEL.fromHome); break;
     case "dock":
@@ -244,15 +255,17 @@ function awardCatchXp(s) {
     first: economy.isFirstCatch(state, s.encounter), perfect: s.hookQuality === "perfect", mult: fishing.getStats(state, s.bucket).xpMult,
   });
   const levels = skills.addXp(state, xp);
-  if (levels > 0) {
-    const level = skills.levelOf(state.xp);
-    setTimeout(() => {
-      ui.toast(`Level ${level}! +${levels} skill point${levels > 1 ? "s" : ""} (press K)`);
-      ui.levelUp();
-      audio.play("levelup");
-    }, 650);
-  }
+  if (levels > 0) announceLevelUp(levels);
   return xp;
+}
+
+function announceLevelUp(levels) {
+  const level = skills.levelOf(state.xp);
+  setTimeout(() => {
+    ui.toast(`Level ${level}! +${levels} skill point${levels > 1 ? "s" : ""} (press K)`);
+    ui.levelUp();
+    audio.play("levelup");
+  }, 650);
 }
 
 function finishSession() {
@@ -263,6 +276,7 @@ function finishSession() {
   if (lost >= 2) setTimeout(() => ui.toast(`Streak of ${lost} lost`), 400);
   if (s.outcome === "caught") {
     xp = awardCatchXp(s);
+    orders.recordCatch(state, s.encounter, s.location, s.bucket);
     saveSoon();
     audio.play("catch");
     if (economy.isNewSpecies(state, s.encounter)) {
@@ -349,6 +363,8 @@ function frame(now) {
   const actions = input.poll();
   const dialogOpen = ui.anyDialogOpen();
   advanceTime(state, dt * 1000);
+  if (orders.ensureOrders(state)) { ui.refreshOpenPanels(); if (game.ordersSeen) ui.toast("New orders on the village notice board"); saveSoon(); }
+  game.ordersSeen = true;
 
   const bucket = timeBucket(state.timeMs);
   let finder = null;
@@ -409,7 +425,7 @@ async function boot() {
   if (params.has("debug")) {
     window.cozy = {
       get state() { return state; }, get game() { return game; }, get rng() { return rng; },
-      content, fishing, economy, skills, saveNow, deleteSave, audio, camera: renderer.camera,
+      content, fishing, economy, skills, orders, saveNow, deleteSave, audio, camera: renderer.camera,
       renderInfo: () => ({ ...renderer.renderer.info.render, geometries: renderer.renderer.info.memory.geometries }),
       setTime(ms) { state.timeMs = ms; },
       teleport(x, z, area = "land") { Object.assign(state.player, { x, z, area }); },
