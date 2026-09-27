@@ -1,8 +1,9 @@
 // Plain-data game state, plus (de)serialization with defensive validation for saves.
-import { STARTING_COINS, DAY_LENGTH_MS, FISH_BY_ID, GEAR, GEAR_SLOTS, TACKLE_BY_ID, RARITIES, FISH } from "./content.js";
+import { STARTING_COINS, DAY_LENGTH_MS, FISH_BY_ID, GEAR, GEAR_SLOTS, TACKLE_BY_ID, RARITIES, FISH, REGIONS } from "./content.js";
 import { WORLD, isWalkable } from "./world.js";
 
-export const SAVE_VERSION = 1;
+// v2: construction-barrier unlocks + per-species best-catch records.
+export const SAVE_VERSION = 2;
 
 export function createState(seed = (Date.now() ^ 0x5eed) >>> 0) {
   return {
@@ -12,7 +13,10 @@ export function createState(seed = (Date.now() ^ 0x5eed) >>> 0) {
     ownedTackle: [],
     equippedTackle: null,
     boatOwned: false,
+    unlocked: [], // region ids from REGIONS whose construction barrier was cleared
     discovered: [], // species ids
+    // Best specimen per species (rarest, then biggest): { rarity, sizeCm, value, uid|null, sold }
+    records: {},
     inventory: [], // [{ uid, speciesId, rarity, sizeCm, value }]
     nextFishUid: 1,
     player: { x: WORLD.spawn.x, z: WORLD.spawn.z, facing: Math.PI, area: "land" },
@@ -30,7 +34,9 @@ export function serialize(state, rng) {
     ownedTackle: [...state.ownedTackle],
     equippedTackle: state.equippedTackle,
     boatOwned: state.boatOwned,
+    unlocked: [...state.unlocked],
     discovered: [...state.discovered],
+    records: structuredClone(state.records),
     inventory: state.inventory.map(f => ({ ...f })),
     nextFishUid: state.nextFishUid,
     player: { ...state.player },
@@ -60,6 +66,21 @@ export function deserialize(data) {
     const order = FISH.map(f => f.id);
     s.discovered = order.filter(id => data.discovered.includes(id));
   }
+  if (data.version === 1) s.unlocked = Object.keys(REGIONS); // v1 had every area open
+  else if (Array.isArray(data.unlocked)) s.unlocked = Object.keys(REGIONS).filter(id => data.unlocked.includes(id));
+  if (data.records && typeof data.records === "object") {
+    for (const id of s.discovered) {
+      const r = data.records[id];
+      if (!r || !RARITIES.includes(r.rarity)) continue;
+      s.records[id] = {
+        rarity: r.rarity,
+        sizeCm: num(r.sizeCm, FISH_BY_ID[id].sizeCm[0]),
+        value: Math.max(1, Math.round(num(r.value, 1))),
+        uid: Number.isInteger(r.uid) ? r.uid : null,
+        sold: r.sold === true,
+      };
+    }
+  }
   if (Array.isArray(data.inventory)) {
     s.inventory = data.inventory
       .filter(f => f && FISH_BY_ID[f.speciesId] && RARITIES.includes(f.rarity))
@@ -77,7 +98,7 @@ export function deserialize(data) {
     const area = p.area === "offshore" && s.boatOwned ? "offshore" : "land";
     const x = num(p.x, s.player.x);
     const z = num(p.z, s.player.z);
-    if (isWalkable(x, z, area)) s.player = { x, z, facing: num(p.facing, Math.PI), area };
+    if (isWalkable(x, z, area, s.unlocked) && (area === "land" || s.unlocked.includes("sea"))) s.player = { x, z, facing: num(p.facing, Math.PI), area };
   }
   s.timeMs = ((num(data.timeMs, s.timeMs) % DAY_LENGTH_MS) + DAY_LENGTH_MS) % DAY_LENGTH_MS;
   s.rngSeed = Math.floor(num(data.rngSeed, s.rngSeed)) >>> 0;

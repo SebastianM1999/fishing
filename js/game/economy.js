@@ -1,30 +1,65 @@
 // Inventory, collection, selling, shop and boat rules on plain state.
-import { GEAR, TACKLE_BY_ID, BOAT_PRICE } from "./content.js";
+import { GEAR, TACKLE_BY_ID, BOAT_PRICE, REGIONS, RARITY_RANK, DISCOVERY_BONUS } from "./content.js";
 
-/** Register a caught fish. First catch of a species goes to the wallboard and is not sellable. */
+/** True if catch a beats catch b as a species record: rarer first, then bigger. */
+export function isBetterRecord(a, b) {
+  if (!b) return true;
+  if (RARITY_RANK[a.rarity] !== RARITY_RANK[b.rarity]) return RARITY_RANK[a.rarity] > RARITY_RANK[b.rarity];
+  return a.sizeCm > b.sizeCm;
+}
+
+/**
+ * Register a caught fish. The first catch of a species goes to the wallboard (not sellable) and pays a
+ * discovery bonus; later copies go to the bag. Either can become the species' best-catch record.
+ */
 export function addCatch(state, encounter) {
-  if (!state.discovered.includes(encounter.speciesId)) {
-    state.discovered.push(encounter.speciesId);
-    return { discovered: true, fish: null };
+  const id = encounter.speciesId;
+  const discovered = !state.discovered.includes(id);
+  let fish = null;
+  let bonus = 0;
+  if (discovered) {
+    state.discovered.push(id);
+    bonus = Math.max(1, Math.round(encounter.value * DISCOVERY_BONUS));
+    state.coins += bonus;
+  } else {
+    fish = { uid: state.nextFishUid++, ...encounter };
+    state.inventory.push(fish);
   }
-  const fish = { uid: state.nextFishUid++, ...encounter };
-  state.inventory.push(fish);
-  return { discovered: false, fish };
+  const newRecord = isBetterRecord(encounter, state.records[id]);
+  if (newRecord) {
+    state.records[id] = { rarity: encounter.rarity, sizeCm: encounter.sizeCm, value: encounter.value, uid: fish ? fish.uid : null, sold: false };
+  }
+  return { discovered, fish, bonus, newRecord: newRecord && !discovered };
+}
+
+function markSold(state, fish) {
+  const rec = state.records[fish.speciesId];
+  if (rec && rec.uid === fish.uid) rec.sold = true;
 }
 
 export function sellOne(state, uid) {
   const i = state.inventory.findIndex(f => f.uid === uid);
   if (i < 0) return 0;
   const [fish] = state.inventory.splice(i, 1);
+  markSold(state, fish);
   state.coins += fish.value;
   return fish.value;
 }
 
 export function sellAll(state) {
   const total = state.inventory.reduce((sum, f) => sum + f.value, 0);
+  for (const fish of state.inventory) markSold(state, fish);
   state.inventory = [];
   state.coins += total;
   return total;
+}
+
+export function unlockRegion(state, id) {
+  const region = REGIONS[id];
+  if (!region || state.unlocked.includes(id) || state.coins < region.price) return false;
+  state.coins -= region.price;
+  state.unlocked.push(id);
+  return true;
 }
 
 export function nextGear(state, slot) {

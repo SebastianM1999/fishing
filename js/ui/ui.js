@@ -3,7 +3,7 @@ import {
   FISH, FISH_BY_ID, TIME_LABELS, LOCATION_LABELS, RARITY_LABELS, GEAR, GEAR_SLOTS, GEAR_LABELS,
   TACKLE, BOAT_PRICE, gearEffectText,
 } from "../game/content.js";
-import { fishSvg } from "./fishArt.js";
+import { fishSvg, rarityIcon } from "./fishArt.js";
 
 const $ = id => document.getElementById(id);
 const BEHAVIOR_HINTS = {
@@ -15,7 +15,7 @@ const BEHAVIOR_HINTS = {
 };
 
 const coinHtml = n => `<span class="value"><span class="coin-icon" aria-hidden="true"></span>${n}</span>`;
-const rarityHtml = r => `<span class="rarity ${r}">${RARITY_LABELS[r]}</span>`;
+const rarityHtml = (r, size) => rarityIcon(r, size);
 
 export function createUI(handlers) {
   const el = {
@@ -29,13 +29,16 @@ export function createUI(handlers) {
     toasts: $("toasts"), fade: $("fade"),
     shop: $("shop-dialog"), shopCoins: $("shop-coins"), market: $("shop-market"), gear: $("shop-gear"),
     bag: $("bag-dialog"), bagBody: $("bag-body"),
-    board: $("board-dialog"), boardBody: $("board-body"), boardCount: $("board-count"),
+    board: $("board-dialog"), boardBody: $("board-body"), boardCount: $("board-count"), boardTip: $("board-tip"),
+    unlock: $("unlock-dialog"), unlockTitle: $("unlock-title"), unlockText: $("unlock-text"), unlockPrice: $("unlock-price"), unlockHave: $("unlock-have"), unlockPay: $("unlock-pay"),
+    catchExtra: $("catch-extra"),
   };
+  let unlockRegion = null;
   const last = {};
   let state = null;
 
   // --- Dialog wiring ------------------------------------------------------
-  for (const d of [el.shop, el.bag, el.board]) {
+  for (const d of [el.shop, el.bag, el.board, el.unlock]) {
     d.addEventListener("click", e => {
       if (e.target === d || e.target.closest("[data-close]")) d.close();
     });
@@ -62,6 +65,44 @@ export function createUI(handlers) {
     if (b.dataset.equipTackle) handlers.equipTackle(b.dataset.equipTackle);
     if (b.dataset.buyBoat !== undefined) handlers.buyBoat();
   });
+  el.unlockPay.addEventListener("click", () => { handlers.unlockRegion(unlockRegion.id); el.unlock.close(); });
+
+  // Wallboard: hover / focus / tap a slot to see the best specimen caught so far.
+  function showTip(slot) {
+    const f = FISH_BY_ID[slot.dataset.species];
+    const found = state.discovered.includes(f.id);
+    const rec = state.records[f.id];
+    let html;
+    if (!found) {
+      html = `<strong>Undiscovered</strong><span>Found at the ${LOCATION_LABELS[f.location]} · ${f.times.map(t => TIME_LABELS[t]).join(", ")}</span>`;
+    } else if (!rec) {
+      html = `<strong>${f.name}</strong><span>No record yet — catch another one to log your best.</span>`;
+    } else {
+      const fate = rec.sold ? `Sold for ${coinHtml(rec.value)}` : rec.uid === null ? `Kept on the wallboard · worth ${coinHtml(rec.value)}` : `In your bag · worth ${coinHtml(rec.value)}`;
+      html = `<div class="tip-art">${fishSvg(f, { size: 200 })}</div>
+        <strong>${f.name} ${rarityHtml(rec.rarity, 22)}</strong>
+        <span class="tip-label">Best catch</span>
+        <span class="tip-stat">${rec.sizeCm.toFixed(1)} cm · ${RARITY_LABELS[rec.rarity]}</span>
+        <span>${fate}</span>`;
+    }
+    el.boardTip.innerHTML = html;
+    el.boardTip.hidden = false;
+    const r = slot.getBoundingClientRect(), t = el.boardTip.getBoundingClientRect();
+    let x = r.left + r.width / 2 - t.width / 2, y = r.top - t.height - 8;
+    if (y < 8) y = r.bottom + 8;
+    x = Math.max(8, Math.min(innerWidth - t.width - 8, x));
+    y = Math.max(8, Math.min(innerHeight - t.height - 8, y));
+    el.boardTip.style.left = `${x}px`;
+    el.boardTip.style.top = `${y}px`;
+  }
+  const hideTip = () => { el.boardTip.hidden = true; };
+  el.boardBody.addEventListener("pointerover", e => { const slot = e.target.closest(".board-slot"); if (slot) showTip(slot); });
+  el.boardBody.addEventListener("pointerleave", hideTip);
+  el.boardBody.addEventListener("focusin", e => { const slot = e.target.closest(".board-slot"); if (slot) showTip(slot); });
+  el.boardBody.addEventListener("focusout", hideTip);
+  el.boardBody.addEventListener("click", e => { const slot = e.target.closest(".board-slot"); if (slot) showTip(slot); });
+  el.board.addEventListener("close", hideTip);
+
   el.action.addEventListener("click", () => handlers.onAction());
   $("catch-ok").addEventListener("click", () => handlers.onAction());
   $("btn-bag").addEventListener("click", () => openBag());
@@ -71,7 +112,7 @@ export function createUI(handlers) {
   function fishRow(f, { sellable }) {
     const s = FISH_BY_ID[f.speciesId];
     return `<li class="fish-row">${fishSvg(s, { size: 64 })}
-      <div><div class="name">${s.name} ${rarityHtml(f.rarity)}</div><div class="meta">${f.sizeCm.toFixed(1)} cm · ${LOCATION_LABELS[s.location]}</div></div>
+      <div><div class="name">${rarityHtml(f.rarity, 20)} ${s.name}</div><div class="meta">${f.sizeCm.toFixed(1)} cm · ${LOCATION_LABELS[s.location]}</div></div>
       ${coinHtml(f.value)}
       ${sellable ? `<button type="button" class="secondary" data-sell="${f.uid}">Sell</button>` : ""}</li>`;
   }
@@ -128,8 +169,11 @@ export function createUI(handlers) {
     el.boardCount.textContent = `${state.discovered.length} / 20`;
     el.boardBody.innerHTML = FISH.map(f => {
       const found = state.discovered.includes(f.id);
-      return `<div class="board-slot ${found ? "found" : ""}">${fishSvg(f, { silhouette: !found, size: 110 })}
-        <span class="name">${found ? f.name : "???"}</span><span class="loc">${LOCATION_LABELS[f.location]}</span></div>`;
+      const rec = state.records[f.id];
+      return `<button type="button" class="board-slot ${found ? "found" : ""}" data-species="${f.id}" aria-label="${found ? f.name : "Undiscovered fish"}">
+        ${rec ? `<span class="slot-rarity">${rarityHtml(rec.rarity, 20)}</span>` : ""}
+        ${fishSvg(f, { silhouette: !found, size: 120 })}
+        <span class="name">${found ? f.name : "???"}</span><span class="loc">${LOCATION_LABELS[f.location]}</span></button>`;
     }).join("");
   }
 
@@ -142,6 +186,16 @@ export function createUI(handlers) {
   function openShop(s) { state = s; el.shopCoins.textContent = s.coins; renderMarket(); renderGear(); selectTab("market"); el.shop.showModal(); }
   function openBag() { renderBag(); el.bag.showModal(); }
   function openBoard() { renderBoard(); el.board.showModal(); }
+  function openUnlock(region, s) {
+    state = s;
+    unlockRegion = region;
+    el.unlockTitle.textContent = region.name;
+    el.unlockText.textContent = `${region.sign}. The builders will clear the barricades for good once they're paid.`;
+    el.unlockPrice.textContent = region.price;
+    el.unlockHave.textContent = s.coins >= region.price ? `(you have ${s.coins})` : `(you have ${s.coins} — keep fishing!)`;
+    el.unlockPay.disabled = s.coins < region.price;
+    el.unlock.showModal();
+  }
 
   function toast(msg) {
     const t = document.createElement("div");
@@ -156,8 +210,8 @@ export function createUI(handlers) {
 
   return {
     bind(s) { state = s; },
-    anyDialogOpen: () => el.shop.open || el.bag.open || el.board.open,
-    openShop, openBag, openBoard, toast, refreshOpenPanels,
+    anyDialogOpen: () => el.shop.open || el.bag.open || el.board.open || el.unlock.open,
+    openShop, openBag, openBoard, openUnlock, toast, refreshOpenPanels,
 
     updateHud(s, bucket, bucketProgress, region) {
       state = s;
@@ -226,13 +280,18 @@ export function createUI(handlers) {
         el.catchTitle.textContent = title;
         el.catchDetails.textContent = detail;
         el.catchNote.textContent = "";
+        el.catchExtra.textContent = "";
       } else {
         el.catchArt.innerHTML = fishSvg(species, { size: 160 });
         el.catchTitle.textContent = `${species.name}`;
-        el.catchDetails.innerHTML = `${rarityHtml(enc.rarity)} · ${enc.sizeCm.toFixed(1)} cm · value ${coinHtml(enc.value)}`;
+        el.catchTitle.innerHTML = `${rarityHtml(enc.rarity, 28)} ${species.name}`;
+        el.catchDetails.innerHTML = `${RARITY_LABELS[enc.rarity]} · ${enc.sizeCm.toFixed(1)} cm · value ${coinHtml(enc.value)}`;
         el.catchNote.textContent = result.discovered
           ? `New discovery! Added to the wallboard (${state.discovered.length} / 20).`
           : "Added to your bag.";
+        el.catchExtra.innerHTML = result.discovered
+          ? `Wallboard bonus ${coinHtml(`+${result.bonus}`)}`
+          : result.newRecord ? "🏆 New personal best for this species!" : "";
       }
       el.catchCard.hidden = false;
     },

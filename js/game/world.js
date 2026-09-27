@@ -36,6 +36,26 @@ export const WORLD = {
   ],
   rocks: [[-17, 6, 0.7], [-30, 8.5, 0.9], [10.5, 9, 0.6], [-12, 12, 0.5], [7, 12.5, 0.6], [-20, -15, 0.7]],
   lamps: [[-3, -6.5], [3, -6.5], [-6.5, 13.5], [3, 14.3]],
+  // Construction barriers (see REGIONS in content.js). A locked zone cannot be entered.
+  barriers: {
+    river: { gate: { x: 10.2, z: -5 }, line: [[10.2, -26], [10.2, 10.2]], zone: (x, z) => x > 10.2 && z <= 10.2 },
+    sea: { gate: { x: 4, z: 10.2 }, line: [[-38, 10.2], [13.5, 10.2]], zone: (x, z) => z > 10.2 },
+  },
+  // Props: [type, x, z, rotationY, scale]. Solid types get a collision circle (PROP_RADIUS).
+  props: [
+    ["bench", -3.2, -8.6, 0, 1], ["barrel", 11.6, -8.6, 0, 1], ["barrel", 12.3, -9.4, 0.4, 0.9], ["crate", 11.8, -11.2, 0.3, 1],
+    ["crate", 4.3, -7.9, 0.1, 0.8], ["mailbox", -4.2, -7.2, 0, 1], ["well", -13.5, -4.2, 0, 1], ["stump", -22, -12, 0, 1],
+    ["log", -27, -16, 0.6, 1], ["bush", -12.5, -7.8, 0, 1], ["bush", -3.8, -12.8, 0, 0.9], ["bush", 3.6, -12.8, 0, 0.9],
+    ["bush", 4.7, -8.3, 0, 0.7], ["bush", -30, 3, 0, 1.1], ["bush", -16, -12.5, 0, 0.9], ["bush", 7.8, 1.5, 0, 1],
+    ["bush", -4, 3, 0, 0.8], ["bush", 12.2, -14, 0, 0.9], ["bush", -36, -3, 0, 1.2], ["signpost", 1.6, -1.5, 0.3, 1],
+    ["flowerbed", -6, -7, 0, 1], ["flowerbed", -10, -7, 0, 1], ["flowerbed", 6.5, 3.5, 0, 1], ["flowerbed", -2.5, 6.5, 0, 1],
+    ["reeds", -17.6, 4.2, 0, 1], ["reeds", -19.5, -5.8, 0, 1], ["reeds", -29.5, -5, 0, 1], ["reeds", -30.4, 3.8, 0, 1],
+    ["reeds", -23, 7.1, 0, 1], ["reeds", 13.1, -12, 0, 1], ["reeds", 13.2, 2, 0, 1],
+    ["lily", -26, -2, 0, 1], ["lily", -22.6, 3.5, 0, 1], ["lily", -27.8, 2.2, 0, 1], ["lily", -21, -4, 0, 1],
+    ["umbrella", -2.5, 13.5, 0, 1], ["towel", -2.5, 14.4, 0.2, 1], ["shell", -11, 15.4, 0, 1], ["shell", 8.5, 14.8, 0, 1],
+    ["buoy", -3, 22, 0, 1], ["buoy", 9, 25, 0, 1], ["crate", 5.6, 15.6, 0.2, 0.8], ["barrel", 1.9, 15.5, 0, 0.8],
+    ["tacklebox", 12.5, -4.2, 0.5, 1], ["bucket", -16.3, 1.3, 0, 1],
+  ],
   // Decorative path strips (rendering only).
   paths: [
     { x: 0, z: -4, w: 3, d: 13 },
@@ -56,7 +76,11 @@ export const INTERACTIONS = [
   { id: "board", type: "board", area: "land", x: 0, z: -10.2, r: 2, label: "View wallboard" },
   { id: "dock", type: "dock", area: "land", x: 4, z: 22.8, r: 1.6, label: "Sail offshore" },
   { id: "return", type: "return", area: "offshore", x: 0, z: 77.2, r: 1.4, label: "Sail back to shore" },
+  { id: "gate_river", type: "barrier", region: "river", area: "land", x: 9.1, z: -5, r: 1.9, label: "Construction site" },
+  { id: "gate_sea", type: "barrier", region: "sea", area: "land", x: 4, z: 9.1, r: 1.9, label: "Construction site" },
 ];
+
+export const PROP_RADIUS = { bench: 0.7, barrel: 0.45, crate: 0.5, mailbox: 0.2, well: 1.1, stump: 0.5, log: 0.8, bush: 0.7, signpost: 0.2, umbrella: 0.15, buoy: 0, tacklebox: 0.35, bucket: 0.25 };
 
 // Positions used when travelling by boat.
 export const TRAVEL = {
@@ -79,9 +103,18 @@ function solidRects() {
 }
 const SOLIDS = solidRects();
 
-export function isWalkable(x, z, area) {
+/** Is a region's construction barrier still blocking the way? */
+export function isLockedAt(x, z, unlocked) {
+  for (const [id, b] of Object.entries(WORLD.barriers)) {
+    if (!unlocked.includes(id) && b.zone(x, z)) return true;
+  }
+  return false;
+}
+
+export function isWalkable(x, z, area, unlocked = []) {
   const pr = PLAYER_RADIUS;
   if (area === "offshore") return inRect(x, z, WORLD.offshore, pr * 0.8);
+  if (isLockedAt(x, z, unlocked) || isLockedAt(x + pr, z + pr, unlocked)) return false;
   if (WORLD.walkways.some(w => inRect(x, z, w, 0.1))) return true;
   if (!inRect(x, z, WORLD.land, pr)) return false;
   const l = WORLD.lake;
@@ -92,14 +125,19 @@ export function isWalkable(x, z, area) {
   for (const [tx, tz, s] of WORLD.trees) if (Math.hypot(x - tx, z - tz) < 0.5 * s + pr) return false;
   for (const [rx, rz, s] of WORLD.rocks) if (Math.hypot(x - rx, z - rz) < 0.8 * s + pr) return false;
   for (const [lx, lz] of WORLD.lamps) if (Math.hypot(x - lx, z - lz) < 0.2 + pr) return false;
+  for (const [type, px, pz, , ps] of WORLD.props) {
+    const r = PROP_RADIUS[type];
+    if (r && Math.hypot(x - px, z - pz) < r * ps + pr) return false;
+  }
   return true;
 }
 
-export function nearestInteraction(player) {
+export function nearestInteraction(player, unlocked = []) {
   let best = null;
   let bestD = Infinity;
   for (const it of INTERACTIONS) {
     if (it.area !== player.area) continue;
+    if (it.type === "barrier" && unlocked.includes(it.region)) continue;
     const d = Math.hypot(player.x - it.x, player.z - it.z);
     if (d <= it.r && d < bestD) { best = it; bestD = d; }
   }

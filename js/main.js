@@ -77,7 +77,18 @@ const ui = createUI({
     if (economy.equipTackle(state, id)) { ui.toast(`Equipped ${content.TACKLE_BY_ID[id].name}`); afterChange(); }
   },
   buyBoat() {
-    if (economy.buyBoat(state)) { ui.toast("You bought a boat! Head to the dock to sail offshore."); beep(523, 400, "triangle"); afterChange(); }
+    if (economy.buyBoat(state)) {
+      ui.toast(state.unlocked.includes("sea") ? "You bought a boat! Head to the dock to sail offshore." : "You bought a boat! Clear the beach construction to reach the dock.");
+      beep(523, 400, "triangle"); afterChange();
+    }
+  },
+  unlockRegion(id) {
+    if (economy.unlockRegion(state, id)) {
+      ui.toast(`The ${content.REGIONS[id].name.toLowerCase()} is open!`);
+      beep(523, 160, "triangle"); setTimeout(() => beep(784, 260, "triangle"), 160);
+      renderer.setUnlocked(state.unlocked);
+      afterChange();
+    }
   },
 });
 
@@ -129,11 +140,13 @@ function interact(it) {
       else travel(TRAVEL.toOffshore);
       break;
     case "return": travel(TRAVEL.toShore); break;
+    case "barrier": ui.openUnlock(content.REGIONS[it.region], state); break;
   }
 }
 
 function actionLabelFor(it) {
   if (it.type === "dock" && !state.boatOwned) return { label: `Boat dock — boat ${content.BOAT_PRICE} coins at shop`, locked: true };
+  if (it.type === "barrier") return { label: `${content.REGIONS[it.region].name} — clear for ${content.REGIONS[it.region].price} coins`, locked: state.coins < content.REGIONS[it.region].price };
   return { label: it.label, locked: false };
 }
 
@@ -207,7 +220,7 @@ function updateMovement(actions, dt) {
   for (const a of SLIDE_ANGLES) {
     const c = Math.cos(a), s = Math.sin(a);
     const nx = ox + (ux * c - uz * s) * step, nz = oz + (ux * s + uz * c) * step;
-    if (isWalkable(nx, nz, p.area)) { p.x = nx; p.z = nz; break; }
+    if (isWalkable(nx, nz, p.area, state.unlocked)) { p.x = nx; p.z = nz; break; }
   }
   if (p.x === ox && p.z === oz) { game.moveTarget = null; return; }
   p.facing = Math.atan2(mx, mz);
@@ -237,7 +250,7 @@ function frame(now) {
     const tap = actions.taps.find(t => !t.pad);
     if (tap) game.moveTarget = renderer.pickGround(tap.x, tap.y);
     updateMovement(actions, dt);
-    const it = nearestInteraction(state.player);
+    const it = nearestInteraction(state.player, state.unlocked);
     if (it) {
       const { label, locked } = actionLabelFor(it);
       ui.setAction(label, locked);
@@ -248,7 +261,8 @@ function frame(now) {
   const bucket = timeBucket(state.timeMs);
   ui.updateHud(state, bucket, bucketProgress(state.timeMs), regionName(state.player));
   ui.updateFishing(game.session);
-  renderer.render({ state, session: game.session, walking: game.walking, dt, elapsed: game.elapsed });
+  const result = ui.catchVisible() && game.session ? (game.session.outcome === "caught" ? "caught" : "lost") : null;
+  renderer.render({ state, session: game.session, walking: game.walking, dt, elapsed: game.elapsed, result });
 
   game.saveTimer += dt;
   if (game.saveTimer > 15) { game.saveTimer = 0; saveSoon(); } // position/time checkpoint
@@ -259,6 +273,7 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) saveN
 
 async function boot() {
   try {
+    if (params.has("debug") && params.has("reset")) await deleteSave(); // test hook: start a fresh game
     const data = await loadSave();
     if (data) {
       state = deserialize(data);
@@ -269,13 +284,14 @@ async function boot() {
   }
   ui.bind(state);
   renderer.setWallboard(state.discovered);
+  renderer.setUnlocked(state.unlocked);
   requestAnimationFrame(frame);
 
   // Test/debug hook, only with ?debug in the URL.
   if (params.has("debug")) {
     window.cozy = {
       get state() { return state; }, get game() { return game; }, get rng() { return rng; },
-      content, fishing, economy, saveNow, deleteSave,
+      content, fishing, economy, saveNow, deleteSave, camera: renderer.camera,
       setTime(ms) { state.timeMs = ms; },
       teleport(x, z, area = "land") { Object.assign(state.player, { x, z, area }); },
     };

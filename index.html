@@ -58,6 +58,7 @@
     <h2 id="catch-title">Caught!</h2>
     <p id="catch-details"></p>
     <p id="catch-note" class="catch-note"></p>
+    <p id="catch-extra" class="catch-extra"></p>
     <button type="button" id="catch-ok" class="primary">Continue <span class="key">E</span></button>
   </section>
 
@@ -93,7 +94,24 @@
       <strong id="board-count">0 / 20</strong>
       <button type="button" class="close" data-close aria-label="Close">✕</button>
     </header>
+    <p class="board-hint">Hover, focus or tap a fish to see your best catch.</p>
     <div id="board-body" class="panel-body board-grid"></div>
+    <div id="board-tip" class="board-tip" role="tooltip" hidden></div>
+  </dialog>
+
+  <dialog id="unlock-dialog" class="panel small" aria-labelledby="unlock-title">
+    <header class="panel-head">
+      <h2 id="unlock-title">Construction site</h2>
+      <button type="button" class="close" data-close aria-label="Close">✕</button>
+    </header>
+    <div class="panel-body unlock-body">
+      <p id="unlock-text"></p>
+      <p class="unlock-price"><span class="value"><span class="coin-icon" aria-hidden="true"></span><span id="unlock-price">0</span></span> <span id="unlock-have" class="muted"></span></p>
+      <div class="unlock-actions">
+        <button type="button" class="secondary" data-close>Not now</button>
+        <button type="button" class="primary" id="unlock-pay">Pay the builders</button>
+      </div>
+    </div>
   </dialog>
 
   <script>

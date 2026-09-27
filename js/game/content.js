@@ -11,33 +11,42 @@ export const LOCATION_LABELS = { lake: "Lake", river: "River", sea: "Sea Shore",
 export const STARTING_COINS = 30;
 export const BOAT_PRICE = 1000;
 
+// Construction barriers: areas that must be cleared with coins before they can be entered.
+export const REGIONS = {
+  river: { id: "river", name: "River bank", price: 250, sign: "River bank closed for repairs" },
+  sea: { id: "sea", name: "Beach & docks", price: 750, sign: "Beach & docks under construction" },
+};
+
+// First catch of a species pays a wallboard bonus equal to this fraction of the specimen's value.
+export const DISCOVERY_BONUS = 1.0;
+
 /** @typedef {"calm"|"darting"|"zigzag"|"heavy"|"frenzy"} Behavior */
 
-// art: procedural silhouette parameters for the wallboard / catch card (hue, body length/height, fin style)
+// art: illustration parameters for portraits (colors, body shape, markings, mouth/fin extras)
 export const FISH = [
-  { id: "lake_bluegill", name: "Bluegill", location: "lake", times: ["dawn", "day"], baseValue: 8, sizeCm: [12, 24], behavior: "calm", assetId: "fish_bluegill", art: { color: "#5f8fb0", belly: "#e9b35a", len: 0.62, h: 0.42, fin: "round" } },
-  { id: "lake_largemouth_bass", name: "Largemouth Bass", location: "lake", times: ["dawn", "day", "dusk"], baseValue: 12, sizeCm: [28, 48], behavior: "darting", assetId: "fish_largemouth_bass", art: { color: "#6f8a4a", belly: "#e3dcb0", len: 0.8, h: 0.34, fin: "spiky" } },
-  { id: "lake_catfish", name: "Catfish", location: "lake", times: ["dusk", "night"], baseValue: 16, sizeCm: [35, 70], behavior: "heavy", assetId: "fish_catfish", art: { color: "#6b6258", belly: "#cdbfa8", len: 0.9, h: 0.26, fin: "whisker" } },
-  { id: "lake_northern_pike", name: "Northern Pike", location: "lake", times: ["dawn", "day"], baseValue: 22, sizeCm: [45, 85], behavior: "zigzag", assetId: "fish_northern_pike", art: { color: "#7d9255", belly: "#eee6bf", len: 1, h: 0.2, fin: "long" } },
-  { id: "lake_golden_carp", name: "Golden Carp", location: "lake", times: ["dawn", "dusk", "night"], baseValue: 35, sizeCm: [25, 60], behavior: "frenzy", assetId: "fish_golden_carp", art: { color: "#e0a832", belly: "#f7dc8c", len: 0.78, h: 0.36, fin: "round" } },
+  { id: "lake_bluegill", name: "Bluegill", location: "lake", times: ["dawn", "day"], baseValue: 8, sizeCm: [12, 24], behavior: "calm", assetId: "fish_bluegill", art: { color: "#4f7fa6", back: "#2f5878", belly: "#f0b04a", fin: "#3d6688", shape: "deep", pattern: "bars", patternColor: "#2b4f6e", ear: "#1f2f45", len: 0.62, h: 0.44 } },
+  { id: "lake_largemouth_bass", name: "Largemouth Bass", location: "lake", times: ["dawn", "day", "dusk"], baseValue: 12, sizeCm: [28, 48], behavior: "darting", assetId: "fish_largemouth_bass", art: { color: "#7c9650", back: "#4e6630", belly: "#ece5bd", fin: "#6f8446", shape: "bass", pattern: "band", patternColor: "#3e4f26", mouth: "big", len: 0.82, h: 0.34 } },
+  { id: "lake_catfish", name: "Catfish", location: "lake", times: ["dusk", "night"], baseValue: 16, sizeCm: [35, 70], behavior: "heavy", assetId: "fish_catfish", art: { color: "#6e655b", back: "#4a433c", belly: "#d8cbb3", fin: "#57504a", shape: "catfish", pattern: "mottle", patternColor: "#4f4740", mouth: "barbels", len: 0.92, h: 0.26 } },
+  { id: "lake_northern_pike", name: "Northern Pike", location: "lake", times: ["dawn", "day"], baseValue: 22, sizeCm: [45, 85], behavior: "zigzag", assetId: "fish_northern_pike", art: { color: "#7f9656", back: "#4d6334", belly: "#efe8c4", fin: "#b56a3a", shape: "pike", pattern: "lightspots", patternColor: "#e7e2b0", mouth: "duck", len: 1, h: 0.2 } },
+  { id: "lake_golden_carp", name: "Golden Carp", location: "lake", times: ["dawn", "dusk", "night"], baseValue: 35, sizeCm: [25, 60], behavior: "frenzy", assetId: "fish_golden_carp", art: { color: "#e6a92c", back: "#c9781c", belly: "#fbe29a", fin: "#e8893a", shape: "carp", pattern: "scales", patternColor: "#b8661a", mouth: "barbels", shine: true, len: 0.78, h: 0.38 } },
 
-  { id: "river_trout", name: "Trout", location: "river", times: ["dawn", "day"], baseValue: 14, sizeCm: [25, 55], behavior: "darting", assetId: "fish_trout", art: { color: "#8a9a6a", belly: "#e7a3a0", len: 0.84, h: 0.28, fin: "round" } },
-  { id: "river_salmon", name: "Salmon", location: "river", times: ["dawn", "dusk"], baseValue: 24, sizeCm: [40, 80], behavior: "zigzag", assetId: "fish_salmon", art: { color: "#c97a5a", belly: "#f1c2a4", len: 0.9, h: 0.3, fin: "fork" } },
-  { id: "river_perch", name: "Perch", location: "river", times: ["day", "dusk"], baseValue: 10, sizeCm: [18, 35], behavior: "calm", assetId: "fish_perch", art: { color: "#b3a24a", belly: "#efe2a5", len: 0.66, h: 0.36, fin: "spiky" } },
-  { id: "river_carp", name: "Carp", location: "river", times: ["day", "night"], baseValue: 18, sizeCm: [35, 75], behavior: "heavy", assetId: "fish_carp", art: { color: "#8f7a4c", belly: "#dcc996", len: 0.82, h: 0.38, fin: "round" } },
-  { id: "river_sturgeon", name: "Sturgeon", location: "river", times: ["dusk", "night"], baseValue: 42, sizeCm: [60, 120], behavior: "heavy", assetId: "fish_sturgeon", art: { color: "#5d6770", belly: "#c9c7bd", len: 1, h: 0.22, fin: "shark" } },
+  { id: "river_trout", name: "Trout", location: "river", times: ["dawn", "day"], baseValue: 14, sizeCm: [25, 55], behavior: "darting", assetId: "fish_trout", art: { color: "#8d9d6b", back: "#5c6e46", belly: "#f2e0c8", fin: "#8c8a62", shape: "trout", pattern: "spots", patternColor: "#3a3a2a", stripe: "#e0848a", len: 0.84, h: 0.28 } },
+  { id: "river_salmon", name: "Salmon", location: "river", times: ["dawn", "dusk"], baseValue: 24, sizeCm: [40, 80], behavior: "zigzag", assetId: "fish_salmon", art: { color: "#b8bfc4", back: "#5c7188", belly: "#f4eee6", fin: "#7a8898", shape: "salmon", pattern: "spots", patternColor: "#34404e", stripe: "#e9a78e", len: 0.9, h: 0.3 } },
+  { id: "river_perch", name: "Perch", location: "river", times: ["day", "dusk"], baseValue: 10, sizeCm: [18, 35], behavior: "calm", assetId: "fish_perch", art: { color: "#b9ab4a", back: "#7b7a2e", belly: "#f2e8b0", fin: "#e0703e", shape: "deep", pattern: "bars", patternColor: "#4a4a1c", spiny: true, len: 0.66, h: 0.37 } },
+  { id: "river_carp", name: "Carp", location: "river", times: ["day", "night"], baseValue: 18, sizeCm: [35, 75], behavior: "heavy", assetId: "fish_carp", art: { color: "#9a8250", back: "#6c5832", belly: "#e2cf9c", fin: "#8c6c40", shape: "carp", pattern: "scales", patternColor: "#6a522c", mouth: "barbels", len: 0.82, h: 0.38 } },
+  { id: "river_sturgeon", name: "Sturgeon", location: "river", times: ["dusk", "night"], baseValue: 42, sizeCm: [60, 120], behavior: "heavy", assetId: "fish_sturgeon", art: { color: "#6a747c", back: "#434b52", belly: "#d6d3c8", fin: "#565f66", shape: "sturgeon", pattern: "scutes", patternColor: "#e8e4d6", mouth: "barbels", len: 1, h: 0.22 } },
 
-  { id: "sea_sardine", name: "Sardine", location: "sea", times: ["dawn", "day"], baseValue: 10, sizeCm: [10, 22], behavior: "darting", assetId: "fish_sardine", art: { color: "#6e8fa8", belly: "#e8eef0", len: 0.7, h: 0.22, fin: "fork" } },
-  { id: "sea_mackerel", name: "Mackerel", location: "sea", times: ["dawn", "dusk"], baseValue: 18, sizeCm: [25, 45], behavior: "zigzag", assetId: "fish_mackerel", art: { color: "#3f7f8a", belly: "#e3ecea", len: 0.84, h: 0.24, fin: "fork" } },
-  { id: "sea_flounder", name: "Flounder", location: "sea", times: ["day", "dusk"], baseValue: 22, sizeCm: [25, 55], behavior: "calm", assetId: "fish_flounder", art: { color: "#9a8466", belly: "#d9c9a8", len: 0.7, h: 0.5, fin: "flat" } },
-  { id: "sea_sea_bass", name: "Sea Bass", location: "sea", times: ["dusk", "night"], baseValue: 30, sizeCm: [35, 70], behavior: "heavy", assetId: "fish_sea_bass", art: { color: "#7b8c96", belly: "#e4e6e2", len: 0.86, h: 0.32, fin: "spiky" } },
-  { id: "sea_red_mullet", name: "Red Mullet", location: "sea", times: ["night", "dawn"], baseValue: 34, sizeCm: [20, 40], behavior: "darting", assetId: "fish_red_mullet", art: { color: "#d0645a", belly: "#f3c9a8", len: 0.74, h: 0.3, fin: "whisker" } },
+  { id: "sea_sardine", name: "Sardine", location: "sea", times: ["dawn", "day"], baseValue: 10, sizeCm: [10, 22], behavior: "darting", assetId: "fish_sardine", art: { color: "#8fb2c8", back: "#3d6a8c", belly: "#f1f5f6", fin: "#9ab4c4", shape: "slim", pattern: "dots", patternColor: "#26435a", len: 0.72, h: 0.22 } },
+  { id: "sea_mackerel", name: "Mackerel", location: "sea", times: ["dawn", "dusk"], baseValue: 18, sizeCm: [25, 45], behavior: "zigzag", assetId: "fish_mackerel", art: { color: "#8fc0bc", back: "#2f6f78", belly: "#eef4f1", fin: "#5c8e8a", shape: "tuna", pattern: "waves", patternColor: "#153f48", finlets: true, len: 0.84, h: 0.25 } },
+  { id: "sea_flounder", name: "Flounder", location: "sea", times: ["day", "dusk"], baseValue: 22, sizeCm: [25, 55], behavior: "calm", assetId: "fish_flounder", art: { color: "#a18a68", back: "#7e6a4c", belly: "#d9c8a4", fin: "#8e7654", shape: "flat", pattern: "orangespots", patternColor: "#df7a3c", len: 0.72, h: 0.52 } },
+  { id: "sea_sea_bass", name: "Sea Bass", location: "sea", times: ["dusk", "night"], baseValue: 30, sizeCm: [35, 70], behavior: "heavy", assetId: "fish_sea_bass", art: { color: "#9aa8b0", back: "#56656e", belly: "#eef0ec", fin: "#6c7a82", shape: "bass", pattern: "lateral", patternColor: "#3e4a52", spiny: true, len: 0.86, h: 0.32 } },
+  { id: "sea_red_mullet", name: "Red Mullet", location: "sea", times: ["night", "dawn"], baseValue: 34, sizeCm: [20, 40], behavior: "darting", assetId: "fish_red_mullet", art: { color: "#e07a62", back: "#b8483c", belly: "#f7d6b8", fin: "#e59a6a", shape: "mullet", pattern: "stripe2", patternColor: "#f2c85a", mouth: "barbels", len: 0.74, h: 0.3 } },
 
-  { id: "offshore_tuna", name: "Tuna", location: "offshore", times: ["dawn", "day"], baseValue: 55, sizeCm: [70, 140], behavior: "heavy", assetId: "fish_tuna", art: { color: "#3c5c86", belly: "#d8dde2", len: 0.9, h: 0.4, fin: "fork" } },
-  { id: "offshore_swordfish", name: "Swordfish", location: "offshore", times: ["night"], baseValue: 95, sizeCm: [100, 220], behavior: "frenzy", assetId: "fish_swordfish", art: { color: "#4b5d78", belly: "#c7cfd6", len: 1, h: 0.26, fin: "sword" } },
-  { id: "offshore_marlin", name: "Marlin", location: "offshore", times: ["day", "dusk"], baseValue: 110, sizeCm: [120, 250], behavior: "zigzag", assetId: "fish_marlin", art: { color: "#2f5f93", belly: "#d4e0ea", len: 1, h: 0.3, fin: "sail" } },
-  { id: "offshore_mahi_mahi", name: "Mahi-Mahi", location: "offshore", times: ["day", "dusk"], baseValue: 70, sizeCm: [60, 120], behavior: "darting", assetId: "fish_mahi_mahi", art: { color: "#4f9a62", belly: "#e7cf4c", len: 0.92, h: 0.34, fin: "long" } },
-  { id: "offshore_blue_shark", name: "Blue Shark", location: "offshore", times: ["dusk", "night"], baseValue: 85, sizeCm: [90, 190], behavior: "frenzy", assetId: "fish_blue_shark", art: { color: "#4a6fa0", belly: "#e2e8ee", len: 1, h: 0.26, fin: "shark" } },
+  { id: "offshore_tuna", name: "Tuna", location: "offshore", times: ["dawn", "day"], baseValue: 55, sizeCm: [70, 140], behavior: "heavy", assetId: "fish_tuna", art: { color: "#8ea4bc", back: "#1f3a62", belly: "#e8ecf0", fin: "#e8c23a", shape: "tuna", pattern: "none", patternColor: "#1f3a62", finlets: true, len: 0.9, h: 0.4 } },
+  { id: "offshore_swordfish", name: "Swordfish", location: "offshore", times: ["night"], baseValue: 95, sizeCm: [100, 220], behavior: "frenzy", assetId: "fish_swordfish", art: { color: "#6f86a0", back: "#34465e", belly: "#d6dde4", fin: "#3e5068", shape: "billfish", pattern: "none", patternColor: "#34465e", mouth: "sword", len: 1, h: 0.26 } },
+  { id: "offshore_marlin", name: "Marlin", location: "offshore", times: ["day", "dusk"], baseValue: 110, sizeCm: [120, 250], behavior: "zigzag", assetId: "fish_marlin", art: { color: "#5d8cbc", back: "#1d4a7e", belly: "#e2eaf2", fin: "#2d5f9a", shape: "billfish", pattern: "vbars", patternColor: "#a9d0f0", mouth: "spear", sail: true, len: 1, h: 0.3 } },
+  { id: "offshore_mahi_mahi", name: "Mahi-Mahi", location: "offshore", times: ["day", "dusk"], baseValue: 70, sizeCm: [60, 120], behavior: "darting", assetId: "fish_mahi_mahi", art: { color: "#5aa86a", back: "#2e7a8a", belly: "#f0d84a", fin: "#3a8a9a", shape: "mahi", pattern: "dots", patternColor: "#2e6a8a", len: 0.92, h: 0.34 } },
+  { id: "offshore_blue_shark", name: "Blue Shark", location: "offshore", times: ["dusk", "night"], baseValue: 85, sizeCm: [90, 190], behavior: "frenzy", assetId: "fish_blue_shark", art: { color: "#5f86ba", back: "#35599a", belly: "#eef2f6", fin: "#43669e", shape: "shark", pattern: "none", patternColor: "#35599a", mouth: "shark", len: 1, h: 0.26 } },
 ];
 
 export const FISH_BY_ID = Object.fromEntries(FISH.map(f => [f.id, f]));
@@ -45,6 +54,7 @@ export const FISH_BY_ID = Object.fromEntries(FISH.map(f => [f.id, f]));
 export const RARITIES = ["common", "rare", "legendary"];
 export const RARITY_LABELS = { common: "Common", rare: "Rare", legendary: "Legendary" };
 export const RARITY_MULTIPLIER = { common: 1.0, rare: 2.5, legendary: 6.0 };
+export const RARITY_RANK = { common: 0, rare: 1, legendary: 2 };
 
 // Percent weights per access type.
 export const RARITY_WEIGHTS = {
