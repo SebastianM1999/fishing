@@ -3,13 +3,14 @@ import * as content from "./game/content.js";
 import { createRng } from "./game/rng.js";
 import { createState, serialize, deserialize } from "./game/state.js";
 import { advanceTime, timeBucket, bucketProgress } from "./game/time.js";
-import { PLAYER_SPEED, isWalkable, nearestInteraction, regionName, TRAVEL } from "./game/world.js";
+import { PLAYER_SPEED, isWalkable, nearestInteraction, regionName, surfaceAt, TRAVEL } from "./game/world.js";
 import * as fishing from "./game/fishing.js";
 import * as economy from "./game/economy.js";
 import { createInput } from "./input/input.js";
 import { createUI } from "./ui/ui.js";
 import { createRenderer } from "./render/scene.js";
 import { loadSave, writeSave, deleteSave } from "./persistence/save.js";
+import { createAudio } from "./audio/audio.js";
 
 const canvas = document.getElementById("world");
 const params = new URLSearchParams(location.search);
@@ -24,7 +25,9 @@ const game = {
   travelling: false,
   elapsed: 0,
   saveTimer: 0,
+  stepDist: 0,
 };
+const STEP_LENGTH = 0.85; // world units between footstep sounds
 
 // --- Persistence -----------------------------------------------------------
 let saveQueued = null;
@@ -38,18 +41,15 @@ function saveSoon() {
   saveQueued = setTimeout(saveNow, 300);
 }
 
-// --- Audio (tiny Web Audio cues; optional) ---------------------------------
-let audio = null;
-function beep(freq, ms = 120, type = "sine", gain = 0.08) {
-  try {
-    audio ??= new AudioContext();
-    const o = audio.createOscillator(), g = audio.createGain();
-    o.type = type; o.frequency.value = freq;
-    g.gain.setValueAtTime(gain, audio.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + ms / 1000);
-    o.connect(g).connect(audio.destination);
-    o.start(); o.stop(audio.currentTime + ms / 1000);
-  } catch { /* audio is optional */ }
+// --- Audio: starts on the first user gesture (browser autoplay rules) ----------
+const audio = createAudio();
+for (const type of ["pointerdown", "keydown"]) addEventListener(type, () => audio.init(), { capture: true });
+
+function buyBoat() {
+  if (!economy.buyBoat(state)) return;
+  ui.toast("The boat is yours! Hop aboard to sail offshore.");
+  audio.play("buy");
+  afterChange();
 }
 
 // --- UI handlers ------------------------------------------------------------
@@ -58,39 +58,36 @@ const ui = createUI({
   onDialogClosed: () => canvas.focus?.(),
   sellOne(uid) {
     const v = economy.sellOne(state, uid);
-    if (v) { ui.toast(`Sold for ${v} coins`); beep(880, 80); afterChange(); }
+    if (v) { ui.toast(`Sold for ${v} coins`); audio.play("coin"); afterChange(); }
   },
   sellAll() {
     const v = economy.sellAll(state);
-    if (v) { ui.toast(`Sold everything for ${v} coins`); beep(990, 120); afterChange(); }
+    if (v) { ui.toast(`Sold everything for ${v} coins`); audio.play("coin"); setTimeout(() => audio.play("coin"), 140); afterChange(); }
   },
   buyGear(slot) {
     if (economy.buyGear(state, slot)) {
       ui.toast(`Equipped ${content.GEAR[slot][state.gear[slot]].name}`);
-      beep(660, 150, "triangle"); afterChange();
+      audio.play("buy"); afterChange();
     }
   },
   buyTackle(id) {
-    if (economy.buyTackle(state, id)) { ui.toast(`Equipped ${content.TACKLE_BY_ID[id].name}`); beep(660, 150, "triangle"); afterChange(); }
+    if (economy.buyTackle(state, id)) { ui.toast(`Equipped ${content.TACKLE_BY_ID[id].name}`); audio.play("buy"); afterChange(); }
   },
   equipTackle(id) {
-    if (economy.equipTackle(state, id)) { ui.toast(`Equipped ${content.TACKLE_BY_ID[id].name}`); afterChange(); }
+    if (economy.equipTackle(state, id)) { ui.toast(`Equipped ${content.TACKLE_BY_ID[id].name}`); audio.play("ui"); afterChange(); }
   },
-  buyBoat() {
-    if (economy.buyBoat(state)) {
-      ui.toast(state.unlocked.includes("sea") ? "You bought a boat! Head to the dock to sail offshore." : "You bought a boat! Clear the beach construction to reach the dock.");
-      beep(523, 400, "triangle"); afterChange();
-    }
-  },
-  unlockRegion(id) {
-    if (economy.unlockRegion(state, id)) {
-      ui.toast(`The ${content.REGIONS[id].name.toLowerCase()} is open!`);
-      beep(523, 160, "triangle"); setTimeout(() => beep(784, 260, "triangle"), 160);
-      renderer.setUnlocked(state.unlocked);
-      afterChange();
-    }
-  },
+  getPrefs: () => audio.prefs,
+  setPref: (name, value) => audio.setPref(name, value),
+  onDialogOpened: () => audio.play("open"),
 });
+
+function unlockRegion(id) {
+  if (!economy.unlockRegion(state, id)) return;
+  ui.toast(`The ${content.REGIONS[id].name.toLowerCase()} is open!`);
+  audio.play("unlock");
+  renderer.setUnlocked(state.unlocked);
+  afterChange();
+}
 
 function afterChange() {
   ui.refreshOpenPanels();
@@ -120,6 +117,7 @@ addEventListener("keydown", e => {
 // --- Interactions ------------------------------------------------------------
 function travel(to) {
   game.travelling = true;
+  audio.play("boat");
   ui.fade(true);
   setTimeout(() => {
     state.player.x = to.x; state.player.z = to.z; state.player.area = to.area;
@@ -136,16 +134,26 @@ function interact(it) {
     case "shop": ui.openShop(state); break;
     case "board": ui.openBoard(); break;
     case "dock":
-      if (!state.boatOwned) ui.toast(`You need a boat — buy one at the shop (${content.BOAT_PRICE} coins).`);
-      else travel(TRAVEL.toOffshore);
+      if (state.boatOwned) travel(TRAVEL.toOffshore);
+      else ui.openPurchase(state, {
+        title: "Small Fishing Boat", art: "boat", price: content.BOAT_PRICE, confirmLabel: "Buy the boat", onConfirm: buyBoat,
+        text: "A sturdy little sailboat, moored and ready. Own it for good and sail offshore for tuna, marlin and sharks.",
+      });
       break;
     case "return": travel(TRAVEL.toShore); break;
-    case "barrier": ui.openUnlock(content.REGIONS[it.region], state); break;
+    case "barrier": {
+      const region = content.REGIONS[it.region];
+      ui.openPurchase(state, {
+        title: region.name, art: "barrier", price: region.price, confirmLabel: "Pay the builders", onConfirm: () => unlockRegion(region.id),
+        text: region.sign + ". The builders will clear the barricades for good once they're paid.",
+      });
+      break;
+    }
   }
 }
 
 function actionLabelFor(it) {
-  if (it.type === "dock" && !state.boatOwned) return { label: `Boat dock — boat ${content.BOAT_PRICE} coins at shop`, locked: true };
+  if (it.type === "dock" && !state.boatOwned) return { label: `Buy the boat — ${content.BOAT_PRICE} coins`, locked: state.coins < content.BOAT_PRICE };
   if (it.type === "barrier") return { label: `${content.REGIONS[it.region].name} — clear for ${content.REGIONS[it.region].price} coins`, locked: state.coins < content.REGIONS[it.region].price };
   return { label: it.label, locked: false };
 }
@@ -157,7 +165,7 @@ function startFishing(spot) {
   game.session.spot = spot;
   game.moveTarget = null;
   state.player.x = spot.x; state.player.z = spot.z; state.player.facing = spot.facing;
-  beep(420, 90);
+  audio.play("cast");
 }
 
 function finishSession() {
@@ -166,10 +174,13 @@ function finishSession() {
     game.sessionResult = economy.addCatch(state, s.encounter);
     renderer.setWallboard(state.discovered);
     saveNow();
-    beep(784, 120, "triangle"); setTimeout(() => beep(1046, 180, "triangle"), 120);
+    audio.play("catch");
+    if (game.sessionResult.discovered) audio.play("discover");
+    else if (game.sessionResult.newRecord) audio.play("record");
   } else {
     game.sessionResult = null;
-    if (s.outcome === "broke") beep(160, 300, "sawtooth", 0.05);
+    if (s.outcome === "broke") audio.play("snap");
+    else if (s.outcome !== "early") audio.play("lose");
   }
   if (s.outcome === "early") { ui.toast("Reeled in — nothing on the line yet."); game.session = null; return; }
   ui.showCatchResult(s, game.sessionResult);
@@ -185,12 +196,17 @@ function updateSession(actions, dtMs) {
   const hookPress = actions.interact || (s.phase === "bite" && actions.taps.length > 0);
   if (hookPress && (s.phase === "bite" || actions.interact)) {
     const ev = fishing.pressAction(s, rng, stats);
-    if (ev === "hooked") beep(s.hookQuality === "perfect" ? 988 : 740, 120, "triangle");
+    if (ev === "hooked") audio.play("hook", s.hookQuality === "perfect");
     if (ev === "early") { finishSession(); return; }
   }
   s.reelHeld = actions.reel && s.phase === "fight";
+  const before = s.phase;
   const ev = fishing.updateFishing(s, dtMs, { reelHeld: s.reelHeld }, rng, stats);
-  if (ev === "bite") { beep(1200, 90, "square", 0.05); navigator.vibrate?.(80); }
+  if (before === "cast" && s.phase === "wait") audio.play("plop");
+  if (ev === "bite") {
+    audio.play("bite");
+    if (document.body.classList.contains("touch") && navigator.userActivation?.hasBeenActive) navigator.vibrate?.(80);
+  }
   if (s.phase === "done") finishSession();
 }
 
@@ -225,6 +241,8 @@ function updateMovement(actions, dt) {
   if (p.x === ox && p.z === oz) { game.moveTarget = null; return; }
   p.facing = Math.atan2(mx, mz);
   game.walking = true;
+  game.stepDist += Math.hypot(p.x - ox, p.z - oz);
+  if (game.stepDist > STEP_LENGTH) { game.stepDist = 0; audio.play("step", surfaceAt(p.x, p.z, p.area)); }
 }
 
 // --- Main loop -------------------------------------------------------------
@@ -263,6 +281,8 @@ function frame(now) {
   ui.updateFishing(game.session);
   const result = ui.catchVisible() && game.session ? (game.session.outcome === "caught" ? "caught" : "lost") : null;
   renderer.render({ state, session: game.session, walking: game.walking, dt, elapsed: game.elapsed, result });
+  const fight = game.session?.phase === "fight" ? game.session.fight : null;
+  audio.update({ bucket, area: state.player.area, x: state.player.x, z: state.player.z, fightHeld: !!(fight && game.session.reelHeld), tension: fight ? fight.tension / fight.tensionLimit : 0 });
 
   game.saveTimer += dt;
   if (game.saveTimer > 15) { game.saveTimer = 0; saveSoon(); } // position/time checkpoint
@@ -291,7 +311,7 @@ async function boot() {
   if (params.has("debug")) {
     window.cozy = {
       get state() { return state; }, get game() { return game; }, get rng() { return rng; },
-      content, fishing, economy, saveNow, deleteSave, camera: renderer.camera,
+      content, fishing, economy, saveNow, deleteSave, audio, camera: renderer.camera,
       renderInfo: () => ({ ...renderer.renderer.info.render, geometries: renderer.renderer.info.memory.geometries }),
       setTime(ms) { state.timeMs = ms; },
       teleport(x, z, area = "land") { Object.assign(state.player, { x, z, area }); },

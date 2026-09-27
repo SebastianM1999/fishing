@@ -1,9 +1,25 @@
 // HTML/CSS UI: HUD, fishing panel, catch card, shop, bag, wallboard. Reads state; calls handlers for actions.
 import {
   FISH, FISH_BY_ID, TIME_LABELS, LOCATION_LABELS, RARITY_LABELS, GEAR, GEAR_SLOTS, GEAR_LABELS,
-  TACKLE, BOAT_PRICE, gearEffectText,
+  TACKLE,
 } from "../game/content.js";
 import { fishSvg, rarityIcon } from "./fishArt.js";
+import { ICONS } from "./icons.js";
+
+const pct = v => `${Math.round(v * 100)}%`;
+const mult = v => `${+v.toFixed(2)}×`;
+const STAT_DEFS = {
+  rod: [{ icon: "width", label: "Catch zone width", get: i => pct(i.zoneWidth) }],
+  reel: [{ icon: "speed", label: "Reel speed", get: i => mult(i.speed) }, { icon: "recovery", label: "Tension recovery", get: i => mult(i.recovery) }],
+  line: [{ icon: "tension", label: "Tension limit", get: i => String(i.tensionLimit) }],
+  hook: [{ icon: "timer", label: "Hook window", get: i => `${+(i.hookWindowMs / 1000).toFixed(2)}s` }, { icon: "grip", label: "Slower progress loss", optional: true, get: i => (i.progressLossMult < 1 ? "−5%" : "—") }],
+};
+const TACKLE_ICON = { tackle_float: "float", tackle_heavy_sinker: "sinker", tackle_spinner: "spinner" };
+const TACKLE_CHIPS = {
+  tackle_float: [{ icon: "smooth", value: "+12%", label: "Smoother zone movement" }],
+  tackle_heavy_sinker: [{ icon: "burst", value: "−10%", label: "Weaker fish bursts" }, { icon: "speed", value: "−8%", label: "Slower zone speed" }],
+  tackle_spinner: [{ icon: "gem", value: "+25%", label: "More rare & legendary fish" }, { icon: "wait", value: "+1s", label: "Longer max bite wait" }],
+};
 
 const $ = id => document.getElementById(id);
 const BEHAVIOR_HINTS = {
@@ -32,19 +48,25 @@ export function createUI(handlers) {
     board: $("board-dialog"), boardBody: $("board-body"), boardCount: $("board-count"), boardTip: $("board-tip"),
     unlock: $("unlock-dialog"), unlockTitle: $("unlock-title"), unlockText: $("unlock-text"), unlockPrice: $("unlock-price"), unlockHave: $("unlock-have"), unlockPay: $("unlock-pay"),
     catchExtra: $("catch-extra"),
+    settings: $("settings-dialog"),
   };
-  let unlockRegion = null;
+  let purchase = null;
   const last = {};
   let state = null;
 
   // --- Dialog wiring ------------------------------------------------------
-  for (const d of [el.shop, el.bag, el.board, el.unlock]) {
+  for (const d of [el.shop, el.bag, el.board, el.unlock, el.settings]) {
     d.addEventListener("click", e => {
       if (e.target === d || e.target.closest("[data-close]")) d.close();
     });
     d.addEventListener("close", () => handlers.onDialogClosed?.());
   }
   document.querySelectorAll(".tabs [data-tab]").forEach(tab => tab.addEventListener("click", () => selectTab(tab.dataset.tab)));
+  $("tab-market").insertAdjacentHTML("afterbegin", ICONS.fish);
+  $("tab-gear").insertAdjacentHTML("afterbegin", ICONS.rod);
+  $("btn-bag").insertAdjacentHTML("afterbegin", ICONS.bag);
+  $("btn-board").insertAdjacentHTML("afterbegin", ICONS.board);
+  $("btn-settings").insertAdjacentHTML("afterbegin", ICONS.gear);
   function selectTab(name) {
     document.querySelectorAll(".tabs [data-tab]").forEach(t => t.setAttribute("aria-selected", String(t.dataset.tab === name)));
     el.market.hidden = name !== "market";
@@ -63,9 +85,8 @@ export function createUI(handlers) {
     if (b.dataset.buyGear) handlers.buyGear(b.dataset.buyGear);
     if (b.dataset.buyTackle) handlers.buyTackle(b.dataset.buyTackle);
     if (b.dataset.equipTackle) handlers.equipTackle(b.dataset.equipTackle);
-    if (b.dataset.buyBoat !== undefined) handlers.buyBoat();
   });
-  el.unlockPay.addEventListener("click", () => { handlers.unlockRegion(unlockRegion.id); el.unlock.close(); });
+  el.unlockPay.addEventListener("click", () => { purchase?.onConfirm(); el.unlock.close(); });
 
   // Wallboard: hover / focus / tap a slot to see the best specimen caught so far.
   function showTip(slot) {
@@ -103,6 +124,26 @@ export function createUI(handlers) {
   el.boardBody.addEventListener("click", e => { const slot = e.target.closest(".board-slot"); if (slot) showTip(slot); });
   el.board.addEventListener("close", hideTip);
 
+  // Settings: icons, sliders and mute toggle
+  el.settings.querySelectorAll("[data-icon]").forEach(n => { n.innerHTML = ICONS[n.dataset.icon]; });
+  for (const name of ["music", "sfx", "ambience"]) {
+    const input = $(`vol-${name}`), out = input.nextElementSibling;
+    input.addEventListener("input", () => { out.value = `${input.value}%`; handlers.setPref(name, input.value / 100); });
+  }
+  $("vol-mute").addEventListener("change", e => handlers.setPref("muted", e.target.checked));
+  function openSettings() {
+    const p = handlers.getPrefs();
+    for (const name of ["music", "sfx", "ambience"]) {
+      const input = $(`vol-${name}`);
+      input.value = Math.round(p[name] * 100);
+      input.nextElementSibling.value = `${input.value}%`;
+    }
+    $("vol-mute").checked = p.muted;
+    showModal(el.settings);
+  }
+  $("btn-settings").addEventListener("click", openSettings);
+  function showModal(d) { d.showModal(); handlers.onDialogOpened?.(); }
+
   el.action.addEventListener("click", () => handlers.onAction());
   $("catch-ok").addEventListener("click", () => handlers.onAction());
   $("btn-bag").addEventListener("click", () => openBag());
@@ -128,34 +169,38 @@ export function createUI(handlers) {
       : `<p class="empty">No sellable fish yet. First catches go straight to the wallboard — later copies can be sold here.</p>`;
   }
 
+  function statHtml(def, cur, next) {
+    const a = def.get(cur), b = next ? def.get(next) : null;
+    return `<span class="stat" title="${def.label}">${ICONS[def.icon]}<span>${a}</span>${b !== null && b !== a ? `<span class="arrow">→</span><b>${b}</b>` : ""}</span>`;
+  }
+
   function renderGear() {
-    const rows = GEAR_SLOTS.map(slot => {
-      const cur = GEAR[slot][state.gear[slot]];
-      const next = GEAR[slot][state.gear[slot] + 1];
-      const info = next
-        ? `<b>${cur.name}</b> <span class="arrow">→ ${next.name}</span><br>
-           <span class="muted">${gearEffectText(slot, cur)}</span> <span class="arrow">→ ${gearEffectText(slot, next)}</span>`
-        : `<b>${cur.name}</b> <span class="muted">(max)</span><br><span class="muted">${gearEffectText(slot, cur)}</span>`;
-      const btn = next
-        ? `<button type="button" class="primary" data-buy-gear="${slot}" ${state.coins < next.price ? "disabled" : ""}>Buy ${coinHtml(next.price)}</button>`
-        : `<span class="muted">Owned</span>`;
-      return `<div class="gear-row"><span class="gear-slot">${GEAR_LABELS[slot]}</span><div class="gear-info">${info}</div>${btn}</div>`;
+    const cards = GEAR_SLOTS.map(slot => {
+      const tier = state.gear[slot], cur = GEAR[slot][tier], next = GEAR[slot][tier + 1];
+      const pips = GEAR[slot].map((_, i) => `<i class="${i <= tier ? "on" : ""}"></i>`).join("");
+      const stats = STAT_DEFS[slot].filter(d => !d.optional || d.get(cur) !== "—" || (next && d.get(next) !== "—")).map(d => statHtml(d, cur, next)).join("");
+      const action = next
+        ? `<button type="button" class="buy" data-buy-gear="${slot}" ${state.coins < next.price ? "disabled" : ""} aria-label="Buy ${next.name} for ${next.price} coins" title="Upgrade to ${next.name}">${coinHtml(next.price)}</button>`
+        : `<span class="max-badge" title="Fully upgraded">MAX</span>`;
+      return `<article class="gear-card" aria-label="${GEAR_LABELS[slot]}">
+        <div class="gear-art" title="${GEAR_LABELS[slot]}">${ICONS[slot]}</div>
+        <div class="gear-main"><div class="gear-title">${cur.name}<span class="pips" aria-label="Tier ${tier + 1} of ${GEAR[slot].length}">${pips}</span></div>
+          <div class="stats">${stats}</div>${next ? `<div class="next-name">→ ${next.name}</div>` : ""}</div>
+        ${action}</article>`;
     });
-    const eq = TACKLE.find(t => t.id === state.equippedTackle);
-    const tackleButtons = TACKLE.map(t => {
-      const owned = state.ownedTackle.includes(t.id);
-      return owned
-        ? `<button type="button" class="secondary" data-equip-tackle="${t.id}" aria-pressed="${state.equippedTackle === t.id}" title="${t.effect}">${t.name}${state.equippedTackle === t.id ? " ✓" : ""}</button>`
-        : `<button type="button" class="secondary" data-buy-tackle="${t.id}" ${state.coins < t.price ? "disabled" : ""} title="${t.effect}">${t.name} · ${coinHtml(t.price)}</button>`;
+    const tackle = TACKLE.map(t => {
+      const owned = state.ownedTackle.includes(t.id), equipped = state.equippedTackle === t.id;
+      const chips = TACKLE_CHIPS[t.id].map(c => `<span class="chip" title="${c.label}">${ICONS[c.icon]}${c.value}</span>`).join("");
+      const action = equipped
+        ? `<span class="equipped">${ICONS.check} On</span>`
+        : owned
+          ? `<button type="button" class="secondary small" data-equip-tackle="${t.id}">Equip</button>`
+          : `<button type="button" class="buy small" data-buy-tackle="${t.id}" ${state.coins < t.price ? "disabled" : ""} aria-label="Buy ${t.name} for ${t.price} coins">${coinHtml(t.price)}</button>`;
+      return `<article class="tackle-card ${equipped ? "is-on" : ""}" title="${t.effect}"><div class="gear-art small">${ICONS[TACKLE_ICON[t.id]]}</div>
+        <div class="tackle-name">${t.name}</div><div class="chips">${chips}</div>${action}</article>`;
     }).join("");
-    rows.push(`<div class="gear-row"><span class="gear-slot">Tackle</span><div class="gear-info">
-      <b>${eq ? eq.name : "None equipped"}</b> <span class="muted">${eq ? eq.effect : "Buy one, equip one"}</span>
-      <div class="tackle-options">${tackleButtons}</div>
-      <div class="muted">${TACKLE.map(t => `${t.name}: ${t.effect}`).join(" · ")}</div></div><span></span></div>`);
-    rows.push(`<div class="gear-row boat-row"><span class="gear-slot">Boat</span><div class="gear-info">
-      <b>Small Fishing Boat</b><br><span class="muted">${state.boatOwned ? "Moored at the dock — sail offshore anytime." : "One-time purchase. Unlocks offshore fishing from the dock."}</span></div>
-      ${state.boatOwned ? `<span class="muted">Owned</span>` : `<button type="button" class="primary" data-buy-boat ${state.coins < BOAT_PRICE ? "disabled" : ""}>Buy ${coinHtml(BOAT_PRICE)}</button>`}</div>`);
-    el.gear.innerHTML = `<div class="gear-list">${rows.join("")}</div>`;
+    el.gear.innerHTML = `<div class="gear-grid">${cards.join("")}</div>
+      <h3 class="section-title">Tackle <span class="muted">equip one</span></h3><div class="tackle-grid">${tackle}</div>`;
   }
 
   function renderBag() {
@@ -183,18 +228,21 @@ export function createUI(handlers) {
     if (el.board.open) renderBoard();
   }
 
-  function openShop(s) { state = s; el.shopCoins.textContent = s.coins; renderMarket(); renderGear(); selectTab("market"); el.shop.showModal(); }
-  function openBag() { renderBag(); el.bag.showModal(); }
-  function openBoard() { renderBoard(); el.board.showModal(); }
-  function openUnlock(region, s) {
+  function openShop(s) { state = s; el.shopCoins.textContent = s.coins; renderMarket(); renderGear(); selectTab("market"); showModal(el.shop); }
+  function openBag() { renderBag(); showModal(el.bag); }
+  function openBoard() { renderBoard(); showModal(el.board); }
+  /** Generic confirm-purchase dialog: construction barriers, the boat at the dock. */
+  function openPurchase(s, { title, art, text, price, confirmLabel, onConfirm }) {
     state = s;
-    unlockRegion = region;
-    el.unlockTitle.textContent = region.name;
-    el.unlockText.textContent = `${region.sign}. The builders will clear the barricades for good once they're paid.`;
-    el.unlockPrice.textContent = region.price;
-    el.unlockHave.textContent = s.coins >= region.price ? `(you have ${s.coins})` : `(you have ${s.coins} — keep fishing!)`;
-    el.unlockPay.disabled = s.coins < region.price;
-    el.unlock.showModal();
+    purchase = { onConfirm };
+    el.unlockTitle.textContent = title;
+    $("unlock-art").innerHTML = ICONS[art] ?? "";
+    el.unlockText.textContent = text;
+    el.unlockPrice.textContent = price;
+    el.unlockHave.textContent = s.coins >= price ? `(you have ${s.coins})` : `(you have ${s.coins} — keep fishing!)`;
+    el.unlockPay.textContent = confirmLabel;
+    el.unlockPay.disabled = s.coins < price;
+    showModal(el.unlock);
   }
 
   function toast(msg) {
@@ -210,8 +258,8 @@ export function createUI(handlers) {
 
   return {
     bind(s) { state = s; },
-    anyDialogOpen: () => el.shop.open || el.bag.open || el.board.open || el.unlock.open,
-    openShop, openBag, openBoard, openUnlock, toast, refreshOpenPanels,
+    anyDialogOpen: () => el.shop.open || el.bag.open || el.board.open || el.unlock.open || el.settings.open,
+    openShop, openBag, openBoard, openPurchase, toast, refreshOpenPanels,
 
     updateHud(s, bucket, bucketProgress, region) {
       state = s;

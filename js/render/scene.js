@@ -1,12 +1,12 @@
 // Three.js view of the game state. Holds no gameplay rules; reads plain state each frame.
 import * as THREE from "three";
 import { WORLD, CAST_DISTANCE } from "../game/world.js";
-import { FISH_BY_ID } from "../game/content.js";
+import { FISH_BY_ID, BOAT_PRICE } from "../game/content.js";
 import { dayFraction } from "../game/time.js";
-import { createMaterials, TIME, G, Kit, Batch } from "./kit.js";
+import { createMaterials, TIME, G, Kit, Batch, GroupSink, waveHeight } from "./kit.js";
 import { buildEnvironment, SEA_Y, RIVER_Y, LAKE_Y } from "./environment.js";
 import * as models from "./models.js";
-import { createBoardTexture } from "./textures.js";
+import { createBoardTexture, createSignTexture } from "./textures.js";
 
 const CAMERA_OFFSET = new THREE.Vector3(9, 26, 22);
 const LINE_POINTS = 14;
@@ -75,6 +75,33 @@ export function createRenderer(canvas) {
   const mooredBoat = models.makeBoat(M, 0.9);
   mooredBoat.position.set(WORLD.boatMooring.x, SEA_Y + 0.05, WORLD.boatMooring.z);
   scene.add(mooredBoat);
+  const forSale = new THREE.Group();
+  {
+    const fk = new Kit(new GroupSink(forSale));
+    fk.part(G.box(0.12, 1.9, 0.12), M.woodDark, [0, 0.95, 0]);
+    const tex = createSignTexture([["FOR SALE", 64], ["Small fishing boat", 30], [`${BOAT_PRICE} coins`, 38]], { bg: "#f7efdf", border: "#3f6e8c" });
+    const board = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.85, 0.06), [M.woodDark, M.woodDark, M.woodDark, M.woodDark, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8 }), M.woodDark]);
+    board.position.set(0, 1.75, 0.07);
+    board.castShadow = true;
+    forSale.add(board);
+    forSale.position.set(5.25, 0.1, 19.6);
+    forSale.rotation.y = 0.5;
+  }
+  scene.add(forSale);
+
+  // Surf: foam strips that roll up the beach slope and fade, staggered in time.
+  const beachSlopeY = z => Math.max(SEA_Y + 0.02, -0.15 - 0.266 * (z - (WORLD.land.maxZ + 1.1)));
+  const surf = [0, 1, 2].map(i => {
+    const geo = new THREE.PlaneGeometry(WORLD.land.maxX + 44, 1, 90, 1); // beach width only
+    const pos = geo.attributes.position; // wavy, uneven wash front
+    for (let v = 0; v < pos.count; v++) pos.setY(v, pos.getY(v) + Math.sin(pos.getX(v) * 0.45 + i * 2.1) * 0.3 + Math.sin(pos.getX(v) * 1.3 + i) * 0.12);
+    const m = new THREE.Mesh(geo, M.foam.clone());
+    m.rotation.x = -Math.PI / 2 + 0.26;
+    m.position.x = (WORLD.land.maxX - 44) / 2;
+    scene.add(m);
+    return m;
+  });
+
   const off = WORLD.offshore;
   const bigBoat = models.makeBoat(M, 1.55);
   bigBoat.position.set(off.cx, SEA_Y - 0.12, off.cz - 0.3);
@@ -294,7 +321,7 @@ export function createRenderer(canvas) {
       const spot = active.spot;
       const bx = spot.x + Math.sin(spot.facing) * CAST_DISTANCE;
       const bz = spot.z + Math.cos(spot.facing) * CAST_DISTANCE;
-      const waterY = spot.location === "lake" ? LAKE_Y + 0.04 : spot.location === "river" ? RIVER_Y + 0.05 : SEA_Y + 0.08;
+      const waterY = spot.location === "lake" ? LAKE_Y + 0.04 : spot.location === "river" ? RIVER_Y + 0.05 : SEA_Y + 0.1 + waveHeight(bx, bz, elapsed);
       const castT = active.phase === "cast" ? Math.min(1, active.t / active.castMs) : 1;
       let by = waterY + Math.sin(elapsed * 2.5) * 0.04, ox = 0, oz = 0;
       if (active.phase === "cast") by = waterY + Math.sin(castT * Math.PI) * 2.5;
@@ -323,13 +350,32 @@ export function createRenderer(canvas) {
       splash.material.opacity = splash2.material.opacity = 0;
     }
 
-    mooredBoat.visible = state.boatOwned && p.area === "land";
-    mooredBoat.position.y = SEA_Y + 0.05 + Math.sin(elapsed * 1.3) * 0.05;
-    mooredBoat.rotation.z = Math.sin(elapsed * 1.1) * 0.03;
-    bigBoat.position.y = SEA_Y - 0.12 + Math.sin(elapsed * 1.1) * 0.04;
-    bigBoat.rotation.z = Math.sin(elapsed * 0.9) * 0.015;
+    // Boats ride the shared wave surface: heave from height, pitch/roll from its slope.
+    const ride = (obj, baseY, x, z, k = 1) => {
+      const d = 1.2, h = waveHeight(x, z, elapsed);
+      obj.position.y = baseY + h;
+      obj.rotation.x = -Math.atan((waveHeight(x, z + d, elapsed) - waveHeight(x, z - d, elapsed)) / (2 * d)) * k;
+      obj.rotation.z = Math.atan((waveHeight(x + d, z, elapsed) - waveHeight(x - d, z, elapsed)) / (2 * d)) * k;
+      return h;
+    };
+    mooredBoat.visible = p.area === "land";
+    ride(mooredBoat, SEA_Y + 0.05, WORLD.boatMooring.x, WORLD.boatMooring.z);
+    forSale.visible = !state.boatOwned;
+    const deckWave = ride(bigBoat, SEA_Y - 0.12, off.cx, off.cz, 0.8);
+    if (p.area === "offshore") {
+      P.root.position.y += deckWave;
+      P.root.rotation.x = bigBoat.rotation.x;
+      P.root.rotation.z = bigBoat.rotation.z;
+    } else P.root.rotation.x = P.root.rotation.z = 0;
+    surf.forEach((m, i) => {
+      const u = (elapsed / 5.5 + i / 3) % 1, e = 1 - Math.pow(1 - u, 2);
+      const z = WORLD.land.maxZ + 3.4 - e * 2.6;
+      m.position.set(m.position.x, beachSlopeY(z) + 0.04, z);
+      m.scale.set(1, 0.5 + e * 0.9, 1);
+      m.material.opacity = Math.pow(Math.sin(Math.PI * u), 1.5) * 0.75;
+    });
     for (const m of env.markers) m.material.opacity = 0.3 + Math.sin(elapsed * 2) * 0.15;
-    env.buoys.forEach((b, i) => { b.position.y = SEA_Y + Math.sin(elapsed * 1.4 + i) * 0.08; b.rotation.z = Math.sin(elapsed + i) * 0.12; });
+    env.buoys.forEach((b, i) => { b.position.y = SEA_Y + waveHeight(b.position.x, b.position.z, elapsed); b.rotation.z = Math.sin(elapsed * 1.3 + i) * 0.18; });
     M.foam.opacity = 0.35 + Math.sin(elapsed * 1.2) * 0.2;
     env.seaFoam.position.z = WORLD.land.maxZ + 2.0 + Math.sin(elapsed * 1.2) * 0.35;
     for (const b of Object.values(env.barriers)) b.warn.material.emissiveIntensity = Math.sin(elapsed * 5) > 0 ? 2.2 : 0.2;

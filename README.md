@@ -23,6 +23,10 @@ Open http://localhost:8080/. Append `?debug` to expose a `window.cozy` test hook
 
 Start at the lake with 30 coins. Construction barriers close off the **river bank (250 coins)** and the **beach & docks (750 coins)**; pay the builders at the barrier to open them for good. The **boat (1000 coins, shop)** then unlocks offshore fishing from the dock. The first catch of each species goes to the wallboard and pays a bonus equal to its value; the wallboard remembers your best specimen per species (rarest, then biggest) — hover, focus or tap a slot to see it.
 
+## Audio
+
+All sound is generated at runtime with the Web Audio API — no audio files. Generative music follows the time of day; nature ambience (birds, crickets, owls, gulls, river, wind, surf) follows where the player is; footsteps change with the ground surface. Audio starts on the first tap/key press (browser autoplay rules). Volumes for music, sounds and nature, plus mute, are in the settings (gear button, top right) and stored in `localStorage`.
+
 ## Layout
 
 ```text
@@ -31,6 +35,7 @@ js/render/      Three.js scene built from world data; reads state each frame
 js/input/       keyboard, pointer and joystick -> game actions
 js/ui/          HUD, fishing panel, shop/bag/wallboard dialogs, procedural fish SVGs
 js/persistence/ IndexedDB save slot
+js/audio/       procedural music, ambience and sound effects
 sw.js           hand-written service worker (versioned precache, cache-first)
 tools/serve.mjs zero-dependency static dev server
 ```

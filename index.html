@@ -35,6 +35,7 @@
   <nav class="hud-buttons" aria-label="Menus">
     <button type="button" id="btn-bag" class="pill"><span class="key">I</span> Bag <span class="badge" id="bag-count">0</span></button>
     <button type="button" id="btn-board" class="pill"><span class="key">C</span> Collection</button>
+    <button type="button" id="btn-settings" class="pill icon-only" aria-label="Settings" title="Settings"></button>
   </nav>
 
   <button type="button" id="action-btn" class="action-btn" hidden><span class="key" id="action-key">E</span> <span id="action-label">Fish</span></button>
@@ -68,13 +69,13 @@
 
   <dialog id="shop-dialog" class="panel" aria-labelledby="shop-title">
     <header class="panel-head">
-      <h2 id="shop-title">Tackle &amp; Market</h2>
+      <h2 id="shop-title">Tackle Shop</h2>
       <span class="coins"><span class="coin-icon" aria-hidden="true"></span><span id="shop-coins">0</span></span>
       <button type="button" class="close" data-close aria-label="Close">✕</button>
     </header>
     <div class="tabs" role="tablist">
-      <button type="button" role="tab" id="tab-market" aria-selected="true" data-tab="market">Sell fish</button>
-      <button type="button" role="tab" id="tab-gear" aria-selected="false" data-tab="gear">Gear &amp; Boat</button>
+      <button type="button" role="tab" id="tab-market" aria-selected="true" data-tab="market">Sell</button>
+      <button type="button" role="tab" id="tab-gear" aria-selected="false" data-tab="gear">Gear</button>
     </div>
     <div id="shop-market" class="panel-body" role="tabpanel" aria-labelledby="tab-market"></div>
     <div id="shop-gear" class="panel-body" role="tabpanel" aria-labelledby="tab-gear" hidden></div>
@@ -105,6 +106,7 @@
       <button type="button" class="close" data-close aria-label="Close">✕</button>
     </header>
     <div class="panel-body unlock-body">
+      <div id="unlock-art" class="unlock-art" aria-hidden="true"></div>
       <p id="unlock-text"></p>
       <p class="unlock-price"><span class="value"><span class="coin-icon" aria-hidden="true"></span><span id="unlock-price">0</span></span> <span id="unlock-have" class="muted"></span></p>
       <div class="unlock-actions">
@@ -112,6 +114,19 @@
         <button type="button" class="primary" id="unlock-pay">Pay the builders</button>
       </div>
     </div>
+  </dialog>
+
+  <dialog id="settings-dialog" class="panel small" aria-labelledby="settings-title">
+    <header class="panel-head">
+      <h2 id="settings-title">Settings</h2>
+      <button type="button" class="close" data-close aria-label="Close">✕</button>
+    </header>
+    <form class="panel-body settings-body" method="dialog">
+      <label class="setting"><span class="setting-ico" data-icon="music"></span><span>Music</span><input type="range" id="vol-music" min="0" max="100" step="1"><output for="vol-music"></output></label>
+      <label class="setting"><span class="setting-ico" data-icon="speaker"></span><span>Sounds</span><input type="range" id="vol-sfx" min="0" max="100" step="1"><output for="vol-sfx"></output></label>
+      <label class="setting"><span class="setting-ico" data-icon="leaf"></span><span>Nature</span><input type="range" id="vol-ambience" min="0" max="100" step="1"><output for="vol-ambience"></output></label>
+      <label class="setting toggle"><span class="setting-ico" data-icon="mute"></span><span>Mute everything</span><input type="checkbox" id="vol-mute"></label>
+    </form>
   </dialog>
 
   <script>

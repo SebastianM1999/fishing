@@ -153,3 +153,11 @@ export function regionName(player) {
   if (Math.hypot(x - WORLD.lake.x, z - WORLD.lake.z) < WORLD.lake.r + 6) return "Lakeside";
   return "Village";
 }
+
+/** Ground surface under a point (drives footstep sounds). */
+export function surfaceAt(x, z, area) {
+  if (area === "offshore" || WORLD.walkways.some(w => inRect(x, z, w, 0))) return "wood";
+  if (z > WORLD.sandFromZ) return "sand";
+  if (WORLD.paths.some(p => Math.abs(x - p.x) <= p.w / 2 && Math.abs(z - p.z) <= p.d / 2)) return "path";
+  return "grass";
+}

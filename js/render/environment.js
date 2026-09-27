@@ -68,7 +68,7 @@ export function buildEnvironment(M) {
   root.add(waterMesh(new THREE.RingGeometry(0.01, lk.r * 0.55, 32, 6), M.lakeDeep, lk.x - 0.6, LAKE_Y + 0.01, lk.z + 0.3));
   root.add(waterMesh(new THREE.PlaneGeometry(WORLD.river.maxX - WORLD.river.minX + 1.2, landD + 6, 12, 90), M.river, (WORLD.river.minX + WORLD.river.maxX) / 2, RIVER_Y, landZ));
   root.add(waterMesh(new THREE.PlaneGeometry(220, 160, 110, 80), M.sea, 0, SEA_Y, 90));
-  const farSea = waterMesh(new THREE.PlaneGeometry(1200, 1200), new THREE.MeshStandardMaterial({ color: "#4a9ab4", roughness: 0.4 }), 0, SEA_Y - 0.12, 200);
+  const farSea = waterMesh(new THREE.PlaneGeometry(1200, 1200), new THREE.MeshStandardMaterial({ color: "#4a9ab4", roughness: 0.4 }), 0, SEA_Y - 0.9, 200);
   root.add(farSea);
   const seaFoam = waterMesh(new THREE.PlaneGeometry(landW + 6, 0.5), M.foam, landX, SEA_Y + 0.12, L.maxZ + 2.0);
   const lakeFoam = waterMesh(new THREE.RingGeometry(lk.r - 0.25, lk.r + 0.05, 48), M.foam, lk.x, LAKE_Y + 0.03, lk.z);

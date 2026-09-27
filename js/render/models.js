@@ -179,7 +179,7 @@ function windowUnit(k, M, x, y, z, ry, shutter, flowers) {
   if (flowers) {
     k.part(G.box(1.1, 0.24, 0.26), M.woodDark, [0, -0.72, 0.2]);
     for (let j = 0; j < 6; j++) {
-      k.part(G.ico(0.1, 0), M.leaf[j % 3], [-0.45 + j * 0.18, -0.56, 0.2]);
+      k.part(G.ico(0.1, 0), M.leafStill, [-0.45 + j * 0.18, -0.56, 0.2]);
       k.part(G.sphere(0.07, 6, 4), [M.pink, M.red, M.petalYellow][j % 3], [-0.45 + j * 0.18, -0.5, 0.27]);
     }
   }
@@ -190,7 +190,7 @@ export function building(k, M, b) {
   const { w, d, h } = b;
   const wallMat = new THREE.MeshStandardMaterial({ color: b.wall, roughness: 0.95, flatShading: true });
   const roofA = b.id === "home" ? M.roofRed : M.roofGreen, roofB = b.id === "home" ? M.roofRedDark : M.roofGreenDark;
-  const shutter = b.id === "home" ? M.leaf[2] : M.blue;
+  const shutter = b.id === "home" ? M.leafStill : M.blue;
   const base = 0.4;
   k.push(b.x, 0, b.z);
   // Foundation with chunky stones
@@ -244,8 +244,8 @@ export function building(k, M, b) {
     k.part(G.box(2.2, 0.9, 0.7), M.wood, [w / 2 - 1.3, 0.45, d / 2 + 0.55]);
     k.part(G.box(2.1, 0.08, 0.62), M.petalWhite, [w / 2 - 1.3, 0.93, d / 2 + 0.55]);
     for (let j = 0; j < 4; j++) {
-      k.part(G.sphere(0.13, 8, 5), [M.blue, M.orange, M.stoneLight, M.leaf[1]][j], [w / 2 - 2.05 + j * 0.5, 1.01, d / 2 + 0.55], [0, 0.3, 0], [2.2, 0.55, 0.8]);
-      k.part(G.cone(0.1, 0.18, 3), [M.blue, M.orange, M.stoneLight, M.leaf[1]][j], [w / 2 - 2.4 + j * 0.5, 1.01, d / 2 + 0.52], [0, 0.3, PI / 2]);
+      k.part(G.sphere(0.13, 8, 5), [M.blue, M.orange, M.stoneLight, M.leafStill][j], [w / 2 - 2.05 + j * 0.5, 1.01, d / 2 + 0.55], [0, 0.3, 0], [2.2, 0.55, 0.8]);
+      k.part(G.cone(0.1, 0.18, 3), [M.blue, M.orange, M.stoneLight, M.leafStill][j], [w / 2 - 2.4 + j * 0.5, 1.01, d / 2 + 0.52], [0, 0.3, PI / 2]);
     }
   }
   k.pop();

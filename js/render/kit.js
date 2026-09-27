@@ -11,6 +11,8 @@ function std(color, extra = {}) {
 
 /** Adds gentle wind sway to vertices above `base` height (world space, for merged static meshes). */
 function withSway(mat, amount, base = 0.4) {
+  // Programs are cached by onBeforeCompile source; each variant needs its own key.
+  mat.customProgramCacheKey = () => `sway:${amount}:${base}`;
   mat.onBeforeCompile = shader => {
     shader.uniforms.uTime = TIME;
     shader.vertexShader = shader.vertexShader
@@ -24,16 +26,42 @@ function withSway(mat, amount, base = 0.4) {
   return mat;
 }
 
-/** Low-poly animated water: vertex waves + faceted shading from flatShading. */
-function water(color, amp, freq) {
+// Wave model shared by the water shader and JS (boats/bobbers ride the same surface).
+// Height ramps from `near` at the shore (z <= z0) to `far` out at sea (z >= z1).
+export const SEA_WAVES = { freq: 0.42, near: 0.1, far: 0.55, z0: 17, z1: 55 };
+const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+export function waveHeight(x, z, t, w = SEA_WAVES) {
+  const f = w.freq, amp = w.near + (w.far - w.near) * smooth(w.z0, w.z1, z);
+  return (Math.sin(x * f + t * 1.2) * 0.5 + Math.sin(z * f * 0.8 - t * 0.9) * 0.35 + Math.sin((x + z) * f * 1.7 + t * 1.9) * 0.15) * amp;
+}
+
+/** Low-poly animated water: layered swells, faceted shading (flatShading) and white crests on the peaks. */
+function water(color, { freq, near, far = near, z0 = 0, z1 = 1, crest = 0 }) {
   const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.25, metalness: 0.05, flatShading: true, transparent: true, opacity: 0.94 });
+  const n = v => v.toFixed(3);
+  mat.customProgramCacheKey = () => `water:${freq}:${near}:${far}:${z0}:${z1}:${crest}`;
   mat.onBeforeCompile = shader => {
     shader.uniforms.uTime = TIME;
     shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", "#include <common>\nuniform float uTime;")
+      .replace("#include <common>", "#include <common>\nuniform float uTime;\nvarying float vWave;\nvarying vec2 vXZ;")
       .replace("#include <begin_vertex>", `#include <begin_vertex>
         vec4 wp = modelMatrix * vec4(position, 1.0);
-        transformed.z += (sin(wp.x * ${freq.toFixed(2)} + uTime * 1.2) + cos(wp.z * ${(freq * 0.8).toFixed(2)} + uTime * 0.9)) * ${amp.toFixed(3)};`);
+        float amp = mix(${n(near)}, ${n(far)}, smoothstep(${n(z0)}, ${n(z1)}, wp.z));
+        float w = sin(wp.x * ${n(freq)} + uTime * 1.2) * 0.5 + sin(wp.z * ${n(freq * 0.8)} - uTime * 0.9) * 0.35
+                + sin((wp.x + wp.z) * ${n(freq * 1.7)} + uTime * 1.9) * 0.15;
+        transformed.z += w * amp;
+        vWave = w * smoothstep(0.05, 0.3, amp); // normalized swell phase, only where the sea is rough
+        vXZ = wp.xz;`);
+    if (crest) {
+      shader.fragmentShader = shader.fragmentShader
+        .replace("#include <common>", "#include <common>\nuniform float uTime;\nvarying float vWave;\nvarying vec2 vXZ;")
+        .replace("#include <color_fragment>", `#include <color_fragment>
+          // Whitecaps: only near swell peaks, broken up by a finer moving ripple pattern.
+          float ripple = sin(vXZ.x * 2.3 + uTime * 2.1) * sin(vXZ.y * 2.7 - uTime * 1.6) + 0.5 * sin((vXZ.x - vXZ.y) * 4.1 + uTime * 3.0);
+          float capMask = smoothstep(0.6, 0.85, vWave) * smoothstep(0.55, 1.1, ripple);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.97, 1.0), capMask * ${n(crest)});
+          diffuseColor.rgb *= 1.0 + vWave * 0.08;`);
+    }
   };
   return mat;
 }
@@ -63,6 +91,7 @@ export function createMaterials() {
     cream: std("#f2e6cc"), plaster: std("#ece0c6"), terracotta: std("#c8704f"), roofRed: std("#b8664a"), roofRedDark: std("#9c5038"),
     roofGreen: std("#5f7f5a"), roofGreenDark: std("#4c6a48"), trunk: std("#8a6242"), birch: std("#ece7dc"), birchMark: std("#3f3a35"),
     leaf: [std("#6f9d58"), std("#88ad5c"), std("#5f8c55"), std("#98b865")],
+    leafStill: std("#6f9d58"), // for greenery on buildings: must not sway
     pine: [std("#4f7d52"), std("#5c8a58")],
     white: std("#f6f1e6"), red: std("#c9463d"), orange: std("#e8872e"), yellow: std("#f2cf5b"), blue: std("#4f7fb0"), black: std("#2e2925"),
     metal: std("#7d8288", { metalness: 0.4, roughness: 0.5 }), rope: std("#cdb58a"),
@@ -71,8 +100,8 @@ export function createMaterials() {
     window: new THREE.MeshStandardMaterial({ color: "#46586a", emissive: "#ffc46b", emissiveIntensity: 0, roughness: 0.3, flatShading: true }),
     lampGlass: new THREE.MeshStandardMaterial({ color: "#fff1c9", emissive: "#ffcf7a", emissiveIntensity: 0.2, roughness: 0.4 }),
     boatHull: std("#e9e1cf"), boatTrim: std("#3f6e8c"), sail: std("#f5ecd8", { side: THREE.DoubleSide }),
-    lake: water("#5aa7b3", 0.035, 0.9), lakeDeep: water("#428ea0", 0.03, 0.9),
-    river: water("#62afbc", 0.05, 0.7), sea: water("#4a9ab4", 0.09, 0.45),
+    lake: water("#5aa7b3", { freq: 0.9, near: 0.035 }), lakeDeep: water("#428ea0", { freq: 0.9, near: 0.03 }),
+    river: water("#62afbc", { freq: 0.7, near: 0.05 }), sea: water("#4a9ab4", { ...SEA_WAVES, crest: 0.85 }),
     foam: new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.5, depthWrite: false }),
     glint: new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.55, depthWrite: false }),
     spot: new THREE.MeshBasicMaterial({ color: "#fff4d6", transparent: true, opacity: 0.45, depthWrite: false }),

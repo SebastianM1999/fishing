@@ -256,3 +256,80 @@ dialog.panel.small { width: min(420px, calc(100vw - 24px)); }
   .catch-card { left: calc(50% + 300px); width: 340px; }
 }
 .catch-art svg { width: 200px; }
+
+/* Icons ---------------------------------------------------------------- */
+.ico { width: 1.25em; height: 1.25em; flex: none; vertical-align: -0.25em; }
+.pill .ico { width: 20px; height: 20px; }
+.pill.icon-only { width: 44px; padding: 0; justify-content: center; }
+.pill.icon-only .ico { width: 22px; height: 22px; }
+.tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.tabs button .ico { width: 22px; height: 22px; }
+
+/* Shop: gear cards ------------------------------------------------------ */
+.gear-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.gear-card {
+  display: grid; grid-template-columns: 52px 1fr auto; align-items: center; gap: 10px;
+  padding: 10px 12px; background: #fffaf0; border: 2px solid #eadcc0; border-radius: 16px;
+}
+.gear-art { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 14px; background: var(--paper-2); }
+.gear-art .ico { width: 36px; height: 36px; }
+.gear-art.small { width: 40px; height: 40px; border-radius: 12px; }
+.gear-art.small .ico { width: 28px; height: 28px; }
+.gear-main { min-width: 0; display: grid; gap: 4px; }
+.gear-title { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 15px; }
+.pips { display: inline-flex; gap: 3px; }
+.pips i { width: 8px; height: 8px; border-radius: 50%; background: #e2d3b4; }
+.pips i.on { background: var(--leaf); }
+.stats { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.stat { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 700; color: var(--ink-soft); white-space: nowrap; }
+.stat .ico { color: var(--wood-dark); }
+.stat b { color: var(--leaf-dark); font-weight: 800; }
+.stat .arrow { color: var(--leaf-dark); font-weight: 800; }
+.next-name { font-size: 12px; color: var(--ink-soft); font-weight: 600; }
+.buy {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 40px; padding: 6px 14px; border: none; border-radius: 999px;
+  background: var(--leaf); color: #fff; font-weight: 800; box-shadow: 0 3px 0 var(--leaf-dark);
+}
+.buy:not(:disabled):hover { filter: brightness(1.06); }
+.buy:disabled { background: #b7ab98; box-shadow: 0 3px 0 #8f8574; opacity: 1; }
+.buy.small, .secondary.small { min-height: 34px; padding: 4px 12px; font-size: 14px; }
+.max-badge { padding: 4px 10px; border-radius: 999px; background: var(--coin); color: #5a3e12; font-weight: 800; font-size: 13px; }
+.section-title { display: flex; align-items: baseline; gap: 8px; margin: 16px 0 8px; font-size: 16px; }
+.tackle-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.tackle-card {
+  display: grid; justify-items: center; gap: 6px; padding: 10px 8px; text-align: center;
+  background: #fffaf0; border: 2px solid #eadcc0; border-radius: 16px;
+}
+.tackle-card.is-on { border-color: var(--leaf); background: #f3f8ea; }
+.tackle-name { font-weight: 800; font-size: 14px; }
+.chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+.chip { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 999px; background: var(--paper-2); font-size: 13px; font-weight: 800; color: var(--ink-soft); }
+.chip .ico { width: 15px; height: 15px; color: var(--wood-dark); }
+.equipped { display: inline-flex; align-items: center; gap: 4px; color: var(--leaf-dark); font-weight: 800; min-height: 34px; }
+
+/* Purchase dialog art --------------------------------------------------- */
+.unlock-art { display: grid; place-items: center; margin-bottom: 8px; }
+.unlock-art:empty { display: none; }
+.unlock-art .ico { width: 72px; height: 72px; }
+
+/* Settings ----------------------------------------------------------------- */
+.settings-body { display: grid; gap: 14px; }
+.setting { display: grid; grid-template-columns: 28px 90px 1fr 48px; align-items: center; gap: 10px; font-weight: 700; }
+.setting.toggle { grid-template-columns: 28px 1fr auto; }
+.setting-ico { display: grid; place-items: center; color: var(--wood-dark); }
+.setting-ico .ico { width: 24px; height: 24px; }
+.setting input[type="range"] { width: 100%; accent-color: var(--leaf); }
+.setting input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--leaf); }
+.setting output { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+
+@media (max-width: 640px) {
+  .gear-grid { grid-template-columns: 1fr; }
+  .tackle-grid { grid-template-columns: 1fr; }
+  .tackle-card { grid-template-columns: 40px 1fr auto; justify-items: start; text-align: left; }
+  .tackle-card .chips { grid-column: 2; grid-row: 2; justify-content: flex-start; }
+  .tackle-card > :last-child { grid-column: 3; grid-row: 1 / span 2; }
+  .tackle-card .gear-art { grid-row: 1 / span 2; }
+  .setting { grid-template-columns: 28px 70px 1fr 44px; }
+}
+#shop-dialog { width: min(780px, calc(100vw - 24px)); }
+.gear-title { flex-wrap: wrap; row-gap: 2px; }
