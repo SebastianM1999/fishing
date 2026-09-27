@@ -1,7 +1,7 @@
 // Procedural audio (Web Audio API only, no files): generative cozy music, nature ambience that follows the
 // player's surroundings and the time of day, and sound effects. Volumes are tiny preferences in localStorage.
 const PREFS_KEY = "driftwood-cove-audio";
-const DEFAULT_PREFS = { music: 0.45, sfx: 0.8, ambience: 0.7, muted: false };
+const DEFAULT_PREFS = { music: 0.45, sfx: 0.8, ambience: 0.5, muted: false };
 
 const midi = n => 440 * Math.pow(2, (n - 69) / 12);
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -198,10 +198,12 @@ export function createAudio() {
   const SFX = {
     step(surface) {
       const t = ctx.currentTime, v = rand(0.85, 1.15);
-      if (surface === "wood") { tone(S(), { freq: 150 * v, glide: 90, t, peak: 0.12, decay: 0.08 }); noise(S(), { t, peak: 0.05, freq: 1400, decay: 0.03 }); }
-      else if (surface === "path") { noise(S(), { t, peak: 0.07, type: "highpass", freq: 2200 * v, decay: 0.05 }); noise(S(), { t: t + 0.025, peak: 0.04, freq: 3500, q: 2, decay: 0.03 }); }
-      else if (surface === "sand") noise(S(), { t, peak: 0.08, type: "lowpass", freq: 1300 * v, decay: 0.09, attack: 0.015 });
-      else noise(S(), { t, peak: 0.06, freq: 700 * v, q: 0.8, decay: 0.07, attack: 0.01 });
+      const thud = (freq, peak) => tone(S(), { freq: freq * v, glide: freq * 0.6, t, peak, attack: 0.008, decay: 0.07 });
+      const texture = (freq, peak, decay) => noise(S(), { t, peak, type: "lowpass", freq: freq * v, q: 0.5, attack: 0.012, decay });
+      if (surface === "wood") { thud(170, 0.035); texture(900, 0.006, 0.04); }
+      else if (surface === "path") { thud(110, 0.018); texture(1500, 0.009, 0.05); }
+      else if (surface === "sand") { thud(90, 0.014); texture(700, 0.012, 0.09); }
+      else { thud(95, 0.016); texture(550, 0.01, 0.06); }
     },
     cast() { const t = ctx.currentTime; noise(S(), { t, peak: 0.12, freq: 500, sweep: 2600, q: 1.2, attack: 0.08, decay: 0.3 }); },
     plop() { const t = ctx.currentTime; tone(S(), { freq: 700, glide: 170, t, peak: 0.16, decay: 0.12 }); noise(S(), { t, peak: 0.06, type: "lowpass", freq: 900, decay: 0.2 }); },
@@ -253,12 +255,12 @@ export function createAudio() {
       const seaNear = offshore ? 1 : clamp01((env.z - 3) / 13);
       const riverNear = offshore ? 0 : clamp01(1 - Math.max(0, 13.5 - env.x) / 11) * (env.z < 14 ? 1 : 0.3);
       const swell = 0.55 + 0.45 * Math.sin((now * Math.PI * 2) / 6.5);
-      amb.wave.gain.setTargetAtTime((0.05 + seaNear * 0.42) * swell, now, 0.25);
+      amb.wave.gain.setTargetAtTime((0.012 + seaNear * 0.1) * swell, now, 0.25);
       amb.waveFilter.frequency.setTargetAtTime(offshore ? 380 : 560, now, 1);
       const wash = Math.max(0, Math.sin((now * Math.PI * 2) / 6.5 - 0.6));
-      amb.wash.gain.setTargetAtTime((offshore ? 0.05 : seaNear * 0.09) * wash * wash, now, 0.2);
-      amb.river.gain.setTargetAtTime(riverNear * 0.1, now, 0.4);
-      amb.wind.gain.setTargetAtTime((offshore ? 0.4 : 0.12) * (0.7 + 0.3 * Math.sin(now * 0.37)), now, 1);
+      amb.wash.gain.setTargetAtTime((offshore ? 0.012 : seaNear * 0.025) * wash * wash, now, 0.2);
+      amb.river.gain.setTargetAtTime(riverNear * 0.045, now, 0.4);
+      amb.wind.gain.setTargetAtTime((offshore ? 0.1 : 0.03) * (0.7 + 0.3 * Math.sin(now * 0.37)), now, 1);
       if (prefs.muted || !prefs.ambience) return;
       const day = env.bucket === "day" || env.bucket === "dawn";
       const night = env.bucket === "night";
