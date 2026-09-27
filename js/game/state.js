@@ -1,18 +1,22 @@
 // Plain-data game state, plus (de)serialization with defensive validation for saves.
-import { STARTING_COINS, DAY_LENGTH_MS, FISH_BY_ID, GEAR, GEAR_SLOTS, TACKLE_BY_ID, RARITIES, FISH, REGIONS, BAGS } from "./content.js";
+import { STARTING_COINS, DAY_LENGTH_MS, FISH_BY_ID, GEAR, GEAR_SLOTS, RARITIES, FISH, REGIONS, BAGS, XP_FIRST_CATCH } from "./content.js";
 import { WORLD, isWalkable } from "./world.js";
+import { catchXp, sanitizeSkills } from "./skills.js";
 
-// v2: construction-barrier unlocks + per-species best-catch records. v3: bag tier.
-export const SAVE_VERSION = 3;
+// v2: construction-barrier unlocks + per-species best-catch records. v3: bag tier. v4: xp + skills; hook & tackle removed.
+export const SAVE_VERSION = 4;
+// Coins refunded for pre-v4 purchases that no longer exist (cumulative hook tier prices, tackle prices).
+const LEGACY_HOOK_REFUND = [0, 120, 420];
+const LEGACY_TACKLE_REFUND = { tackle_float: 150, tackle_heavy_sinker: 200, tackle_spinner: 350 };
 
 export function createState(seed = (Date.now() ^ 0x5eed) >>> 0) {
   return {
     coins: STARTING_COINS,
     // Owned tier index per gear slot (tiers are sequential); equipped = highest owned.
-    gear: { rod: 0, reel: 0, line: 0, hook: 0 },
+    gear: { rod: 0, reel: 0, line: 0 },
     bag: 0, // tier index into BAGS (capacity of sellable fish)
-    ownedTackle: [],
-    equippedTackle: null,
+    xp: 0, // total XP; level and skill points derive from it
+    skills: {}, // { skillId: rank }
     boatOwned: false,
     unlocked: [], // region ids from REGIONS whose construction barrier was cleared
     discovered: [], // species ids
@@ -33,8 +37,8 @@ export function serialize(state, rng) {
     coins: state.coins,
     gear: { ...state.gear },
     bag: state.bag,
-    ownedTackle: [...state.ownedTackle],
-    equippedTackle: state.equippedTackle,
+    xp: state.xp,
+    skills: { ...state.skills },
     boatOwned: state.boatOwned,
     unlocked: [...state.unlocked],
     discovered: [...state.discovered],
@@ -63,8 +67,6 @@ export function deserialize(data) {
   }
   const bag = num(data.bag, 0);
   s.bag = Number.isInteger(bag) && bag >= 0 && bag < BAGS.length ? bag : 0;
-  if (Array.isArray(data.ownedTackle)) s.ownedTackle = [...new Set(data.ownedTackle.filter(id => TACKLE_BY_ID[id]))];
-  s.equippedTackle = s.ownedTackle.includes(data.equippedTackle) ? data.equippedTackle : null;
   s.boatOwned = data.boatOwned === true;
   if (Array.isArray(data.discovered)) {
     const order = FISH.map(f => f.id);
@@ -83,6 +85,7 @@ export function deserialize(data) {
         value: Math.max(1, Math.round(num(r.value, 1))),
         uid: Number.isInteger(r.uid) ? r.uid : null,
         sold: r.sold === true,
+        ...(Number.isFinite(r.soldFor) && r.sold === true ? { soldFor: Math.max(1, Math.round(r.soldFor)) } : {}),
         released: r.released === true,
         mounted: r.mounted === true || (r.uid === null && r.released !== true),
       };
@@ -107,7 +110,22 @@ export function deserialize(data) {
     const z = num(p.z, s.player.z);
     if (isWalkable(x, z, area, s.unlocked) && (area === "land" || s.unlocked.includes("sea"))) s.player = { x, z, facing: num(p.facing, Math.PI), area };
   }
+  if ((num(data.version, 1)) < 4) migrateToV4(s, data);
+  else {
+    s.xp = Math.max(0, Math.floor(num(data.xp, 0)));
+    s.skills = sanitizeSkills(data.skills, s.xp);
+  }
   s.timeMs = ((num(data.timeMs, s.timeMs) % DAY_LENGTH_MS) + DAY_LENGTH_MS) % DAY_LENGTH_MS;
   s.rngSeed = Math.floor(num(data.rngSeed, s.rngSeed)) >>> 0;
   return s;
+}
+
+/** Pre-v4 saves: refund the removed hook tiers and tackle as coins, grant XP for the catches already logged. */
+function migrateToV4(s, data) {
+  const hook = data.gear?.hook;
+  if (Number.isInteger(hook) && hook > 0 && hook < LEGACY_HOOK_REFUND.length) s.coins += LEGACY_HOOK_REFUND[hook];
+  if (Array.isArray(data.ownedTackle)) for (const id of new Set(data.ownedTackle)) s.coins += LEGACY_TACKLE_REFUND[id] ?? 0;
+  s.xp = Object.entries(s.records).reduce((xp, [id, r]) => xp + catchXp(FISH_BY_ID[id], r.rarity, r.sizeCm), 0)
+    + s.discovered.length * XP_FIRST_CATCH;
+  s.skills = {};
 }

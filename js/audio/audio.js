@@ -221,6 +221,8 @@ export function createAudio() {
     coin() { const t = ctx.currentTime; tone(S(), { freq: 1568, t, peak: 0.08, decay: 0.12 }); tone(S(), { freq: 2093, t: t + 0.07, peak: 0.08, decay: 0.3 }); tone(S(), { freq: 4186, t: t + 0.07, peak: 0.015, decay: 0.3 }); },
     buy() { SFX.coin(); const t = ctx.currentTime; [60, 64, 67, 72].forEach(n => tone(S(), { freq: midi(n), type: "triangle", t: t + 0.18, peak: 0.04, attack: 0.02, decay: 0.8 })); },
     unlock() { const t = ctx.currentTime; for (let i = 0; i < 3; i++) { tone(S(), { freq: 180, glide: 120, t: t + i * 0.18, peak: 0.18, decay: 0.07 }); noise(S(), { t: t + i * 0.18, peak: 0.08, freq: 1800, decay: 0.04 }); } [72, 76, 79, 84, 88].forEach((n, i) => tone(S(), { freq: midi(n), type: "triangle", t: t + 0.6 + i * 0.08, peak: 0.07, decay: 0.45 })); },
+    levelup() { const t = ctx.currentTime; [60, 64, 67, 72, 76, 79].forEach((n, i) => tone(S(), { freq: midi(n), type: "triangle", t: t + i * 0.08, peak: 0.07, attack: 0.01, decay: 0.5 })); [84, 88].forEach((n, i) => tone(S(), { freq: midi(n), t: t + 0.52 + i * 0.1, peak: 0.04, decay: 0.9 })); },
+    secondwind() { const t = ctx.currentTime; noise(S(), { t, peak: 0.1, freq: 400, sweep: 2400, q: 1, attack: 0.1, decay: 0.35 }); [67, 71, 74].forEach((n, i) => tone(S(), { freq: midi(n), type: "triangle", t: t + 0.12 + i * 0.07, peak: 0.07, decay: 0.35 })); },
     ui() { tone(S(), { freq: 880, peak: 0.04, decay: 0.04 }); },
     open() { tone(S(), { freq: 520, glide: 820, peak: 0.05, attack: 0.01, decay: 0.08 }); },
     denied() { const t = ctx.currentTime; tone(S(), { freq: 220, t, peak: 0.06, decay: 0.12, type: "triangle" }); tone(S(), { freq: 196, t: t + 0.12, peak: 0.06, decay: 0.18, type: "triangle" }); },

@@ -18,6 +18,10 @@
 
   <header class="hud" id="hud">
     <div class="hud-card">
+      <span class="level-chip" id="hud-level-chip" title="Level">
+        <span id="hud-level">Lv 1</span>
+        <span class="xp-bar" aria-hidden="true"><span id="hud-xp-bar"></span></span>
+      </span>
       <span class="coins" title="Coins"><span class="coin-icon" aria-hidden="true"></span><span id="hud-coins">30</span></span>
       <span class="time-chip" id="hud-time-chip">
         <span class="time-icon" id="hud-time-icon" aria-hidden="true"></span>
@@ -35,13 +39,15 @@
   <nav class="hud-buttons" aria-label="Menus">
     <button type="button" id="btn-bag" class="pill"><span class="key">I</span> Bag <span class="badge" id="bag-count">0</span></button>
     <button type="button" id="btn-board" class="pill"><span class="key">C</span> Collection</button>
+    <button type="button" id="btn-skills" class="pill"><span class="key">K</span> Skills <span class="badge points" id="skill-points" hidden>0</span></button>
     <button type="button" id="btn-settings" class="pill icon-only" aria-label="Settings" title="Settings"></button>
   </nav>
 
+  <div id="finder" class="finder" hidden aria-label="Fish that can bite here now"></div>
   <button type="button" id="action-btn" class="action-btn" hidden><span class="key" id="action-key">E</span> <span id="action-label">Fish</span></button>
 
   <section id="fishing" class="fishing-panel" hidden aria-live="polite">
-    <div class="fishing-status" id="fishing-status"><span class="status-ico" id="fishing-status-ico"></span><span id="fishing-status-text">Casting…</span></div>
+    <div class="fishing-status" id="fishing-status"><span class="status-ico" id="fishing-status-ico"></span><span id="fishing-status-text">Casting…</span><span class="whisper" id="fishing-whisper" hidden></span></div>
     <div id="minigame" class="minigame" hidden>
       <div class="mg-head">
         <span class="mg-behavior"><span class="mg-behavior-ico" id="mg-behavior-ico"></span><span id="mg-behavior">Fish on!</span></span>
@@ -67,6 +73,7 @@
     <p id="catch-details"></p>
     <p id="catch-note" class="catch-note"></p>
     <p id="catch-extra" class="catch-extra"></p>
+    <p id="catch-xp" class="catch-xp"></p>
     <button type="button" id="catch-ok" class="primary">Continue <span class="key">E</span></button>
     <div id="catch-choice" class="catch-choice" hidden>
       <button type="button" id="catch-wall" class="choice-btn wall"><span class="choice-ico" data-icon="board"></span><span><b>Put on the wallboard</b><small>Collect it · no coins</small></span><span class="key">E</span></button>
@@ -109,6 +116,20 @@
     <p class="board-hint">Hover, focus or tap a fish to see your best catch.</p>
     <div id="board-body" class="panel-body board-grid"></div>
     <div id="board-tip" class="board-tip" role="tooltip" hidden></div>
+  </dialog>
+
+  <dialog id="skills-dialog" class="panel wide" aria-labelledby="skills-title">
+    <header class="panel-head">
+      <h2 id="skills-title">Skills</h2>
+      <span class="skills-level" id="skills-level">Level 1</span>
+      <button type="button" class="close" data-close aria-label="Close">✕</button>
+    </header>
+    <div class="skills-summary">
+      <div class="skills-xp"><div class="bar xp-bar-big"><div class="bar-fill" id="skills-xp-fill"></div></div><span id="skills-xp-text">0 / 40 XP</span></div>
+      <span class="skills-points" id="skills-points">0 points to spend</span>
+    </div>
+    <div id="skills-body" class="panel-body skills-grid"></div>
+    <p id="skills-detail" class="skills-detail" aria-live="polite"></p>
   </dialog>
 
   <dialog id="unlock-dialog" class="panel small" aria-labelledby="unlock-title">

@@ -1,8 +1,10 @@
-// HTML/CSS UI: HUD, fishing panel, catch card, shop, bag, wallboard. Reads state; calls handlers for actions.
+// HTML/CSS UI: HUD, fishing panel, catch card, shop, bag, wallboard, skills. Reads state; calls handlers for actions.
 import {
   FISH, FISH_BY_ID, TIME_LABELS, LOCATION_LABELS, RARITY_LABELS, GEAR, GEAR_SLOTS, GEAR_LABELS,
-  TACKLE, BAGS,
+  BAGS, SKILLS, SKILLS_BY_ID, SKILL_BRANCHES, TIER_POINTS,
 } from "../game/content.js";
+import { priceOf, inventoryWorth, bagCapacity } from "../game/economy.js";
+import { levelInfo, pointsFree, pointsSpent, rankOf, tierOpen, canLearn, respecCost, skillEffects, branchOf } from "../game/skills.js";
 import { fishSvg, rarityIcon } from "./fishArt.js";
 import { ICONS } from "./icons.js";
 
@@ -12,13 +14,6 @@ const STAT_DEFS = {
   rod: [{ icon: "width", label: "Catch zone width", get: i => pct(i.zoneWidth) }],
   reel: [{ icon: "speed", label: "Reel speed", get: i => mult(i.speed) }, { icon: "recovery", label: "Tension recovery", get: i => mult(i.recovery) }],
   line: [{ icon: "tension", label: "Tension limit", get: i => String(i.tensionLimit) }],
-  hook: [{ icon: "timer", label: "Hook window", get: i => `${+(i.hookWindowMs / 1000).toFixed(2)}s` }, { icon: "grip", label: "Slower progress loss", optional: true, get: i => (i.progressLossMult < 1 ? "−5%" : "—") }],
-};
-const TACKLE_ICON = { tackle_float: "float", tackle_heavy_sinker: "sinker", tackle_spinner: "spinner" };
-const TACKLE_CHIPS = {
-  tackle_float: [{ icon: "smooth", value: "+12%", label: "Smoother zone movement" }],
-  tackle_heavy_sinker: [{ icon: "burst", value: "−10%", label: "Weaker fish bursts" }, { icon: "speed", value: "−8%", label: "Slower zone speed" }],
-  tackle_spinner: [{ icon: "gem", value: "+25%", label: "More rare & legendary fish" }, { icon: "wait", value: "+1s", label: "Longer max bite wait" }],
 };
 
 const $ = id => document.getElementById(id);
@@ -44,15 +39,18 @@ export function createUI(handlers) {
     bag: $("bag-dialog"), bagBody: $("bag-body"),
     board: $("board-dialog"), boardBody: $("board-body"), boardCount: $("board-count"), boardTip: $("board-tip"),
     unlock: $("unlock-dialog"), unlockTitle: $("unlock-title"), unlockText: $("unlock-text"), unlockPrice: $("unlock-price"), unlockHave: $("unlock-have"), unlockPay: $("unlock-pay"),
-    catchExtra: $("catch-extra"),
+    catchExtra: $("catch-extra"), catchXp: $("catch-xp"),
     settings: $("settings-dialog"),
+    level: $("hud-level"), levelChip: $("hud-level-chip"), xpBar: $("hud-xp-bar"), skillPoints: $("skill-points"), finder: $("finder"), whisper: $("fishing-whisper"),
+    skills: $("skills-dialog"), skillsBody: $("skills-body"), skillsLevel: $("skills-level"), skillsXpFill: $("skills-xp-fill"), skillsXpText: $("skills-xp-text"),
+    skillsPoints: $("skills-points"), skillsDetail: $("skills-detail"),
   };
   let purchase = null;
   const last = {};
   let state = null;
 
   // --- Dialog wiring ------------------------------------------------------
-  for (const d of [el.shop, el.bag, el.board, el.unlock, el.settings]) {
+  for (const d of [el.shop, el.bag, el.board, el.unlock, el.settings, el.skills]) {
     d.addEventListener("click", e => {
       if (e.target === d || e.target.closest("[data-close]")) d.close();
     });
@@ -63,6 +61,7 @@ export function createUI(handlers) {
   $("tab-gear").insertAdjacentHTML("afterbegin", ICONS.rod);
   $("btn-bag").insertAdjacentHTML("afterbegin", ICONS.bag);
   $("btn-board").insertAdjacentHTML("afterbegin", ICONS.board);
+  $("btn-skills").insertAdjacentHTML("afterbegin", ICONS.sprout);
   $("btn-settings").insertAdjacentHTML("afterbegin", ICONS.gear);
   function selectTab(name) {
     document.querySelectorAll(".tabs [data-tab]").forEach(t => t.setAttribute("aria-selected", String(t.dataset.tab === name)));
@@ -76,13 +75,18 @@ export function createUI(handlers) {
     if (b.dataset.sell) handlers.sellOne(Number(b.dataset.sell));
     if (b.dataset.sellAll !== undefined) handlers.sellAll();
   });
+  el.bagBody.addEventListener("click", e => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    if (b.dataset.sell) handlers.sellOne(Number(b.dataset.sell));
+    if (b.dataset.sellAll !== undefined) handlers.sellAll();
+  });
   el.gear.addEventListener("click", e => {
     const b = e.target.closest("button");
     if (!b) return;
     if (b.dataset.buyGear) handlers.buyGear(b.dataset.buyGear);
     if (b.dataset.buyBag !== undefined) handlers.buyBag();
-    if (b.dataset.buyTackle) handlers.buyTackle(b.dataset.buyTackle);
-    if (b.dataset.equipTackle) handlers.equipTackle(b.dataset.equipTackle);
+    if (b.dataset.respec !== undefined) handlers.respec();
   });
   el.unlockPay.addEventListener("click", () => { purchase?.onConfirm(); el.unlock.close(); });
 
@@ -98,7 +102,8 @@ export function createUI(handlers) {
     } else if (!rec) {
       html = `<strong>${f.name}</strong><span>No record yet — catch another one to log your best.</span>`;
     } else {
-      const fate = rec.sold ? `Sold for ${coinHtml(rec.value)}` : rec.released ? `Released (bag was full) · worth ${coinHtml(rec.value)}` : rec.mounted ? `Mounted on the wallboard · worth ${coinHtml(rec.value)}` : `In your bag · worth ${coinHtml(rec.value)}`;
+      const worth = coinHtml(priceOf(state, { ...rec, speciesId: f.id }));
+      const fate = rec.sold ? `Sold for ${coinHtml(rec.soldFor ?? rec.value)}` : rec.released ? `Released (bag was full) · worth ${worth}` : rec.mounted ? `Mounted on the wallboard · worth ${worth}` : `In your bag · worth ${worth}`;
       html = `<div class="tip-art">${fishSvg(f, { size: 200 })}</div>
         <strong>${f.name} ${rarityHtml(rec.rarity, 22)}</strong>
         <span class="tip-label">Best catch</span>
@@ -155,19 +160,35 @@ export function createUI(handlers) {
   el.laneFish.innerHTML = `<svg viewBox="0 0 64 32" aria-hidden="true"><path d="M4 16c8-11 30-13 42-4l12-9v26l-12-9C34 29 12 27 4 16Z" fill="currentColor"/><path d="M22 8c4-5 12-6 16-3-5 1-9 3-11 6Z" fill="currentColor"/><circle cx="13" cy="14" r="2.2" fill="#fff" opacity="0.9"/></svg><span class="fish-zzz">z</span>`;
   $("btn-bag").addEventListener("click", () => openBag());
   $("btn-board").addEventListener("click", () => openBoard());
+  $("btn-skills").addEventListener("click", () => openSkills());
+
+  // Skill tree: click learns a rank; hover / focus explains the node.
+  const SKILL_HINT = "Hover or focus a skill to see what it does · click to learn a rank (1 point)";
+  el.skillsBody.addEventListener("click", e => { const n = e.target.closest("[data-learn]"); if (n) handlers.learnSkill(n.dataset.learn); });
+  const onNode = e => { const n = e.target.closest("[data-learn]"); if (n) showSkillDetail(n.dataset.learn); };
+  el.skillsBody.addEventListener("pointerover", onNode);
+  el.skillsBody.addEventListener("focusin", onNode);
+  el.skillsBody.addEventListener("pointerleave", () => { if (!el.skillsBody.contains(document.activeElement)) el.skillsDetail.textContent = SKILL_HINT; });
+  function showSkillDetail(id) {
+    const s = SKILLS_BY_ID[id], r = rankOf(state, id), b = branchOf(s.branch);
+    const now = r ? s.text(r) : "Not learned";
+    const change = r >= s.max ? `<span class="detail-max">Maxed</span>` : `<span class="arrow">→</span> <b>${s.text(r + 1)}</b>`;
+    const lock = tierOpen(state, s.branch, s.tier) ? "" : `<span class="detail-lock">${ICONS.lock} Opens after ${TIER_POINTS[s.tier]} points in ${b.name}</span>`;
+    el.skillsDetail.innerHTML = `<strong>${ICONS[s.icon]} ${s.name} <span class="muted">${r} / ${s.max}</span></strong><span class="detail-text">${now} ${change}</span>${lock}`;
+  }
 
   // --- Rendering helpers -----------------------------------------------
   function fishRow(f, { sellable }) {
     const s = FISH_BY_ID[f.speciesId];
     return `<li class="fish-row">${fishSvg(s, { size: 64 })}
       <div><div class="name">${rarityHtml(f.rarity, 20)} ${s.name}</div><div class="meta">${f.sizeCm.toFixed(1)} cm · ${LOCATION_LABELS[s.location]}</div></div>
-      ${coinHtml(f.value)}
+      ${coinHtml(priceOf(state, f))}
       ${sellable ? `<button type="button" class="secondary" data-sell="${f.uid}">Sell</button>` : ""}</li>`;
   }
 
   function renderMarket() {
     const inv = state.inventory;
-    const total = inv.reduce((s, f) => s + f.value, 0);
+    const total = inventoryWorth(state);
     el.market.innerHTML = inv.length
       ? `<div class="list-head"><span>${inv.length} sellable fish · total ${coinHtml(total)}</span>
           <button type="button" class="primary" data-sell-all>Sell all</button></div>
@@ -195,36 +216,31 @@ export function createUI(handlers) {
         ${action}</article>`;
     });
     {
-      const tier = state.bag, cur = BAGS[tier], next = BAGS[tier + 1];
+      const tier = state.bag, cur = BAGS[tier], next = BAGS[tier + 1], bonus = skillEffects(state).bagBonus;
       const pips = BAGS.map((_, i) => `<i class="${i <= tier ? "on" : ""}"></i>`).join("");
-      const stat = `<span class="stat" title="Bag slots">${ICONS.fish}<span>${cur.slots}</span>${next ? `<span class="arrow">→</span><b>${next.slots}</b>` : ""} slots</span>`;
+      const stat = `<span class="stat" title="Bag slots${bonus ? ` (+${bonus} from Extra Pockets)` : ""}">${ICONS.fish}<span>${cur.slots + bonus}</span>${next ? `<span class="arrow">→</span><b>${next.slots + bonus}</b>` : ""} slots</span>`;
       const action = next
         ? `<button type="button" class="buy" data-buy-bag ${state.coins < next.price ? "disabled" : ""} aria-label="Buy ${next.name} for ${next.price} coins">${coinHtml(next.price)}</button>`
         : `<span class="max-badge">MAX</span>`;
       cards.push(`<article class="gear-card" aria-label="Bag"><div class="gear-art" title="Bag">${ICONS.bag}</div>
         <div class="gear-main"><div class="gear-title">${cur.name}<span class="pips">${pips}</span></div><div class="stats">${stat}</div>${next ? `<div class="next-name">→ ${next.name}</div>` : ""}</div>${action}</article>`);
     }
-    const tackle = TACKLE.map(t => {
-      const owned = state.ownedTackle.includes(t.id), equipped = state.equippedTackle === t.id;
-      const chips = TACKLE_CHIPS[t.id].map(c => `<span class="chip" title="${c.label}">${ICONS[c.icon]}${c.value}</span>`).join("");
-      const action = equipped
-        ? `<span class="equipped">${ICONS.check} On</span>`
-        : owned
-          ? `<button type="button" class="secondary small" data-equip-tackle="${t.id}">Equip</button>`
-          : `<button type="button" class="buy small" data-buy-tackle="${t.id}" ${state.coins < t.price ? "disabled" : ""} aria-label="Buy ${t.name} for ${t.price} coins">${coinHtml(t.price)}</button>`;
-      return `<article class="tackle-card ${equipped ? "is-on" : ""}" title="${t.effect}"><div class="gear-art small">${ICONS[TACKLE_ICON[t.id]]}</div>
-        <div class="tackle-name">${t.name}</div><div class="chips">${chips}</div>${action}</article>`;
-    }).join("");
+    const spent = pointsSpent(state), cost = respecCost(state);
+    const respec = `<article class="gear-card respec-card" aria-label="Rethink skills"><div class="gear-art" title="Skills">${ICONS.sprout}</div>
+      <div class="gear-main"><div class="gear-title">Rethink skills</div>
+        <div class="next-name">${spent ? `Refund all ${spent} skill point${spent === 1 ? "" : "s"} to spend them again` : "No skill points spent yet"}</div></div>
+      <button type="button" class="buy" data-respec ${!spent || state.coins < cost ? "disabled" : ""} aria-label="Refund skill points for ${cost} coins">${coinHtml(cost)}</button></article>`;
     el.gear.innerHTML = `<div class="gear-grid">${cards.join("")}</div>
-      <h3 class="section-title">Tackle <span class="muted">equip one</span></h3><div class="tackle-grid">${tackle}</div>`;
+      <h3 class="section-title">Skills <span class="muted">coins buy gear, XP buys technique</span></h3>${respec}`;
   }
 
   function renderBag() {
-    const cap = BAGS[state.bag].slots, n = state.inventory.length;
+    const cap = bagCapacity(state), n = state.inventory.length, courier = skillEffects(state).fishCourier;
     const slots = `<div class="bag-slots ${n >= cap ? "full" : ""}" title="${n} of ${cap} slots used">${Array.from({ length: cap }, (_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</div>`;
-    el.bagBody.innerHTML = `<div class="list-head"><span class="bag-count">${ICONS.bag} ${n} / ${cap}</span>${slots}<span>worth ${coinHtml(state.inventory.reduce((a, f) => a + f.value, 0))}</span></div>
-      ${n >= cap ? `<p class="bag-note"><b>Bag full — sell at the shop.</b></p>` : ""}
-      ${n ? `<ul class="fish-list">${state.inventory.map(f => fishRow(f, { sellable: false })).join("")}</ul>` : `<p class="empty">Your bag is empty. Go fishing!</p>`}`;
+    el.bagBody.innerHTML = `<div class="list-head"><span class="bag-count">${ICONS.bag} ${n} / ${cap}</span>${slots}<span>worth ${coinHtml(inventoryWorth(state))}</span>
+        ${courier && n ? `<button type="button" class="primary small" data-sell-all title="Fish Courier">${ICONS.crate} Sell all</button>` : ""}</div>
+      ${n >= cap ? `<p class="bag-note"><b>Bag full — ${courier ? "sell some fish here" : "sell at the shop"}.</b></p>` : ""}
+      ${n ? `<ul class="fish-list">${state.inventory.map(f => fishRow(f, { sellable: courier })).join("")}</ul>` : `<p class="empty">Your bag is empty. Go fishing!</p>`}`;
   }
 
   function renderBoard() {
@@ -243,11 +259,46 @@ export function createUI(handlers) {
     if (el.shop.open) { el.shopCoins.textContent = state.coins; renderMarket(); renderGear(); }
     if (el.bag.open) renderBag();
     if (el.board.open) renderBoard();
+    if (el.skills.open) renderSkills();
+  }
+
+  function renderSkills() {
+    const info = levelInfo(state.xp), free = pointsFree(state);
+    el.skillsLevel.textContent = `Level ${info.level}${info.maxed ? " · max" : ""}`;
+    el.skillsXpFill.style.width = info.maxed ? "100%" : pct(info.into / info.needed);
+    el.skillsXpText.textContent = info.maxed ? `${state.xp} XP` : `${info.into} / ${info.needed} XP`;
+    el.skillsPoints.innerHTML = `<b>${free}</b> skill point${free === 1 ? "" : "s"} to spend`;
+    el.skillsPoints.classList.toggle("has", free > 0);
+    const focused = el.skillsBody.contains(document.activeElement) ? document.activeElement.dataset.learn : null;
+    el.skillsBody.innerHTML = SKILL_BRANCHES.map(b => {
+      const tiers = TIER_POINTS.map((need, tier) => {
+        const open = tierOpen(state, b.id, tier);
+        const nodes = SKILLS.filter(s => s.branch === b.id && s.tier === tier).map(s => skillNode(s, open)).join("");
+        const label = open ? `<span class="tier-label">${["Tier I", "Tier II", "Capstone"][tier]}</span>` : `<span class="tier-label lock">${ICONS.lock} ${need} points in ${b.name}</span>`;
+        return `<div class="skill-tier ${open ? "open" : "locked"}">${label}<div class="skill-nodes">${nodes}</div></div>`;
+      }).join("");
+      return `<section class="skill-branch" style="--branch: ${b.color}" aria-label="${b.name}">
+        <header class="branch-head"><span class="branch-ico">${ICONS[b.icon]}</span><span class="branch-name"><b>${b.name}</b><small>${b.about}</small></span>
+          <span class="branch-spent" title="Points spent in ${b.name}">${pointsSpent(state, b.id)}</span></header>${tiers}</section>`;
+    }).join("");
+    if (focused) {
+      el.skillsBody.querySelector(`[data-learn="${focused}"]`)?.focus();
+      showSkillDetail(focused);
+    }
+  }
+
+  function skillNode(s, open) {
+    const r = rankOf(state, s.id), can = canLearn(state, s.id);
+    const st = !open ? "locked" : r >= s.max ? "maxed" : can ? "can" : "idle";
+    const pips = Array.from({ length: s.max }, (_, i) => `<i class="${i < r ? "on" : ""}"></i>`).join("");
+    return `<button type="button" class="skill-node ${st} ${r ? "learned" : ""}" data-learn="${s.id}" aria-disabled="${!can}" aria-label="${s.name}, rank ${r} of ${s.max}">
+      <span class="node-ico">${ICONS[s.icon]}</span><span class="node-name">${s.name}</span><span class="node-pips" aria-hidden="true">${pips}</span></button>`;
   }
 
   function openShop(s) { state = s; el.shopCoins.textContent = s.coins; renderMarket(); renderGear(); selectTab("market"); showModal(el.shop); }
   function openBag() { renderBag(); showModal(el.bag); }
   function openBoard() { renderBoard(); showModal(el.board); }
+  function openSkills() { renderSkills(); el.skillsDetail.textContent = SKILL_HINT; showModal(el.skills); }
   /** Generic confirm-purchase dialog: construction barriers, the boat at the dock. */
   function openPurchase(s, { title, art, text, price, confirmLabel, onConfirm, blocked }) {
     state = s;
@@ -277,8 +328,8 @@ export function createUI(handlers) {
 
   return {
     bind(s) { state = s; },
-    anyDialogOpen: () => el.shop.open || el.bag.open || el.board.open || el.unlock.open || el.settings.open,
-    openShop, openBag, openBoard, openPurchase, toast, refreshOpenPanels,
+    anyDialogOpen: () => el.shop.open || el.bag.open || el.board.open || el.unlock.open || el.settings.open || el.skills.open,
+    openShop, openBag, openBoard, openSkills, openPurchase, toast, refreshOpenPanels,
 
     updateHud(s, bucket, bucketProgress, region) {
       state = s;
@@ -288,9 +339,34 @@ export function createUI(handlers) {
       el.timeBar.style.width = `${Math.round(bucketProgress * 100)}%`;
       setText(el.region, "region", region);
       setText(el.collection, "collection", `${s.discovered.length} / 20`);
-      const cap = BAGS[s.bag].slots;
+      const cap = bagCapacity(s);
       setText(el.bagCount, "bag", `${s.inventory.length}/${cap}`);
       el.bagCount.classList.toggle("full", s.inventory.length >= cap);
+      const info = levelInfo(s.xp), free = pointsFree(s);
+      setText(el.level, "level", `Lv ${info.level}`);
+      el.xpBar.style.width = info.maxed ? "100%" : pct(info.into / info.needed);
+      el.levelChip.title = info.maxed ? `Level ${info.level} (max)` : `Level ${info.level} · ${info.into} / ${info.needed} XP`;
+      setText(el.skillPoints, "points", String(free));
+      el.skillPoints.hidden = free <= 0;
+    },
+
+    levelUp() {
+      el.levelChip.classList.remove("glow");
+      void el.levelChip.offsetWidth; // restart the animation
+      el.levelChip.classList.add("glow");
+    },
+
+    /** Fish Finder strip above the action button: species that can bite here right now. */
+    setFinder(species, discovered) {
+      const key = species ? species.map(f => f.id + (discovered.includes(f.id) ? "+" : "")).join() : "";
+      if (last.finder === key) return;
+      last.finder = key;
+      el.finder.hidden = !species;
+      if (!species) return;
+      el.finder.innerHTML = `<span class="finder-label">${ICONS.eye}</span>` + species.map(f => {
+        const found = discovered.includes(f.id);
+        return `<span class="finder-fish ${found ? "found" : ""}" title="${found ? f.name : "Undiscovered"}">${fishSvg(f, { silhouette: !found, size: 44 })}<span>${found ? f.name : "?"}</span></span>`;
+      }).join("");
     },
 
     setAction(label, locked = false) {
@@ -310,6 +386,12 @@ export function createUI(handlers) {
       if (last.fishPhaseUi !== phase) {
         last.fishPhaseUi = phase;
         el.fishing.dataset.phase = phase;
+        el.whisper.hidden = !(phase === "bite" && session.whisper);
+        if (phase === "bite" && session.whisper) {
+          const enc = session.encounter;
+          el.whisper.innerHTML = `${fishSvg(FISH_BY_ID[enc.speciesId], { silhouette: true, size: 64 })}${rarityHtml(enc.rarity, 22)}`;
+          el.whisper.title = RARITY_LABELS[enc.rarity];
+        }
         const [ico, text] = phase === "cast" ? ["rod", "Casting…"] : phase === "wait" ? ["bobber", "Waiting for a bite…"] : phase === "bite" ? ["alert", "Bite! Click or press Space!"] : [session.hookQuality === "perfect" ? "star" : "check", session.hookQuality === "perfect" ? "Perfect hook!" : "Hooked!"];
         el.statusIco.innerHTML = ICONS[ico];
         el.statusText.textContent = text;
@@ -322,11 +404,12 @@ export function createUI(handlers) {
         el.mgBehaviorIco.innerHTML = ICONS[BEHAVIOR_ICONS[f.behavior]];
         el.minigame.dataset.rarity = f.rarity;
       }
-      if (last.mgPhase !== f.fishPhase) {
-        last.mgPhase = f.fishPhase;
-        el.mgPhase.hidden = f.fishPhase === "normal";
-        el.mgPhase.innerHTML = f.fishPhase === "burst" ? `${ICONS.burst} Burst!` : `${ICONS.sleep} Tired`;
-        el.mgPhase.className = `mg-phase ${f.fishPhase}`;
+      const label = f.secondWindAt !== undefined && f.elapsed - f.secondWindAt < 1.6 ? "secondwind" : f.fishPhase;
+      if (last.mgPhase !== label) {
+        last.mgPhase = label;
+        el.mgPhase.hidden = label === "normal";
+        el.mgPhase.innerHTML = label === "secondwind" ? `${ICONS.recovery} Second wind!` : label === "burst" ? `${ICONS.burst} Burst!` : `${ICONS.sleep} Tired`;
+        el.mgPhase.className = `mg-phase ${label}`;
         el.laneFish.dataset.phase = f.fishPhase;
       }
       // Fish faces the way it swims.
@@ -347,7 +430,7 @@ export function createUI(handlers) {
       el.minigame.classList.toggle("danger", tf > 0.78);
     },
 
-    showCatchResult(session, result) {
+    showCatchResult(session, result, xp = 0) {
       const species = FISH_BY_ID[session.encounter.speciesId];
       const enc = session.encounter;
       const outcomes = {
@@ -364,17 +447,20 @@ export function createUI(handlers) {
         el.catchDetails.textContent = detail;
         el.catchNote.textContent = "";
         el.catchExtra.textContent = "";
+        el.catchXp.textContent = "";
       } else {
         el.catchArt.innerHTML = fishSvg(species, { size: 160 });
         el.catchTitle.innerHTML = `${rarityHtml(enc.rarity, 28)} ${species.name}`;
-        el.catchDetails.innerHTML = `${RARITY_LABELS[enc.rarity]} · ${enc.sizeCm.toFixed(1)} cm · value ${coinHtml(enc.value)}`;
-        const cap = BAGS[state.bag].slots;
+        const price = priceOf(state, enc);
+        el.catchDetails.innerHTML = `${RARITY_LABELS[enc.rarity]} · ${enc.sizeCm.toFixed(1)} cm · value ${coinHtml(price)}`;
+        el.catchXp.textContent = xp ? `+${xp} XP` : "";
+        const cap = bagCapacity(state);
         if (result.newSpecies) {
           el.catchNote.textContent = `First ${species.name} you've caught! Where should it go?`;
           el.catchExtra.textContent = "";
           const full = state.inventory.length >= cap;
           el.catchBag.dataset.full = String(full);
-          el.catchBagSub.innerHTML = full ? `Bag full (${state.inventory.length}/${cap})` : `Sell later for ${coinHtml(enc.value)}`;
+          el.catchBagSub.innerHTML = full ? `Bag full (${state.inventory.length}/${cap})` : `Sell later for ${coinHtml(price)}`;
         } else {
           el.catchNote.textContent = result.released
             ? `Your bag is full (${state.inventory.length}/${cap}) — you let it go.`
@@ -403,7 +489,7 @@ export function createUI(handlers) {
     bagChoiceAvailable: () => !el.catchBag.disabled,
     /** E inside a dialog: confirm a purchase (after a short guard), otherwise close the dialog. */
     dialogPrimary() {
-      const open = [el.unlock, el.shop, el.bag, el.board, el.settings].find(d => d.open);
+      const open = [el.unlock, el.shop, el.bag, el.board, el.settings, el.skills].find(d => d.open);
       if (!open) return;
       if (performance.now() - (last.dialogOpenedAt ?? 0) < 350) return;
       if (open === el.unlock && !el.unlockPay.disabled) el.unlockPay.click();

@@ -203,8 +203,6 @@ dialog::backdrop { background: rgb(40 32 26 / 0.35); }
 .gear-info b { font-size: 15px; }
 .gear-info .arrow { color: var(--leaf-dark); font-weight: 800; }
 .gear-info .muted { color: var(--ink-soft); }
-.tackle-options { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
-.tackle-options button[aria-pressed="true"] { background: var(--leaf); color: #fff; border-color: var(--leaf-dark); }
 .boat-row { background: #e6f0f2; }
 
 .board-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
@@ -292,20 +290,9 @@ dialog.panel.small { width: min(420px, calc(100vw - 24px)); }
 }
 .buy:not(:disabled):hover { filter: brightness(1.06); }
 .buy:disabled { background: #b7ab98; box-shadow: 0 3px 0 #8f8574; opacity: 1; }
-.buy.small, .secondary.small { min-height: 34px; padding: 4px 12px; font-size: 14px; }
+.buy.small, .secondary.small, .primary.small { min-height: 34px; padding: 4px 12px; font-size: 14px; }
 .max-badge { padding: 4px 10px; border-radius: 999px; background: var(--coin); color: #5a3e12; font-weight: 800; font-size: 13px; }
 .section-title { display: flex; align-items: baseline; gap: 8px; margin: 16px 0 8px; font-size: 16px; }
-.tackle-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.tackle-card {
-  display: grid; justify-items: center; gap: 6px; padding: 10px 8px; text-align: center;
-  background: #fffaf0; border: 2px solid #eadcc0; border-radius: 16px;
-}
-.tackle-card.is-on { border-color: var(--leaf); background: #f3f8ea; }
-.tackle-name { font-weight: 800; font-size: 14px; }
-.chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
-.chip { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 999px; background: var(--paper-2); font-size: 13px; font-weight: 800; color: var(--ink-soft); }
-.chip .ico { width: 15px; height: 15px; color: var(--wood-dark); }
-.equipped { display: inline-flex; align-items: center; gap: 4px; color: var(--leaf-dark); font-weight: 800; min-height: 34px; }
 
 /* Purchase dialog art --------------------------------------------------- */
 .unlock-art { display: grid; place-items: center; margin-bottom: 8px; }
@@ -324,11 +311,6 @@ dialog.panel.small { width: min(420px, calc(100vw - 24px)); }
 
 @media (max-width: 640px) {
   .gear-grid { grid-template-columns: 1fr; }
-  .tackle-grid { grid-template-columns: 1fr; }
-  .tackle-card { grid-template-columns: 40px 1fr auto; justify-items: start; text-align: left; }
-  .tackle-card .chips { grid-column: 2; grid-row: 2; justify-content: flex-start; }
-  .tackle-card > :last-child { grid-column: 3; grid-row: 1 / span 2; }
-  .tackle-card .gear-art { grid-row: 1 / span 2; }
   .setting { grid-template-columns: 28px 70px 1fr 44px; }
 }
 #shop-dialog { width: min(780px, calc(100vw - 24px)); }
@@ -481,3 +463,114 @@ dialog.panel.small { width: min(420px, calc(100vw - 24px)); }
 @keyframes goldpulse { 0%, 100% { box-shadow: 0 0 0 6px rgb(255 214 107 / 0.45), 0 0 40px 8px rgb(255 200 70 / 0.45), 0 14px 40px rgb(60 40 10 / 0.4); } 50% { box-shadow: 0 0 0 9px rgb(255 214 107 / 0.35), 0 0 70px 16px rgb(255 200 70 / 0.65), 0 14px 40px rgb(60 40 10 / 0.4); } }
 @keyframes shine { to { background-position: -200% 0; } }
 @keyframes spin { to { rotate: 360deg; } }
+
+/* Leveling: HUD level chip, skill points badge, catch XP ------------------------ */
+.level-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px 2px 8px; border-radius: 999px;
+  background: #f3e2c2; color: var(--wood-dark); font-size: 15px; font-weight: 900;
+}
+.xp-bar { width: 44px; height: 6px; background: #fff8ea; border-radius: 3px; overflow: hidden; box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.12); }
+.xp-bar span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--coin), var(--legendary)); transition: width 0.4s ease; }
+.level-chip.glow { animation: levelglow 1.6s ease-out; }
+@keyframes levelglow {
+  0% { box-shadow: 0 0 0 0 rgb(255 200 80 / 0.9); transform: scale(1); background: #ffe59a; }
+  25% { box-shadow: 0 0 18px 8px rgb(255 200 80 / 0.7); transform: scale(1.15); background: #ffe59a; }
+  100% { box-shadow: 0 0 0 0 rgb(255 200 80 / 0); transform: scale(1); }
+}
+.badge.points { background: var(--legendary); animation: pop 0.25s ease-out; }
+.catch-xp { font-weight: 900; color: var(--wood-dark); letter-spacing: 0.02em; }
+.catch-xp:empty { display: none; }
+.catch-card.golden .catch-xp { color: #7a4d06; }
+.mg-phase.secondwind { background: #fff1c9; color: #9a6a10; animation: pop 0.2s ease-out; }
+
+/* Fish Finder strip & Fish Whisperer cue ------------------------------------- */
+.finder {
+  position: fixed; left: 50%; bottom: 92px; transform: translateX(-50%);
+  display: flex; align-items: flex-end; gap: 6px; padding: 6px 10px; max-width: calc(100vw - 24px);
+  background: rgb(247 239 223 / 0.94); border: 2px solid #e2d3b4; border-radius: 16px; box-shadow: var(--shadow); pointer-events: none;
+}
+.finder-label { align-self: center; color: var(--leaf-dark); }
+.finder-label .ico { width: 20px; height: 20px; }
+.finder-fish { display: grid; justify-items: center; gap: 1px; min-width: 52px; font-size: 11px; font-weight: 800; color: var(--ink-soft); }
+.finder-fish svg { width: 48px; height: auto; }
+.finder-fish.found { color: var(--ink); }
+body.touch .finder { left: auto; right: 16px; bottom: 120px; transform: none; }
+.whisper { display: inline-flex; align-items: center; gap: 2px; margin-left: 6px; animation: pop 0.25s ease-out; }
+.whisper svg:first-child { width: 56px; height: auto; }
+
+/* Skill tree ----------------------------------------------------------------- */
+#skills-dialog { width: min(960px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); }
+.skills-level { padding: 4px 12px; border-radius: 999px; background: var(--wood); color: #fff; font-weight: 900; font-size: 15px; }
+.skills-summary { display: flex; align-items: center; gap: 16px; padding: 10px 18px 0; font-weight: 700; }
+.skills-xp { flex: 1; display: flex; align-items: center; gap: 10px; white-space: nowrap; font-size: 14px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.xp-bar-big { flex: 1; max-width: 360px; }
+.xp-bar-big .bar-fill { background: linear-gradient(90deg, var(--coin), var(--legendary)); transition: width 0.3s ease; }
+.skills-points { white-space: nowrap; padding: 4px 12px; border-radius: 999px; background: var(--paper-2); color: var(--ink-soft); font-size: 14px; }
+.skills-points.has { background: #fbe9c4; color: #7a4d06; box-shadow: 0 0 0 2px #f0c46a; }
+.skills-grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: max-content; gap: 12px; padding-top: 12px; padding-bottom: 10px; }
+.skill-branch { display: grid; align-content: start; gap: 8px; padding: 0 10px 10px; background: #fffaf0; border: 2px solid #eadcc0; border-radius: 16px; overflow: hidden; }
+.branch-head {
+  display: flex; align-items: center; gap: 8px; margin: 0 -10px; padding: 8px 12px;
+  background: color-mix(in srgb, var(--branch) 22%, var(--paper)); border-bottom: 3px solid var(--branch);
+}
+.branch-ico { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--paper); color: var(--branch); }
+.branch-ico .ico { width: 24px; height: 24px; }
+.branch-name { flex: 1; display: grid; line-height: 1.1; }
+.branch-name b { font-size: 16px; }
+.branch-name small { font-size: 12px; font-weight: 700; color: var(--ink-soft); }
+.branch-spent { min-width: 30px; padding: 2px 8px; border-radius: 999px; background: var(--branch); color: #fff; font-weight: 900; text-align: center; }
+.skill-tier { display: grid; gap: 4px; }
+.tier-label { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--wood-dark); }
+.tier-label.lock { color: var(--ink-soft); text-transform: none; letter-spacing: 0; font-size: 12px; }
+.tier-label .ico { width: 14px; height: 14px; }
+.skill-nodes { display: flex; justify-content: center; gap: 6px; }
+.skill-node {
+  position: relative; flex: 0 1 33%; min-width: 0; display: grid; justify-items: center; align-content: start; gap: 3px; padding: 7px 4px 6px;
+  border: 2px solid #e2d3b4; border-radius: 14px; background: var(--paper); color: var(--ink);
+  box-shadow: 0 3px 0 #e2d3b4; transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+}
+.node-ico { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--paper-2); color: var(--wood-dark); }
+.node-ico .ico { width: 22px; height: 22px; }
+.node-name { font-size: 12px; font-weight: 800; line-height: 1.15; text-align: center; min-height: 2.3em; display: grid; place-items: center; }
+.node-pips { display: flex; gap: 3px; }
+.node-pips i { width: 8px; height: 8px; border-radius: 50%; background: #e2d3b4; box-shadow: inset 0 1px 1px rgb(0 0 0 / 0.12); }
+.node-pips i.on { background: var(--branch); box-shadow: none; }
+.skill-node.learned .node-ico { background: color-mix(in srgb, var(--branch) 25%, var(--paper)); color: var(--branch); }
+.skill-node.can { border-color: var(--branch); box-shadow: 0 3px 0 var(--branch), 0 0 0 3px color-mix(in srgb, var(--branch) 25%, transparent); }
+.skill-node.can::after {
+  content: "+"; position: absolute; top: -7px; right: -5px; width: 18px; height: 18px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--branch); color: #fff; font-size: 14px; font-weight: 900; line-height: 1;
+}
+.skill-node.can:hover, .skill-node.can:focus-visible { transform: translateY(-2px); }
+.skill-node.maxed { background: color-mix(in srgb, var(--branch) 12%, #fffaf0); border-color: color-mix(in srgb, var(--branch) 60%, #e2d3b4); box-shadow: 0 3px 0 color-mix(in srgb, var(--branch) 60%, #e2d3b4); }
+.skill-node.maxed .node-ico { background: var(--branch); color: #fff; }
+.skill-node.idle { cursor: default; }
+.skill-node.locked { cursor: not-allowed; background: #f1e8d6; box-shadow: none; border-style: dashed; }
+.skill-node.locked .node-ico, .skill-node.locked .node-name { opacity: 0.45; filter: grayscale(1); }
+.skills-detail {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; min-height: 52px; margin: 0; padding: 10px 18px;
+  background: var(--paper-2); border-top: 3px solid #e2d3b4; font-size: 14px; color: var(--ink-soft);
+}
+.skills-detail strong { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font-size: 15px; }
+.skills-detail .ico { width: 18px; height: 18px; color: var(--wood-dark); }
+.skills-detail .detail-text { font-weight: 700; }
+.skills-detail b { color: var(--leaf-dark); }
+.skills-detail .arrow { color: var(--leaf-dark); font-weight: 900; }
+.detail-max { padding: 1px 8px; border-radius: 999px; background: var(--coin); color: #5a3e12; font-weight: 800; font-size: 12px; }
+.detail-lock { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; color: var(--danger); }
+.respec-card { grid-template-columns: 52px 1fr auto; }
+
+@media (max-width: 640px) {
+  .skills-grid { grid-template-columns: 1fr; }
+  .skills-summary { flex-wrap: wrap; gap: 8px; }
+  .xp-bar { width: 30px; }
+  .finder-fish { min-width: 40px; }
+  .finder-fish svg { width: 36px; }
+  .finder-fish span { display: none; }
+}
+@media (max-height: 760px) and (min-width: 641px) {
+  .skills-grid { gap: 10px; padding-top: 8px; }
+  .skill-branch { gap: 5px; }
+  .skill-node { padding: 5px 4px 4px; }
+  .node-ico { width: 30px; height: 30px; }
+}
