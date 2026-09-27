@@ -292,6 +292,7 @@ async function boot() {
     window.cozy = {
       get state() { return state; }, get game() { return game; }, get rng() { return rng; },
       content, fishing, economy, saveNow, deleteSave, camera: renderer.camera,
+      renderInfo: () => ({ ...renderer.renderer.info.render, geometries: renderer.renderer.info.memory.geometries }),
       setTime(ms) { state.timeMs = ms; },
       teleport(x, z, area = "land") { Object.assign(state.player, { x, z, area }); },
     };

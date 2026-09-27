@@ -19,6 +19,10 @@ Open http://localhost:8080/. Append `?debug` to expose a `window.cozy` test hook
 | Reel (minigame) | Hold `Space` or hold the mouse button | Press & hold anywhere |
 | Bag / Collection | `I` / `C` | Buttons (top right) |
 
+## Progression
+
+Start at the lake with 30 coins. Construction barriers close off the **river bank (250 coins)** and the **beach & docks (750 coins)**; pay the builders at the barrier to open them for good. The **boat (1000 coins, shop)** then unlocks offshore fishing from the dock. The first catch of each species goes to the wallboard and pays a bonus equal to its value; the wallboard remembers your best specimen per species (rarest, then biggest) — hover, focus or tap a slot to see it.
+
 ## Layout
 
 ```text
