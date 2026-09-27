@@ -9,6 +9,7 @@ import * as economy from "./game/economy.js";
 import * as skills from "./game/skills.js";
 import * as orders from "./game/orders.js";
 import * as weather from "./game/weather.js";
+import { doneMilestones, milestoneEffects } from "./game/collection.js";
 import { createInput } from "./input/input.js";
 import { createUI } from "./ui/ui.js";
 import { createRenderer } from "./render/scene.js";
@@ -150,6 +151,22 @@ function unlockRegion(id) {
   audio.play("unlock");
   renderer.setUnlocked(state.unlocked);
   afterChange();
+}
+
+/** Toast newly reached collection milestones and update their rewards in the world. */
+function checkMilestones() {
+  if (game.milestoneKey === state.discovered.length) return;
+  const done = doneMilestones(state).map(m => m.id);
+  if (game.milestoneKey !== undefined) {
+    for (const m of doneMilestones(state)) if (!game.milestonesDone.includes(m.id)) {
+      setTimeout(() => { ui.toast(`Milestone: ${m.name}! ${m.reward}`); audio.play("record"); }, 1200);
+    }
+  }
+  game.milestoneKey = state.discovered.length;
+  game.milestonesDone = done;
+  renderer.setMilestones(milestoneEffects(state));
+  renderer.setWallboard(state.discovered);
+  ui.refreshOpenPanels();
 }
 
 function afterChange() {
@@ -427,6 +444,7 @@ function frame(now) {
   if (!game.menu) advanceTime(state, dt * 1000); // time waits on the title screen
   if (orders.ensureOrders(state)) { ui.refreshOpenPanels(); if (game.ordersSeen) ui.toast("New orders on the village notice board"); saveSoon(); }
   game.ordersSeen = true;
+  checkMilestones();
 
   const bucket = timeBucket(state.timeMs);
   const wx = weatherNow();

@@ -7,7 +7,9 @@ const FONT = `"Segoe UI Rounded", "Nunito", "Segoe UI", system-ui, sans-serif`;
 
 function loadSvg(svg) {
   const img = new Image();
-  img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  // Inline SVG may omit the namespace; as a standalone image it is required, or the image never decodes.
+  const src = svg.includes("xmlns=") ? svg : svg.replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ');
+  img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(src)}`;
   return img.decode().then(() => img, () => null);
 }
 
