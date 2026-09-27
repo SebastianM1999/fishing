@@ -463,7 +463,7 @@ export function createUI(handlers) {
       const show = !!session && session.phase !== "done";
       el.fishing.hidden = !show;
       document.body.classList.toggle("fishing", !!session);
-      const legend = show && FISH_BY_ID[session.encounter.speciesId].legendary && (session.phase === "bite" || session.phase === "fight");
+      const legend = show && !!FISH_BY_ID[session.encounter.speciesId].legendary && (session.phase === "bite" || session.phase === "fight");
       if (last.legend !== legend) {
         last.legend = legend;
         el.fishing.classList.toggle("boss", legend);

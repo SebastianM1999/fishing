@@ -397,7 +397,8 @@ function frame(now) {
   ui.updateHud(state, bucket, bucketProgress(state.timeMs), regionName(state.player));
   ui.updateFishing(game.session);
   const result = ui.catchVisible() && game.session ? (game.session.outcome === "caught" ? "caught" : "lost") : null;
-  const view = renderer.render({ state, session: game.session, walking: game.walking, dt, elapsed: game.elapsed, result });
+  const questReady = !!state.orders?.list.some(o => orders.canHandIn(state, o));
+  const view = renderer.render({ state, session: game.session, walking: game.walking, dt, elapsed: game.elapsed, result, questReady });
   if (view.footstep) audio.play("step", surfaceAt(state.player.x, state.player.z, state.player.area));
   const fight = game.session?.phase === "fight" ? game.session.fight : null;
   audio.update({ bucket, area: state.player.area, x: state.player.x, z: state.player.z, fightHeld: !!(fight && game.session.reelHeld), tension: fight ? fight.tension / fight.tensionLimit : 0 });

@@ -144,6 +144,26 @@ export function createRenderer(canvas) {
     scene.add(rig.root);
     return { n, rig, near: false, waveUntil: 0, look: 0, phase: Math.random() * 6 };
   });
+  // "!" over Nell when an order can be handed in.
+  const questMark = (() => {
+    const c = document.createElement("canvas");
+    c.width = c.height = 128;
+    const g = c.getContext("2d");
+    g.fillStyle = "#f7c748"; g.strokeStyle = "#7a4d06"; g.lineWidth = 8;
+    g.beginPath(); g.arc(64, 64, 52, 0, Math.PI * 2); g.fill(); g.stroke();
+    g.fillStyle = "#5a3a06"; g.font = "900 84px system-ui, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText("!", 64, 70);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+    s.scale.setScalar(0.9);
+    s.renderOrder = 5;
+    s.visible = false;
+    scene.add(s);
+    return s;
+  })();
+  const courier = npcs.find(c => c.n.id === "courier");
+
   function animateNpcs(p, dt, t, busy) {
     const k = 1 - Math.exp(-dt * 6);
     for (const npc of npcs) {
@@ -365,7 +385,7 @@ export function createRenderer(canvas) {
     lineGeo.attributes.position.needsUpdate = true;
   }
 
-  function render({ state, session, walking, dt, elapsed, result }) {
+  function render({ state, session, walking, dt, elapsed, result, questReady = false }) {
     TIME.value = elapsed;
     footstep = false;
     const p = state.player;
@@ -385,6 +405,11 @@ export function createRenderer(canvas) {
     const mode = result === "caught" ? "celebrate" : result ? "sad" : active ? (active.phase === "cast" ? "cast" : active.phase === "fight" ? "fight" : active.phase === "bite" ? "bite" : "wait") : walking ? "walk" : "idle";
     animatePlayer(mode, active, dt, elapsed);
     animateNpcs(p, dt, elapsed, !!session);
+    questMark.visible = questReady && p.area === "land";
+    if (questMark.visible) {
+      questMark.position.set(courier.n.x, 3.45 + Math.abs(Math.sin(elapsed * 3)) * 0.25, courier.n.z);
+      questMark.scale.setScalar(0.9 + Math.sin(elapsed * 6) * 0.04);
+    }
     setHeldFish(result === "caught" ? session?.encounter.speciesId : null);
 
     // Bobber + line
