@@ -1,0 +1,16 @@
+{
+  "name": "Driftwood Cove — Cozy Fishing",
+  "short_name": "Driftwood Cove",
+  "description": "A small, cozy 2.5D fishing game.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f7efdf",
+  "theme_color": "#3f6e8c",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

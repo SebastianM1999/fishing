@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Driftwood Cove — a cozy fishing game</title>
+  <meta name="description" content="A small, cozy 2.5D fishing game. Explore, fish, collect and upgrade.">
+  <meta name="theme-color" content="#3f6e8c">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="/style.css">
+  <script type="importmap">{ "imports": { "three": "/vendor/three/three.module.js" } }</script>
+  <script type="module" src="/js/main.js"></script>
+</head>
+<body>
+  <canvas id="world" aria-label="Game world"></canvas>
+
+  <header class="hud" id="hud">
+    <div class="hud-card">
+      <span class="coins" title="Coins"><span class="coin-icon" aria-hidden="true"></span><span id="hud-coins">30</span></span>
+      <span class="time-chip" id="hud-time-chip">
+        <span class="time-icon" id="hud-time-icon" aria-hidden="true"></span>
+        <span id="hud-time">Dawn</span>
+        <span class="time-bar" aria-hidden="true"><span id="hud-time-bar"></span></span>
+      </span>
+    </div>
+    <div class="hud-card hud-sub">
+      <span id="hud-region">Village</span>
+      <span class="dot" aria-hidden="true">·</span>
+      <span>Collection <strong id="hud-collection">0 / 20</strong></span>
+    </div>
+  </header>
+
+  <nav class="hud-buttons" aria-label="Menus">
+    <button type="button" id="btn-bag" class="pill"><span class="key">I</span> Bag <span class="badge" id="bag-count">0</span></button>
+    <button type="button" id="btn-board" class="pill"><span class="key">C</span> Collection</button>
+  </nav>
+
+  <button type="button" id="action-btn" class="action-btn" hidden><span class="key" id="action-key">E</span> <span id="action-label">Fish</span></button>
+
+  <section id="fishing" class="fishing-panel" hidden aria-live="polite">
+    <p class="fishing-status" id="fishing-status">Casting…</p>
+    <div id="minigame" class="minigame" hidden>
+      <div class="mg-label"><span id="mg-behavior">Fish on!</span><span id="mg-phase" class="mg-phase"></span></div>
+      <div class="lane" id="mg-lane">
+        <div class="zone" id="mg-zone"></div>
+        <div class="lane-fish" id="mg-fish" aria-hidden="true"></div>
+      </div>
+      <div class="bar-row"><span>Catch</span><div class="bar"><div class="bar-fill progress" id="mg-progress"></div></div></div>
+      <div class="bar-row"><span>Tension</span><div class="bar"><div class="bar-fill tension" id="mg-tension"></div></div></div>
+      <p class="mg-hint">Hold <span class="key">Space</span> / press &amp; hold to reel right — release to ease tension</p>
+    </div>
+  </section>
+
+  <section id="catch-card" class="catch-card" hidden aria-live="assertive">
+    <div class="catch-art" id="catch-art"></div>
+    <h2 id="catch-title">Caught!</h2>
+    <p id="catch-details"></p>
+    <p id="catch-note" class="catch-note"></p>
+    <button type="button" id="catch-ok" class="primary">Continue <span class="key">E</span></button>
+  </section>
+
+  <div id="joystick" class="joystick" aria-hidden="true"><div id="joystick-knob" class="knob"></div></div>
+  <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+  <div id="fade" class="fade" aria-hidden="true"></div>
+
+  <dialog id="shop-dialog" class="panel" aria-labelledby="shop-title">
+    <header class="panel-head">
+      <h2 id="shop-title">Tackle &amp; Market</h2>
+      <span class="coins"><span class="coin-icon" aria-hidden="true"></span><span id="shop-coins">0</span></span>
+      <button type="button" class="close" data-close aria-label="Close">✕</button>
+    </header>
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" id="tab-market" aria-selected="true" data-tab="market">Sell fish</button>
+      <button type="button" role="tab" id="tab-gear" aria-selected="false" data-tab="gear">Gear &amp; Boat</button>
+    </div>
+    <div id="shop-market" class="panel-body" role="tabpanel" aria-labelledby="tab-market"></div>
+    <div id="shop-gear" class="panel-body" role="tabpanel" aria-labelledby="tab-gear" hidden></div>
+  </dialog>
+
+  <dialog id="bag-dialog" class="panel" aria-labelledby="bag-title">
+    <header class="panel-head">
+      <h2 id="bag-title">Fish bag</h2>
+      <button type="button" class="close" data-close aria-label="Close">✕</button>
+    </header>
+    <div id="bag-body" class="panel-body"></div>
+  </dialog>
+
+  <dialog id="board-dialog" class="panel wide" aria-labelledby="board-title">
+    <header class="panel-head">
+      <h2 id="board-title">Collection wallboard</h2>
+      <strong id="board-count">0 / 20</strong>
+      <button type="button" class="close" data-close aria-label="Close">✕</button>
+    </header>
+    <div id="board-body" class="panel-body board-grid"></div>
+  </dialog>
+
+  <script>
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");
+  </script>
+</body>
+</html>
