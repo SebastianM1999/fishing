@@ -32,13 +32,12 @@
     <div class="hud-card hud-sub">
       <span id="hud-region">Village</span>
       <span class="dot" aria-hidden="true">·</span>
-      <span>Collection <strong id="hud-collection">0 / 20</strong></span>
+      <span>Collection <strong id="hud-collection">0</strong></span>
     </div>
   </header>
 
   <nav class="hud-buttons" aria-label="Menus">
     <button type="button" id="btn-bag" class="pill"><span class="key">I</span> Bag <span class="badge" id="bag-count">0</span></button>
-    <button type="button" id="btn-board" class="pill"><span class="key">C</span> Collection</button>
     <button type="button" id="btn-skills" class="pill"><span class="key">K</span> Skills <span class="badge points" id="skill-points" hidden>0</span></button>
     <button type="button" id="btn-settings" class="pill icon-only" aria-label="Settings" title="Settings"></button>
   </nav>
@@ -110,12 +109,21 @@
   <dialog id="board-dialog" class="panel wide" aria-labelledby="board-title">
     <header class="panel-head">
       <h2 id="board-title">Collection wallboard</h2>
-      <strong id="board-count">0 / 20</strong>
+      <strong id="board-count">0</strong>
       <button type="button" class="close" data-close aria-label="Close">✕</button>
     </header>
     <p class="board-hint">Hover, focus or tap a fish to see your best catch.</p>
     <div id="board-body" class="panel-body board-grid"></div>
     <div id="board-tip" class="board-tip" role="tooltip" hidden></div>
+  </dialog>
+
+  <dialog id="trophy-dialog" class="panel" aria-labelledby="trophy-title">
+    <header class="panel-head">
+      <h2 id="trophy-title">Trophy shelf</h2>
+      <button type="button" class="close" data-close aria-label="Close">✕</button>
+    </header>
+    <p class="board-hint">Show off your three proudest catches. Trophies stay home: they can't be sold while they hang here.</p>
+    <div id="trophy-body" class="panel-body"></div>
   </dialog>
 
   <dialog id="skills-dialog" class="panel wide" aria-labelledby="skills-title">

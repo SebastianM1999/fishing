@@ -4,7 +4,9 @@ import { WORLD, isWalkable } from "./world.js";
 import { catchXp, sanitizeSkills } from "./skills.js";
 
 // v2: construction-barrier unlocks + per-species best-catch records. v3: bag tier. v4: xp + skills; hook & tackle removed.
-export const SAVE_VERSION = 4;
+// v5: home interior (area "home"), trophy shelf.
+export const SAVE_VERSION = 5;
+export const TROPHY_SLOTS = 3;
 // Coins refunded for pre-v4 purchases that no longer exist (cumulative hook tier prices, tackle prices).
 const LEGACY_HOOK_REFUND = [0, 120, 420];
 const LEGACY_TACKLE_REFUND = { tackle_float: 150, tackle_heavy_sinker: 200, tackle_spinner: 350 };
@@ -23,6 +25,7 @@ export function createState(seed = (Date.now() ^ 0x5eed) >>> 0) {
     // Best specimen per species (rarest, then biggest): { rarity, sizeCm, value, uid|null, sold }
     records: {},
     inventory: [], // [{ uid, speciesId, rarity, sizeCm, value }]
+    trophies: Array(TROPHY_SLOTS).fill(null), // fish on the home trophy shelf (not in the bag, not sellable)
     nextFishUid: 1,
     player: { x: WORLD.spawn.x, z: WORLD.spawn.z, facing: Math.PI, area: "land" },
     timeMs: 20 * 1000, // start early in Dawn
@@ -44,6 +47,7 @@ export function serialize(state, rng) {
     discovered: [...state.discovered],
     records: structuredClone(state.records),
     inventory: state.inventory.map(f => ({ ...f })),
+    trophies: state.trophies.map(f => (f ? { ...f } : null)),
     nextFishUid: state.nextFishUid,
     player: { ...state.player },
     timeMs: Math.floor(state.timeMs),
@@ -91,24 +95,24 @@ export function deserialize(data) {
       };
     }
   }
-  if (Array.isArray(data.inventory)) {
-    s.inventory = data.inventory
-      .filter(f => f && FISH_BY_ID[f.speciesId] && RARITIES.includes(f.rarity))
-      .map((f, i) => ({
-        uid: Math.floor(num(f.uid, i + 1)),
-        speciesId: f.speciesId,
-        rarity: f.rarity,
-        sizeCm: num(f.sizeCm, FISH_BY_ID[f.speciesId].sizeCm[0]),
-        value: Math.max(1, Math.round(num(f.value, 1))),
-      }));
+  if (Array.isArray(data.inventory)) s.inventory = data.inventory.map(cleanFish).filter(Boolean);
+  if (Array.isArray(data.trophies)) {
+    const seen = new Set(s.inventory.map(f => f.uid));
+    s.trophies = s.trophies.map((_, i) => {
+      const f = cleanFish(data.trophies[i]);
+      if (!f || seen.has(f.uid)) return null;
+      seen.add(f.uid);
+      return f;
+    });
   }
-  s.nextFishUid = Math.max(num(data.nextFishUid, 1), ...s.inventory.map(f => f.uid + 1), 1);
+  const kept = [...s.inventory, ...s.trophies.filter(Boolean)];
+  s.nextFishUid = Math.max(num(data.nextFishUid, 1), ...kept.map(f => f.uid + 1), 1);
   const p = data.player;
   if (p && typeof p === "object") {
-    const area = p.area === "offshore" && s.boatOwned ? "offshore" : "land";
+    const area = p.area === "offshore" && s.boatOwned ? "offshore" : p.area === "home" ? "home" : "land";
     const x = num(p.x, s.player.x);
     const z = num(p.z, s.player.z);
-    if (isWalkable(x, z, area, s.unlocked) && (area === "land" || s.unlocked.includes("sea"))) s.player = { x, z, facing: num(p.facing, Math.PI), area };
+    if (isWalkable(x, z, area, s.unlocked) && (area !== "offshore" || s.unlocked.includes("sea"))) s.player = { x, z, facing: num(p.facing, Math.PI), area };
   }
   if ((num(data.version, 1)) < 4) migrateToV4(s, data);
   else {
@@ -118,6 +122,17 @@ export function deserialize(data) {
   s.timeMs = ((num(data.timeMs, s.timeMs) % DAY_LENGTH_MS) + DAY_LENGTH_MS) % DAY_LENGTH_MS;
   s.rngSeed = Math.floor(num(data.rngSeed, s.rngSeed)) >>> 0;
   return s;
+}
+
+function cleanFish(f) {
+  if (!f || typeof f !== "object" || !FISH_BY_ID[f.speciesId] || !RARITIES.includes(f.rarity) || !Number.isInteger(f.uid) || f.uid < 1) return null;
+  return {
+    uid: f.uid,
+    speciesId: f.speciesId,
+    rarity: f.rarity,
+    sizeCm: num(f.sizeCm, FISH_BY_ID[f.speciesId].sizeCm[0]),
+    value: Math.max(1, Math.round(num(f.value, 1))),
+  };
 }
 
 /** Pre-v4 saves: refund the removed hook tiers and tackle as coins, grant XP for the catches already logged. */

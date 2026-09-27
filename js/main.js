@@ -72,6 +72,16 @@ const ui = createUI({
   buyBag() {
     if (economy.buyBag(state)) { ui.toast(`${content.BAGS[state.bag].name}: ${economy.bagCapacity(state)} slots`); audio.play("buy"); afterChange(); }
   },
+  mountTrophy(uid, slot) {
+    const fish = state.inventory.find(f => f.uid === uid);
+    if (!fish || !economy.mountTrophy(state, uid, slot)) { audio.play("denied"); return; }
+    ui.toast(`${content.FISH_BY_ID[fish.speciesId].name} is on the trophy shelf`);
+    audio.play("record"); afterChange();
+  },
+  unmountTrophy(slot) {
+    if (!economy.unmountTrophy(state, slot)) { ui.toast("Your bag is full — make room first"); audio.play("denied"); return; }
+    ui.toast("Trophy back in your bag"); audio.play("ui"); afterChange();
+  },
   learnSkill(id) {
     if (!skills.learn(state, id)) { audio.play("denied"); return; }
     const s = content.SKILLS_BY_ID[id];
@@ -98,7 +108,7 @@ function chooseFirstCatch(choice) {
   if (!res) return;
   const name = content.FISH_BY_ID[s.encounter.speciesId].name;
   if (choice === "wall") {
-    ui.toast(`${name} mounted on the wallboard (${state.discovered.length} / 20)`);
+    ui.toast(`${name} mounted on the collection board at home (${state.discovered.length} / ${content.FISH.length})`);
     audio.play("discover");
   } else {
     ui.toast(`${name} is in your bag — mount a later catch to fill its wallboard slot`);
@@ -128,6 +138,7 @@ function unlockRegion(id) {
 function afterChange() {
   ui.refreshOpenPanels();
   renderer.setWallboard(state.discovered);
+  renderer.setTrophies(state.trophies);
   saveSoon();
 }
 
@@ -160,18 +171,17 @@ addEventListener("keydown", e => {
 addEventListener("keydown", e => {
   if (e.repeat || ui.anyDialogOpen() || game.session) return;
   if (e.code === "KeyI") ui.openBag();
-  if (e.code === "KeyC") ui.openBoard();
   if (e.code === "KeyK") ui.openSkills();
 });
 
 // --- Interactions ------------------------------------------------------------
 function travel(to) {
   game.travelling = true;
-  audio.play("boat");
+  audio.play(to.area === "home" || state.player.area === "home" ? "door" : "boat");
   ui.fade(true);
   setTimeout(() => {
     state.player.x = to.x; state.player.z = to.z; state.player.area = to.area;
-    state.player.facing = to.area === "offshore" ? 0 : Math.PI;
+    state.player.facing = to.facing ?? (to.area === "offshore" ? 0 : Math.PI);
     game.moveTarget = null;
     saveNow();
     setTimeout(() => { ui.fade(false); game.travelling = false; }, 250);
@@ -183,6 +193,9 @@ function interact(it) {
     case "fish": startFishing(it); break;
     case "shop": ui.openShop(state); break;
     case "board": ui.openBoard(); break;
+    case "trophies": ui.openTrophies(); break;
+    case "enter": travel(TRAVEL.toHome); break;
+    case "exit": travel(TRAVEL.fromHome); break;
     case "dock":
       if (state.boatOwned) travel(TRAVEL.toOffshore);
       else ui.openPurchase(state, {
@@ -385,6 +398,7 @@ async function boot() {
   }
   ui.bind(state);
   renderer.setWallboard(state.discovered);
+  renderer.setTrophies(state.trophies);
   renderer.setUnlocked(state.unlocked);
   requestAnimationFrame(frame);
 

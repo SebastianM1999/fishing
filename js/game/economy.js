@@ -93,6 +93,25 @@ export function sellAll(state) {
   return total;
 }
 
+/** Put a bag fish on the trophy shelf; a trophy already in that spot goes back into the bag (needs no extra room). */
+export function mountTrophy(state, uid, slot) {
+  const i = state.inventory.findIndex(f => f.uid === uid);
+  if (i < 0 || !(slot in state.trophies)) return false;
+  const [fish] = state.inventory.splice(i, 1);
+  if (state.trophies[slot]) state.inventory.push(state.trophies[slot]);
+  state.trophies[slot] = fish;
+  return true;
+}
+
+/** Take a trophy down into the bag. Never releases anything: fails when the bag is full. */
+export function unmountTrophy(state, slot) {
+  const fish = state.trophies[slot];
+  if (!fish || bagFull(state)) return false;
+  state.inventory.push(fish);
+  state.trophies[slot] = null;
+  return true;
+}
+
 export function buyBag(state) {
   const next = BAGS[state.bag + 1];
   if (!next || state.coins < next.price) return false;

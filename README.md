@@ -18,7 +18,7 @@ Open http://localhost:8080/. Append `?debug` to expose a `window.cozy` test hook
 | Interact: cast, reel in, Continue, confirm/close dialogs | `E` (or `Enter`), or the action button | Action button |
 | Hook on a bite | `Space` or mouse click | Tap |
 | Reel (minigame) | Hold `Space` or hold the mouse button | Press & hold |
-| Bag / Collection / Skills / close | `I` / `C` / `K` / `Esc` | Buttons (top right) |
+| Bag / Skills / close | `I` / `K` / `Esc` | Buttons (top right) |
 
 ## Progression
 
@@ -26,7 +26,7 @@ Start at the lake with 30 coins. Construction barriers close off the **river ban
 
 **Coins buy equipment, XP buys technique.** Every landed fish earns XP (more for rare, legendary and big fish, +50 for a species' first catch, +5 for a perfect hook); lost fish earn nothing. Levels go up to 25 and each level gained gives one skill point. Press `K` for the skill tree: three branches — **Angler** (the fight), **Naturalist** (finding fish) and **Merchant** (money) — with three tiers each; tier II opens after 3 points in that branch, the capstone after 7.
 
-The bag holds 8 sellable fish (upgrades: 15 for 200, 30 for 600); when it's full, other catches are released. The **first catch of a species** opens a golden card: mount it on the wallboard (no coins) or keep it in the bag to sell — the wallboard slot stays empty until you mount one. The wallboard remembers your best specimen per species (rarest, then biggest) — hover, focus or tap a slot to see it.
+The bag holds 8 sellable fish (upgrades: 15 for 200, 30 for 600); when it's full, other catches are released. The **first catch of a species** opens a golden card: mount it on the wallboard (no coins) or keep it in the bag to sell — the wallboard slot stays empty until you mount one. The collection board hangs **inside your house** (walk to the front door and press `E`): it remembers your best specimen per species (rarest, then biggest) — hover, focus or tap a slot to see it. Next to it, the **trophy shelf** holds your three proudest catches: mount any fish from your bag, swap it later, or take it down again (needs a free bag slot). Trophies can't be sold while they hang there.
 
 ## Audio
 
