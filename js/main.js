@@ -258,6 +258,9 @@ function awardCatchXp(s) {
 function finishSession() {
   const s = game.session;
   let xp = 0;
+  const lost = economy.updateStreak(state, s.outcome, s.encounter);
+  if (lost) saveSoon();
+  if (lost >= 2) setTimeout(() => ui.toast(`Streak of ${lost} lost`), 400);
   if (s.outcome === "caught") {
     xp = awardCatchXp(s);
     saveSoon();

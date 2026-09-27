@@ -9,6 +9,8 @@ export const LOCATIONS = ["lake", "river", "sea", "offshore"];
 export const LOCATION_LABELS = { lake: "Lake", river: "River", sea: "Sea Shore", offshore: "Offshore" };
 
 export const STARTING_COINS = 10000; // TESTING: revert to 30 before release
+// Catch streak: each fish landed in a row adds sell value to the fish caught during the streak.
+export const STREAK = { perFish: 0.02, maxFish: 5 };
 export const BOAT_PRICE = 1000;
 
 // Construction barriers: areas that must be cleared with coins before they can be entered.

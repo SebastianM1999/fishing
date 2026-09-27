@@ -1,9 +1,29 @@
 // Inventory, collection, selling, shop and boat rules on plain state.
-import { GEAR, BOAT_PRICE, REGIONS, RARITY_RANK, BAGS, FISH_BY_ID } from "./content.js";
+import { GEAR, BOAT_PRICE, REGIONS, RARITY_RANK, BAGS, FISH_BY_ID, STREAK } from "./content.js";
 import { skillEffects, normalizedSize } from "./skills.js";
 
 export const bagCapacity = state => BAGS[state.bag].slots + skillEffects(state).bagBonus;
 export const bagFull = state => state.inventory.length >= bagCapacity(state);
+
+export const streakBonus = streak => Math.min(streak, STREAK.maxFish) * STREAK.perFish;
+
+/**
+ * Catch streak bookkeeping for a finished session. A landed fish extends the streak and carries its bonus;
+ * a snapped line, escape or missed hook resets it (reeling in early doesn't count). Returns the streak lost, if any.
+ */
+export function updateStreak(state, outcome, encounter) {
+  if (outcome === "caught") {
+    state.streak += 1;
+    encounter.streakBonus = streakBonus(state.streak);
+    return 0;
+  }
+  if (outcome === "broke" || outcome === "escaped" || outcome === "missed") {
+    const lost = state.streak;
+    state.streak = 0;
+    return lost;
+  }
+  return 0;
+}
 
 /** True if catch a beats catch b as a species record: rarer first, then bigger. */
 export function isBetterRecord(a, b) {
@@ -60,7 +80,7 @@ export function placeNewSpecies(state, encounter, choice) {
 /** Sell price today: fish.value (base) plus Haggler, Tall Tales and Trophy Hunter bonuses. */
 export function priceOf(state, fish) {
   const fx = skillEffects(state);
-  let mult = 1 + fx.sellBonus + fx.tallTales * normalizedSize(FISH_BY_ID[fish.speciesId], fish.sizeCm);
+  let mult = 1 + fx.sellBonus + fx.tallTales * normalizedSize(FISH_BY_ID[fish.speciesId], fish.sizeCm) + (fish.streakBonus ?? 0);
   if (fx.trophyHunter) mult += state.discovered.length * 0.01 + (fish.rarity === "legendary" ? 0.5 : 0);
   return Math.max(1, Math.round(fish.value * mult));
 }

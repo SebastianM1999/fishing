@@ -596,3 +596,11 @@ body.touch .finder { left: auto; right: 16px; bottom: 120px; transform: none; }
 .trophy-actions .secondary { background: #fff8ea; color: var(--ink); }
 .trophy-pick { max-height: 240px; overflow-y: auto; }
 @media (max-width: 640px) { .trophy-shelf { grid-template-columns: 1fr; background: #f3e6cc; } }
+
+/* Catch streak ------------------------------------------------------------------ */
+.streak-chip { display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; padding: 1px 8px; border-radius: 999px; background: #fbe0c8; color: #b4501f; font-weight: 800; animation: pop 0.25s ease-out; }
+.streak-chip .ico { width: 15px; height: 15px; }
+.streak-chip.max { background: linear-gradient(90deg, #ffd96a, #f0a040); color: #6a3408; box-shadow: 0 0 10px rgb(255 170 60 / 0.6); }
+.catch-streak { display: flex; align-items: center; justify-content: center; gap: 4px; font-weight: 800; color: #b4501f; }
+.catch-streak:empty { display: none; }
+.catch-streak .ico { width: 16px; height: 16px; }

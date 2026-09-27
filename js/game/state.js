@@ -1,10 +1,10 @@
 // Plain-data game state, plus (de)serialization with defensive validation for saves.
-import { STARTING_COINS, DAY_LENGTH_MS, FISH_BY_ID, GEAR, GEAR_SLOTS, RARITIES, FISH, REGIONS, BAGS, XP_FIRST_CATCH } from "./content.js";
+import { STARTING_COINS, DAY_LENGTH_MS, FISH_BY_ID, GEAR, GEAR_SLOTS, RARITIES, FISH, REGIONS, BAGS, XP_FIRST_CATCH, STREAK } from "./content.js";
 import { WORLD, isWalkable } from "./world.js";
 import { catchXp, sanitizeSkills } from "./skills.js";
 
 // v2: construction-barrier unlocks + per-species best-catch records. v3: bag tier. v4: xp + skills; hook & tackle removed.
-// v5: home interior (area "home"), trophy shelf.
+// v5: home interior (area "home"), trophy shelf, catch streak.
 export const SAVE_VERSION = 5;
 export const TROPHY_SLOTS = 3;
 // Coins refunded for pre-v4 purchases that no longer exist (cumulative hook tier prices, tackle prices).
@@ -25,6 +25,7 @@ export function createState(seed = (Date.now() ^ 0x5eed) >>> 0) {
     // Best specimen per species (rarest, then biggest): { rarity, sizeCm, value, uid|null, sold }
     records: {},
     inventory: [], // [{ uid, speciesId, rarity, sizeCm, value }]
+    streak: 0, // fish landed in a row (catch streak)
     trophies: Array(TROPHY_SLOTS).fill(null), // fish on the home trophy shelf (not in the bag, not sellable)
     nextFishUid: 1,
     player: { x: WORLD.spawn.x, z: WORLD.spawn.z, facing: Math.PI, area: "land" },
@@ -48,6 +49,7 @@ export function serialize(state, rng) {
     records: structuredClone(state.records),
     inventory: state.inventory.map(f => ({ ...f })),
     trophies: state.trophies.map(f => (f ? { ...f } : null)),
+    streak: state.streak,
     nextFishUid: state.nextFishUid,
     player: { ...state.player },
     timeMs: Math.floor(state.timeMs),
@@ -105,6 +107,7 @@ export function deserialize(data) {
       return f;
     });
   }
+  s.streak = Math.max(0, Math.floor(num(data.streak, 0)));
   const kept = [...s.inventory, ...s.trophies.filter(Boolean)];
   s.nextFishUid = Math.max(num(data.nextFishUid, 1), ...kept.map(f => f.uid + 1), 1);
   const p = data.player;
@@ -132,6 +135,7 @@ function cleanFish(f) {
     rarity: f.rarity,
     sizeCm: num(f.sizeCm, FISH_BY_ID[f.speciesId].sizeCm[0]),
     value: Math.max(1, Math.round(num(f.value, 1))),
+    ...(num(f.streakBonus, 0) > 0 ? { streakBonus: Math.min(STREAK.maxFish * STREAK.perFish, num(f.streakBonus, 0)) } : {}),
   };
 }
 

@@ -1,9 +1,9 @@
 // HTML/CSS UI: HUD, fishing panel, catch card, shop, bag, wallboard, skills. Reads state; calls handlers for actions.
 import {
   FISH, FISH_BY_ID, TIME_LABELS, LOCATION_LABELS, RARITY_LABELS, GEAR, GEAR_SLOTS, GEAR_LABELS,
-  BAGS, SKILLS, SKILLS_BY_ID, SKILL_BRANCHES, TIER_POINTS,
+  BAGS, SKILLS, SKILLS_BY_ID, SKILL_BRANCHES, TIER_POINTS, STREAK,
 } from "../game/content.js";
-import { priceOf, inventoryWorth, bagCapacity, bagFull } from "../game/economy.js";
+import { priceOf, inventoryWorth, bagCapacity, bagFull, streakBonus } from "../game/economy.js";
 import { levelInfo, pointsFree, pointsSpent, rankOf, tierOpen, canLearn, respecCost, skillEffects, branchOf } from "../game/skills.js";
 import { fishSvg, rarityIcon } from "./fishArt.js";
 import { ICONS } from "./icons.js";
@@ -45,6 +45,7 @@ export function createUI(handlers) {
     skills: $("skills-dialog"), skillsBody: $("skills-body"), skillsLevel: $("skills-level"), skillsXpFill: $("skills-xp-fill"), skillsXpText: $("skills-xp-text"),
     skillsPoints: $("skills-points"), skillsDetail: $("skills-detail"),
     trophy: $("trophy-dialog"), trophyBody: $("trophy-body"),
+    streak: $("hud-streak"), streakText: $("hud-streak-text"), catchStreak: $("catch-streak"),
   };
   let trophyPick = null; // shelf slot whose bag-fish picker is open
   let purchase = null;
@@ -63,6 +64,7 @@ export function createUI(handlers) {
   $("tab-gear").insertAdjacentHTML("afterbegin", ICONS.rod);
   $("btn-bag").insertAdjacentHTML("afterbegin", ICONS.bag);
   $("btn-skills").insertAdjacentHTML("afterbegin", ICONS.sprout);
+  $("hud-streak-ico").innerHTML = ICONS.flame;
   $("btn-settings").insertAdjacentHTML("afterbegin", ICONS.gear);
   function selectTab(name) {
     document.querySelectorAll(".tabs [data-tab]").forEach(t => t.setAttribute("aria-selected", String(t.dataset.tab === name)));
@@ -376,6 +378,9 @@ export function createUI(handlers) {
       const cap = bagCapacity(s);
       setText(el.bagCount, "bag", `${s.inventory.length}/${cap}`);
       el.bagCount.classList.toggle("full", s.inventory.length >= cap);
+      el.streak.hidden = s.streak < 1;
+      setText(el.streakText, "streak", `×${s.streak} · +${Math.round(streakBonus(s.streak) * 100)}%`);
+      el.streak.classList.toggle("max", s.streak >= STREAK.maxFish);
       const info = levelInfo(s.xp), free = pointsFree(s);
       setText(el.level, "level", `Lv ${info.level}`);
       el.xpBar.style.width = info.maxed ? "100%" : pct(info.into / info.needed);
@@ -482,12 +487,14 @@ export function createUI(handlers) {
         el.catchNote.textContent = "";
         el.catchExtra.textContent = "";
         el.catchXp.textContent = "";
+        el.catchStreak.textContent = "";
       } else {
         el.catchArt.innerHTML = fishSvg(species, { size: 160 });
         el.catchTitle.innerHTML = `${rarityHtml(enc.rarity, 28)} ${species.name}`;
         const price = priceOf(state, enc);
         el.catchDetails.innerHTML = `${RARITY_LABELS[enc.rarity]} · ${enc.sizeCm.toFixed(1)} cm · value ${coinHtml(price)}`;
         el.catchXp.textContent = xp ? `+${xp} XP` : "";
+        el.catchStreak.innerHTML = enc.streakBonus ? `${ICONS.flame} Streak ${state.streak} · +${Math.round(enc.streakBonus * 100)}% value` : "";
         const cap = bagCapacity(state);
         if (result.newSpecies) {
           el.catchNote.textContent = `First ${species.name} you've caught! Where should it go?`;
