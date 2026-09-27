@@ -99,6 +99,8 @@ export function createAudio() {
     loop(white, filter("bandpass", 950, 0.8, filter("lowpass", 2400, 0.5, amb.river)));
     amb.wind = gain(0, bus.ambience);
     loop(brown, filter("lowpass", 260, 0.6, amb.wind));
+    amb.rain = gain(0, bus.ambience);
+    loop(white, filter("bandpass", 2600, 0.45, filter("lowpass", 7000, 0.5, amb.rain)));
     applyVolumes();
   }
 
@@ -297,6 +299,11 @@ export function createAudio() {
     crackle() { noise(S(), { peak: rand(0.01, 0.035), type: "bandpass", freq: rand(1800, 4200), q: 2, decay: rand(0.01, 0.03) }); },
     open() { tone(S(), { freq: 520, glide: 820, peak: 0.05, attack: 0.01, decay: 0.08 }); },
     denied() { const t = ctx.currentTime; tone(S(), { freq: 220, t, peak: 0.06, decay: 0.12, type: "triangle" }); tone(S(), { freq: 196, t: t + 0.12, peak: 0.06, decay: 0.18, type: "triangle" }); },
+    thunder() {
+      const t = ctx.currentTime + rand(0.4, 1.6); // light travels faster than sound
+      noise(S(), { t, peak: 0.32, type: "lowpass", freq: 420, sweep: 70, attack: 0.08, decay: 2.8, buffer: brown });
+      noise(S(), { t, peak: 0.07, type: "bandpass", freq: 900, sweep: 180, attack: 0.02, decay: 0.7 });
+    },
     boat() { const t = ctx.currentTime; noise(S(), { t, peak: 0.18, type: "lowpass", freq: 400, sweep: 1500, attack: 0.4, decay: 1.4, buffer: brown }); tone(S(), { freq: 110, glide: 85, type: "sawtooth", t: t + 0.2, peak: 0.02, attack: 0.1, decay: 0.5 }); },
   };
 
@@ -333,7 +340,9 @@ export function createAudio() {
       const wash = Math.max(0, Math.sin((now * Math.PI * 2) / 6.5 - 0.6));
       amb.wash.gain.setTargetAtTime((offshore ? 0.012 : seaNear * 0.025) * wash * wash, now, 0.2);
       amb.river.gain.setTargetAtTime(riverNear * 0.045, now, 0.4);
-      amb.wind.gain.setTargetAtTime((offshore ? 0.1 : indoors ? 0.004 : 0.03) * (0.7 + 0.3 * Math.sin(now * 0.37)), now, 1);
+      const storm = env.weather === "storm", wet = storm || env.weather === "rain";
+      amb.wind.gain.setTargetAtTime(((offshore ? 0.1 : indoors ? 0.004 : 0.03) + (storm && !indoors ? 0.09 : 0)) * (0.7 + 0.3 * Math.sin(now * 0.37)), now, 1);
+      amb.rain.gain.setTargetAtTime(wet ? (storm ? 0.07 : 0.04) * (indoors ? 0.3 : 1) : 0, now, 2.5);
       if (prefs.muted || !prefs.ambience) return;
       if (indoors) {
         // Muffled indoors: only the fire crackles.
@@ -343,10 +352,10 @@ export function createAudio() {
       }
       const day = env.bucket === "day" || env.bucket === "dawn";
       const night = env.bucket === "night";
-      if (!offshore && env.bucket !== "night" && now > timers.bird) { bird(now + 0.05); timers.bird = now + (day ? rand(0.6, 3) : rand(3, 8)); }
+      if (!offshore && env.bucket !== "night" && now > timers.bird && !(wet && Math.random() < 0.8)) { bird(now + 0.05); timers.bird = now + (day ? rand(0.6, 3) : rand(3, 8)); }
       if (!offshore && (night || env.bucket === "dusk") && now > timers.cricket) { cricket(now + 0.05); timers.cricket = now + (night ? rand(0.5, 1.4) : rand(2, 5)); }
       if (night && !offshore && now > timers.owl) { if (timers.owl) owl(now + 0.1); timers.owl = now + rand(14, 30); }
-      if ((offshore || seaNear > 0.3) && !night && now > timers.gull) { if (timers.gull) gull(now + 0.1); timers.gull = now + rand(6, 16); }
+      if ((offshore || seaNear > 0.3) && !night && !storm && now > timers.gull) { if (timers.gull) gull(now + 0.1); timers.gull = now + rand(6, 16); }
       // Reel ratchet + line creak while fighting
       if (env.fightHeld && now > timers.tick) { this.play("reelTick"); timers.tick = now + 0.07; }
       if (env.tension > 0.78 && now > timers.creak) { this.play("creak"); timers.creak = now + rand(0.3, 0.6); }

@@ -28,6 +28,24 @@ export const BAGS = [
   { id: "bag_creel", name: "Big Creel", price: 600, slots: 30 },
 ];
 
+// Weather: rolled per time-of-day slot (deterministic per save, see weather.js). It shifts the fishing odds
+// and brings out weather-only species (FISH entries with a `weather` list).
+export const WEATHER_TYPES = ["clear", "rain", "fog", "storm"];
+export const WEATHER = {
+  clear: { label: "Clear", rareWeightMult: 1, biteWaitMult: 1, burstMult: 1, hint: "" },
+  rain: { label: "Rain", rareWeightMult: 1.1, biteWaitMult: 0.8, burstMult: 1, hint: "Fish bite faster in the rain" },
+  fog: { label: "Fog", rareWeightMult: 1.25, biteWaitMult: 1, burstMult: 1, hint: "Rare fish rise in the fog" },
+  storm: { label: "Storm", rareWeightMult: 1.4, biteWaitMult: 0.9, burstMult: 1.15, hint: "Wild fights, but rare fish are about" },
+};
+// Chance weights per time of day; `stay` = chance the previous slot's weather carries on. A new game's first dawn is clear.
+export const WEATHER_WEIGHTS = {
+  dawn: { clear: 50, rain: 15, fog: 35, storm: 0 },
+  day: { clear: 60, rain: 25, fog: 5, storm: 10 },
+  dusk: { clear: 50, rain: 25, fog: 10, storm: 15 },
+  night: { clear: 45, rain: 25, fog: 15, storm: 15 },
+};
+export const WEATHER_STAY = 0.35;
+
 
 
 /** @typedef {"calm"|"darting"|"zigzag"|"heavy"|"frenzy"} Behavior */
@@ -57,6 +75,13 @@ export const FISH = [
   { id: "offshore_marlin", name: "Marlin", location: "offshore", times: ["day", "dusk"], baseValue: 110, sizeCm: [120, 250], behavior: "zigzag", assetId: "fish_marlin", art: { color: "#5d8cbc", back: "#1d4a7e", belly: "#e2eaf2", fin: "#2d5f9a", shape: "billfish", pattern: "vbars", patternColor: "#a9d0f0", mouth: "spear", sail: true, len: 1, h: 0.3 } },
   { id: "offshore_mahi_mahi", name: "Mahi-Mahi", location: "offshore", times: ["day", "dusk"], baseValue: 70, sizeCm: [60, 120], behavior: "darting", assetId: "fish_mahi_mahi", art: { color: "#5aa86a", back: "#2e7a8a", belly: "#f0d84a", fin: "#3a8a9a", shape: "mahi", pattern: "dots", patternColor: "#2e6a8a", len: 0.92, h: 0.34 } },
   { id: "offshore_blue_shark", name: "Blue Shark", location: "offshore", times: ["dusk", "night"], baseValue: 85, sizeCm: [90, 190], behavior: "frenzy", assetId: "fish_blue_shark", art: { color: "#5f86ba", back: "#35599a", belly: "#eef2f6", fin: "#43669e", shape: "shark", pattern: "none", patternColor: "#35599a", mouth: "shark", len: 1, h: 0.26 } },
+
+  // Weather-only species: they join their location's table only while the listed weather lasts.
+  { id: "lake_tench", name: "Tench", location: "lake", times: ["dawn", "day", "dusk"], weather: ["rain"], baseValue: 30, sizeCm: [25, 55], behavior: "heavy", assetId: "fish_tench", art: { color: "#71893c", back: "#3f5524", belly: "#dcc86c", fin: "#4b5f2b", shape: "carp", pattern: "scales", patternColor: "#3b4b21", mouth: "barbels", len: 0.8, h: 0.34 } },
+  { id: "river_grayling", name: "Grayling", location: "river", times: ["dawn", "day", "dusk"], weather: ["fog"], baseValue: 38, sizeCm: [25, 50], behavior: "darting", assetId: "fish_grayling", art: { color: "#a0a8b4", back: "#4e5a6c", belly: "#ecebe4", fin: "#8e5f94", shape: "trout", pattern: "spots", patternColor: "#2e3440", sail: true, len: 0.84, h: 0.28 } },
+  { id: "sea_garfish", name: "Garfish", location: "sea", times: ["day", "dusk", "night"], weather: ["storm"], baseValue: 44, sizeCm: [50, 90], behavior: "zigzag", assetId: "fish_garfish", art: { color: "#74b2a0", back: "#2e6a78", belly: "#eef2e8", fin: "#4a8a8a", shape: "pike", pattern: "lateral", patternColor: "#1e4a58", mouth: "duck", len: 1, h: 0.16 } },
+  { id: "offshore_moonfish", name: "Moonfish", location: "offshore", times: ["dawn", "day", "dusk"], weather: ["fog"], baseValue: 130, sizeCm: [80, 150], behavior: "heavy", assetId: "fish_moonfish", art: { color: "#dc6470", back: "#8a3052", belly: "#f2b4a8", fin: "#e84a3a", shape: "deep", pattern: "lightspots", patternColor: "#f6ecdc", len: 0.8, h: 0.5 } },
+  { id: "offshore_great_white", name: "Great White", location: "offshore", times: ["day", "dusk", "night"], weather: ["storm"], baseValue: 150, sizeCm: [250, 450], behavior: "frenzy", assetId: "fish_great_white", art: { color: "#8c98a4", back: "#4e5a66", belly: "#f2f2ee", fin: "#5a6672", shape: "shark", pattern: "none", patternColor: "#4e5a66", mouth: "shark", len: 1, h: 0.3 } },
 
   // Legendary hunts: one named giant per location. They never appear in the normal fish tables; they can only bite
   // in their precise time window (bucket + share of that bucket) at their spot, with the listed minimum gear tiers.

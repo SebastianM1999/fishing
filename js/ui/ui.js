@@ -1,6 +1,6 @@
 // HTML/CSS UI: HUD, fishing panel, catch card, shop, bag, wallboard, skills. Reads state; calls handlers for actions.
 import {
-  FISH, FISH_BY_ID, TIME_LABELS, LOCATION_LABELS, RARITY_LABELS, GEAR, GEAR_SLOTS, GEAR_LABELS,
+  FISH, FISH_BY_ID, TIME_LABELS, WEATHER, LOCATION_LABELS, RARITY_LABELS, GEAR, GEAR_SLOTS, GEAR_LABELS,
   BAGS, SKILLS, SKILLS_BY_ID, SKILL_BRANCHES, TIER_POINTS, STREAK, LEGENDARIES,
 } from "../game/content.js";
 import { priceOf, inventoryWorth, bagCapacity, bagFull, streakBonus } from "../game/economy.js";
@@ -105,6 +105,7 @@ export function createUI(handlers) {
     let html;
     if (!found) {
       html = `<strong>Undiscovered</strong><span>Found at the ${LOCATION_LABELS[f.location]} · ${f.times.map(t => TIME_LABELS[t]).join(", ")}</span>`
+        + (f.weather ? `<span class="tip-weather">${f.weather.map(w => `${ICONS[`wx_${w}`]} ${WEATHER[w].label}`).join(" ")} only</span>` : "")
         + (rec ? `<span class="tip-label">Caught, not mounted yet</span><span>Best so far: ${rec.sizeCm.toFixed(1)} cm ${rarityHtml(rec.rarity, 18)}</span>` : "");
     } else if (!rec) {
       html = `<strong>${f.name}</strong><span>No record yet — catch another one to log your best.</span>`;
@@ -431,6 +432,18 @@ export function createUI(handlers) {
       el.levelChip.title = info.maxed ? `Level ${info.level} (max)` : `Level ${info.level} · ${info.into} / ${info.needed} XP`;
       setText(el.skillPoints, "points", String(free));
       el.skillPoints.hidden = free <= 0;
+    },
+
+    /** HUD weather chip: current weather, its fishing effect and the next time of day's forecast. */
+    setWeather(id, next) {
+      const key = `${id}>${next}`;
+      if (last.weather === key) return;
+      last.weather = key;
+      const chip = $("hud-weather"), wx = WEATHER[id];
+      chip.dataset.weather = id;
+      $("hud-weather-ico").innerHTML = ICONS[`wx_${id}`];
+      $("hud-weather-text").textContent = wx.label;
+      chip.title = `${wx.label}${wx.hint ? ` — ${wx.hint}` : ""}. Later: ${WEATHER[next].label}`;
     },
 
     levelUp() {

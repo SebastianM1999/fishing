@@ -18,6 +18,12 @@ export const ICONS = {
   leaf: svg(`<path d="M5 19C5 10 10 5 20 4c0 10-6 15-15 15Z" ${ink}/><path d="M5 19 13 11" ${ink}/>`),
   mute: svg(`<path d="M4 9h4l5-4v14l-5-4H4Z" ${ink}/><path d="M16 9l5 6M21 9l-5 6" ${ink}/>`),
 
+  // Weather (full colour)
+  wx_clear: svg(`<circle cx="12" cy="12" r="4.6" fill="#ffcf5a" stroke="#d99a24" stroke-width="1.2"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" stroke="#e6a62c" stroke-width="1.8" stroke-linecap="round"/>`),
+  wx_rain: svg(`<path d="M7 15.5a4 4 0 0 1-.4-8A5.5 5.5 0 0 1 17 8a3.8 3.8 0 0 1 .5 7.5Z" fill="#e9eef3" stroke="#7d8c9a" stroke-width="1.3" stroke-linejoin="round"/><path d="M8 18l-1 2.5M12 18l-1 2.5M16 18l-1 2.5" stroke="#4f86c6" stroke-width="1.8" stroke-linecap="round"/>`),
+  wx_fog: svg(`<path d="M7 11a4 4 0 0 1-.4-8A5.5 5.5 0 0 1 17 3.5a3.8 3.8 0 0 1 .5 7.5Z" fill="#eeeeea" stroke="#9a968e" stroke-width="1.2" stroke-linejoin="round" transform="translate(0 2)"/><path d="M3.5 16h13M6.5 19h14M3 22h11" stroke="#9a968e" stroke-width="1.8" stroke-linecap="round"/>`),
+  wx_storm: svg(`<path d="M7 14a4 4 0 0 1-.4-8A5.5 5.5 0 0 1 17 6.5a3.8 3.8 0 0 1 .5 7.5Z" fill="#8f8aa8" stroke="#4a3d86" stroke-width="1.3" stroke-linejoin="round"/><path d="M12.5 12.5 9.5 17.5h3l-1.5 4.5 4.5-6h-3l1.5-3.5Z" fill="#ffd34a" stroke="#c9962a" stroke-width="0.9" stroke-linejoin="round"/>`),
+
   // Stat glyphs (inherit text colour)
   width: svg(`<path d="M3 12h18M6 9l-3 3 3 3M18 9l3 3-3 3" ${ink}/><path d="M8 5v14M16 5v14" ${ink} stroke-dasharray="2 2.5"/>`),
   speed: svg(`<path d="M13 3 5 13h6l-1 8 8-10h-6Z" ${ink}/>`),

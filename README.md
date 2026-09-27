@@ -8,7 +8,7 @@ A small single-player 2.5D fishing game for the browser/PWA. Plain JavaScript ES
 node tools/serve.mjs 8080
 ```
 
-Open http://localhost:8080/. Append `?debug` to expose a `window.cozy` test hook (state, clock, teleport) — used for automated browser verification only.
+Open http://localhost:8080/. Append `?debug` to expose a `window.cozy` test hook (state, clock, teleport, `setWeather("rain")` / `setWeather(null)`) — used for automated browser verification only.
 
 ## Controls
 
@@ -29,6 +29,8 @@ Start at the lake with 30 coins. Construction barriers close off the **river ban
 **Village orders:** Nell stands by the notice board in the village square. Every in-game dawn she pins up 3 new, optional requests ("Bring 2 Bluegill", "Bring a Rare River fish", "Catch 3 fish at Dusk"…) that pay about 1.6× the market price (never less than 1.5× what the delivered fish would sell for) plus XP.
 
 **Legendary hunts:** four named giants — Old Whiskers (lake), Silver Ghost (river), Coral Queen (sea shore) and the Abyssal King (offshore) — only bite in a precise time window at their spot, and only if your rod, reel and line are good enough. Nell's notice board lists the rumours with a clue and a ✓/✗ for each piece of gear; with Fish Finder, a golden silhouette shows when one is about. Their fights are about twice as long, with an enraged burst at each third, a golden lane and a slow camera push-in.
+
+**Weather:** each time of day rolls its own weather — clear, rain, fog or storm (never a storm at dawn; fronts often linger into the next time of day). The HUD chip shows it (hover for the effect and the forecast). Rain makes fish bite faster, fog and storms bring more rare fish, and storms make fights wilder. Five species only bite in their weather: **Tench** (lake, rain), **Grayling** (river, fog), **Garfish** (sea shore, storm), **Moonfish** (offshore, fog) and the **Great White** (offshore, storm). The weather is derived from a per-save seed, so it's deterministic and needs no extra saving.
 
 **Catch streaks:** every fish landed in a row adds +2% sell value to the fish caught during the streak (up to +10% from the 5th fish on). A snapped line, an escape or a missed hook resets it; reeling in early doesn't.
 

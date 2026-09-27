@@ -29,9 +29,11 @@ function withSway(mat, amount, base = 0.4) {
 // Wave model shared by the water shader and JS (boats/bobbers ride the same surface).
 // Height ramps from `near` at the shore (z <= z0) to `far` out at sea (z >= z1).
 export const SEA_WAVES = { freq: 0.42, near: 0.1, far: 0.55, z0: 17, z1: 55 };
+// Weather multiplier on the sea swell (storms roughen it); shared by the shader and waveHeight().
+export const WAVE_GAIN = { value: 1 };
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 export function waveHeight(x, z, t, w = SEA_WAVES) {
-  const f = w.freq, amp = w.near + (w.far - w.near) * smooth(w.z0, w.z1, z);
+  const f = w.freq, amp = (w.near + (w.far - w.near) * smooth(w.z0, w.z1, z)) * (w === SEA_WAVES ? WAVE_GAIN.value : 1);
   return (Math.sin(x * f + t * 1.2) * 0.5 + Math.sin(z * f * 0.8 - t * 0.9) * 0.35 + Math.sin((x + z) * f * 1.7 + t * 1.9) * 0.15) * amp;
 }
 
@@ -42,11 +44,12 @@ function water(color, { freq, near, far = near, z0 = 0, z1 = 1, crest = 0 }) {
   mat.customProgramCacheKey = () => `water:${freq}:${near}:${far}:${z0}:${z1}:${crest}`;
   mat.onBeforeCompile = shader => {
     shader.uniforms.uTime = TIME;
+    shader.uniforms.uWaveGain = crest ? WAVE_GAIN : { value: 1 };
     shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", "#include <common>\nuniform float uTime;\nvarying float vWave;\nvarying vec2 vXZ;")
+      .replace("#include <common>", "#include <common>\nuniform float uTime;\nuniform float uWaveGain;\nvarying float vWave;\nvarying vec2 vXZ;")
       .replace("#include <begin_vertex>", `#include <begin_vertex>
         vec4 wp = modelMatrix * vec4(position, 1.0);
-        float amp = mix(${n(near)}, ${n(far)}, smoothstep(${n(z0)}, ${n(z1)}, wp.z));
+        float amp = mix(${n(near)}, ${n(far)}, smoothstep(${n(z0)}, ${n(z1)}, wp.z)) * uWaveGain;
         float w = sin(wp.x * ${n(freq)} + uTime * 1.2) * 0.5 + sin(wp.z * ${n(freq * 0.8)} - uTime * 0.9) * 0.35
                 + sin((wp.x + wp.z) * ${n(freq * 1.7)} + uTime * 1.9) * 0.15;
         transformed.z += w * amp;

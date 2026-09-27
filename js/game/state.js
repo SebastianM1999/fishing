@@ -5,8 +5,8 @@ import { catchXp, sanitizeSkills } from "./skills.js";
 import { sanitizeOrders } from "./orders.js";
 
 // v2: construction-barrier unlocks + per-species best-catch records. v3: bag tier. v4: xp + skills; hook & tackle removed.
-// v5: home interior (area "home"), trophy shelf, catch streak, day counter + notice-board orders.
-export const SAVE_VERSION = 5;
+// v5: home interior (area "home"), trophy shelf, catch streak, day counter + notice-board orders. v6: weather seed.
+export const SAVE_VERSION = 6;
 export const TROPHY_SLOTS = 3;
 // Coins refunded for pre-v4 purchases that no longer exist (cumulative hook tier prices, tackle prices).
 const LEGACY_HOOK_REFUND = [0, 120, 420];
@@ -34,6 +34,7 @@ export function createState(seed = (Date.now() ^ 0x5eed) >>> 0) {
     day: 0, // in-game days passed (orders refresh at dawn)
     orders: null, // { day, list } — generated on demand by orders.ensureOrders
     rngSeed: seed >>> 0,
+    weatherSeed: Math.imul(seed ^ 0x3c6ef372, 0x2545f491) >>> 0, // fixed per save: weather is derived from it
   };
 }
 
@@ -58,6 +59,7 @@ export function serialize(state, rng) {
     timeMs: Math.floor(state.timeMs),
     day: state.day,
     orders: state.orders ? structuredClone(state.orders) : null,
+    weatherSeed: state.weatherSeed,
     rngSeed: rng ? rng.seed : state.rngSeed,
   };
 }
@@ -131,6 +133,7 @@ export function deserialize(data) {
   s.rngSeed = Math.floor(num(data.rngSeed, s.rngSeed)) >>> 0;
   s.day = Math.max(0, Math.floor(num(data.day, 0)));
   s.orders = sanitizeOrders(data.orders, s.day);
+  s.weatherSeed = Math.floor(num(data.weatherSeed, Math.imul(s.rngSeed ^ 0x3c6ef372, 0x2545f491))) >>> 0; // pre-v6: derive once
   return s;
 }
 

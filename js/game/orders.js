@@ -12,7 +12,7 @@ export function reachableLocations(state) {
     || (l === "sea" && state.unlocked.includes("sea")) || (l === "offshore" && state.boatOwned));
 }
 
-const orderFish = loc => FISH.filter(f => f.location === loc && !f.legendary);
+const orderFish = loc => FISH.filter(f => f.location === loc && !f.legendary && !f.weather);
 
 // Each template builds one order from a seeded rng. Rewards are ORDERS.rewardMult x the plain market price.
 const TEMPLATES = {

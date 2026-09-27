@@ -8,6 +8,7 @@ import * as fishing from "./game/fishing.js";
 import * as economy from "./game/economy.js";
 import * as skills from "./game/skills.js";
 import * as orders from "./game/orders.js";
+import * as weather from "./game/weather.js";
 import { createInput } from "./input/input.js";
 import { createUI } from "./ui/ui.js";
 import { createRenderer } from "./render/scene.js";
@@ -184,6 +185,16 @@ addEventListener("keydown", e => {
   if (e.code === "KeyK") ui.openSkills();
 });
 
+// --- Weather -----------------------------------------------------------------
+const weatherNow = () => game.forcedWeather ?? weather.currentWeather(state);
+const WEATHER_NEWS = {
+  clear: "The skies clear up.",
+  rain: "Rain is falling — fish bite faster, and tench are about!",
+  fog: "Fog rolls in — rare fish rise, grayling and moonfish too.",
+  storm: "A storm! Wild fights, rare fish — garfish and great whites hunt.",
+};
+function announceWeather(wx) { ui.toast(WEATHER_NEWS[wx]); }
+
 // --- Interactions ------------------------------------------------------------
 function travel(to) {
   game.travelling = true;
@@ -240,10 +251,12 @@ function actionLabelFor(it) {
 function startFishing(spot) {
   if (economy.bagFull(state)) ui.toast(`Bag full (${state.inventory.length}/${economy.bagCapacity(state)}) — only new species can be kept. Sell at the shop!`);
   const bucket = timeBucket(state.timeMs);
-  const stats = fishing.getStats(state, bucket);
+  const wx = weatherNow();
+  const stats = fishing.getStats(state, bucket, wx);
   const hunt = fishing.huntAt(state, spot.location, bucket, bucketProgress(state.timeMs));
   game.session = fishing.startCast(rng, spot.location, bucket, stats, hunt);
   game.session.spot = spot;
+  game.session.weather = wx;
   game.moveTarget = null;
   state.player.x = spot.x; state.player.z = spot.z; state.player.facing = spot.facing;
   audio.play("cast");
@@ -299,7 +312,7 @@ function finishSession() {
 
 function updateSession(actions, dtMs) {
   const s = game.session;
-  const stats = fishing.getStats(state, s.bucket);
+  const stats = fishing.getStats(state, s.bucket, s.weather);
   if (ui.catchVisible()) return; // closed only by its Continue button or Esc
   const reelIn = actions.interact && (s.phase === "cast" || s.phase === "wait");
   const hook = actions.hook && s.phase === "bite";
@@ -369,6 +382,11 @@ function frame(now) {
   game.ordersSeen = true;
 
   const bucket = timeBucket(state.timeMs);
+  const wx = weatherNow();
+  if (game.weather !== wx) {
+    if (game.weather && state.player.area !== "home") announceWeather(wx);
+    game.weather = wx;
+  }
   let finder = null, finderHunt = null;
   if (game.travelling || dialogOpen) {
     game.walking = false;
@@ -386,7 +404,7 @@ function frame(now) {
       const { label, locked } = actionLabelFor(it);
       ui.setAction(label, locked);
       if (it.type === "fish" && skills.skillEffects(state).fishFinder) {
-        finder = fishing.fishTable(it.location, bucket);
+        finder = fishing.fishTable(it.location, bucket, wx);
         finderHunt = fishing.huntAt(state, it.location, bucket, bucketProgress(state.timeMs));
       }
       if (actions.interact) interact(it);
@@ -395,13 +413,15 @@ function frame(now) {
   ui.setFinder(game.session ? null : finder, state.discovered, finderHunt);
 
   ui.updateHud(state, bucket, bucketProgress(state.timeMs), regionName(state.player));
+  ui.setWeather(wx, weather.nextWeather(state));
   ui.updateFishing(game.session);
   const result = ui.catchVisible() && game.session ? (game.session.outcome === "caught" ? "caught" : "lost") : null;
   const questReady = !!state.orders?.list.some(o => orders.canHandIn(state, o));
-  const view = renderer.render({ state, session: game.session, walking: game.walking, dt, elapsed: game.elapsed, result, questReady });
+  const view = renderer.render({ state, session: game.session, walking: game.walking, dt, elapsed: game.elapsed, result, questReady, weather: wx });
+  if (view.lightning) audio.play("thunder");
   if (view.footstep) audio.play("step", surfaceAt(state.player.x, state.player.z, state.player.area));
   const fight = game.session?.phase === "fight" ? game.session.fight : null;
-  audio.update({ bucket, area: state.player.area, x: state.player.x, z: state.player.z, fightHeld: !!(fight && game.session.reelHeld), tension: fight ? fight.tension / fight.tensionLimit : 0 });
+  audio.update({ bucket, weather: wx, area: state.player.area, x: state.player.x, z: state.player.z, fightHeld: !!(fight && game.session.reelHeld), tension: fight ? fight.tension / fight.tensionLimit : 0 });
 
   game.saveTimer += dt;
   if (game.saveTimer > 15) { game.saveTimer = 0; saveSoon(); } // position/time checkpoint
@@ -431,7 +451,9 @@ async function boot() {
   if (params.has("debug")) {
     window.cozy = {
       get state() { return state; }, get game() { return game; }, get rng() { return rng; },
-      content, fishing, economy, skills, orders, saveNow, deleteSave, audio, camera: renderer.camera,
+      content, fishing, economy, skills, orders, weather, saveNow,
+      /** Override the weather for tests (null = back to the forecast). */
+      setWeather(id) { game.forcedWeather = id; }, deleteSave, audio, camera: renderer.camera,
       renderInfo: () => ({ ...renderer.renderer.info.render, geometries: renderer.renderer.info.memory.geometries }),
       setTime(ms) { state.timeMs = ms; },
       teleport(x, z, area = "land") { Object.assign(state.player, { x, z, area }); },

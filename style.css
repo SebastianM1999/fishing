@@ -64,6 +64,11 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 .time-chip[data-bucket="night"] .time-icon { background: #dfe6ff; box-shadow: inset -5px -2px 0 #9aa8d8; }
 .time-chip[data-bucket="dusk"] .time-icon { background: #ff9a5c; }
 .time-chip[data-bucket="dawn"] .time-icon { background: #ffc0a0; }
+.weather-chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px 2px 6px; border-radius: 999px; background: var(--paper-2); font-size: 14px; font-weight: 800; color: var(--ink-soft); }
+.weather-ico .ico { width: 22px; height: 22px; vertical-align: middle; }
+.weather-chip[data-weather="rain"] { background: #dbe8f2; color: #3f6e8c; }
+.weather-chip[data-weather="fog"] { background: #e6e6e2; color: #6d6a64; }
+.weather-chip[data-weather="storm"] { background: #d9d4e8; color: #4a3d86; animation: pop 0.3s ease-out; }
 .time-bar { width: 60px; height: 6px; background: var(--paper-2); border-radius: 3px; overflow: hidden; }
 .time-bar span { display: block; height: 100%; width: 0; background: var(--wood); }
 
@@ -232,6 +237,7 @@ dialog.panel.small { width: min(420px, calc(100vw - 24px)); }
 .board-slot:not(.found) .name { color: var(--ink-soft); }
 
 @media (max-width: 640px) {
+  .weather-chip span:last-child { display: none; }
   .hud-card { font-size: 15px; gap: 10px; padding: 6px 10px; }
   .time-bar { width: 36px; }
   .hud-buttons { top: auto; bottom: 180px; right: 12px; flex-direction: column; }

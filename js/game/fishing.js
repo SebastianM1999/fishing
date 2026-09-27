@@ -1,15 +1,16 @@
 // Cast -> wait -> bite/hook -> catch minigame. Pure simulation on plain data; no DOM or Three.js.
 import {
   FISH, FISH_BY_ID, RARITY_WEIGHTS, RARITY_MULTIPLIER, RARITY_FIGHT, BEHAVIORS, EXHAUSTED,
-  HOOK, BITE_WAIT_MS, MINIGAME, GEAR, LEGENDARIES, BOSS_FIGHT,
+  HOOK, BITE_WAIT_MS, MINIGAME, GEAR, LEGENDARIES, BOSS_FIGHT, WEATHER,
 } from "./content.js";
 import { skillEffects } from "./skills.js";
 
 const CAST_MS = 600;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
-/** Effective fishing stats from equipped gear + learned skills. bucket = time of day (Twilight Angler). */
-export function getStats(state, bucket) {
+/** Effective fishing stats from gear, learned skills and weather. bucket = time of day (Twilight Angler). */
+export function getStats(state, bucket, weather = "clear") {
+  const wx = WEATHER[weather] ?? WEATHER.clear;
   const rod = GEAR.rod[state.gear.rod];
   const reel = GEAR.reel[state.gear.reel];
   const line = GEAR.line[state.gear.line];
@@ -25,18 +26,20 @@ export function getStats(state, bucket) {
     perfectProgressBonus: HOOK.perfectProgressBonus + fx.perfectProgressBonus,
     progressLossMult: 1,
     zoneEaseMult: fx.zoneEaseMult,
-    burstMult: fx.burstMult,
+    burstMult: fx.burstMult * wx.burstMult,
     zoneSpeedMult: 1,
-    rareWeightMult: fx.rareWeightMult,
-    biteWaitMult: fx.biteWaitMult,
+    rareWeightMult: fx.rareWeightMult * wx.rareWeightMult,
+    biteWaitMult: fx.biteWaitMult * wx.biteWaitMult,
+    weather,
     secondWind: fx.secondWind,
     fishWhisperer: fx.fishWhisperer,
     xpMult: fx.xpMult,
   };
 }
 
-export function fishTable(location, bucket) {
-  return FISH.filter(f => f.location === location && f.times.includes(bucket) && !f.legendary);
+/** Species that can bite at a location now; weather-only species join while their weather lasts. */
+export function fishTable(location, bucket, weather = "clear") {
+  return FISH.filter(f => f.location === location && f.times.includes(bucket) && !f.legendary && (!f.weather || f.weather.includes(weather)));
 }
 
 /** Does the player's gear meet a legendary's minimum tiers? Per slot: { slot: [need, has] }. */
@@ -74,7 +77,7 @@ export function salePrice(species, rarity, sizeCm) {
 
 export function rollEncounter(rng, location, bucket, stats, hunt = null) {
   const legend = hunt && rng.next() < hunt.hunt.chance;
-  const species = legend ? hunt : rng.pick(fishTable(location, bucket));
+  const species = legend ? hunt : rng.pick(fishTable(location, bucket, stats.weather));
   const rarity = legend ? "legendary" : rollRarity(rng, location, stats.rareWeightMult);
   const sizeCm = Math.round(rng.range(species.sizeCm[0], species.sizeCm[1]) * 10) / 10;
   return { speciesId: species.id, rarity, sizeCm, value: salePrice(species, rarity, sizeCm) };

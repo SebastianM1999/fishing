@@ -20,14 +20,15 @@ Project skills live in `.claude/skills/`:
 - shopkeeper, boat-seller and notice-board (Nell) NPCs;
 - leveling + skill tree (coins buy gear, XP buys technique), no hooks or tackle;
 - an enterable house with the collection board and a 3-spot trophy shelf;
-- daily village orders, catch streaks and 4 named legendary fish (collection 24).
+- daily village orders, catch streaks and 4 named legendary fish;
+- weather (clear/rain/fog/storm per time of day, `js/game/weather.js`) with 5 weather-only species (collection 29).
 
 Don't "fix" these back to the spec.
 
 ## Run & test
 
 - Dev server: `node tools/serve.mjs 8080` (also in `.claude/launch.json`), then open http://localhost:8080/.
-- `?debug` exposes `window.cozy`: state, game, rng, content, fishing, economy, `saveNow`, `setTime`, `teleport`, audio, `renderInfo`. `?debug&reset` deletes the save.
+- `?debug` exposes `window.cozy`: state, game, rng, content, fishing, economy, `saveNow`, `setTime`, `teleport`, `setWeather(id | null)`, audio, `renderInfo`. `?debug&reset` deletes the save.
 - **Test in an isolated browser (Playwright).** Never reset, teleport or edit state in the user's own browser tab; it holds their real save.
 - The service worker is cache-first, so dev edits can be served stale. Before testing: unregister the worker and clear caches (for example from an off-app URL like `/icons/icon-192.png`), then reload.
 - Before calling work done, check for:

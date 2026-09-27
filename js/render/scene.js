@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { WORLD, CAST_DISTANCE, NPCS } from "../game/world.js";
 import { FISH_BY_ID, BOAT_PRICE } from "../game/content.js";
 import { dayFraction, bucketProgress } from "../game/time.js";
-import { createMaterials, TIME, G, Kit, Batch, GroupSink, waveHeight } from "./kit.js";
+import { createMaterials, TIME, WAVE_GAIN, G, Kit, Batch, GroupSink, waveHeight } from "./kit.js";
 import { buildEnvironment, buildHome, SEA_Y, RIVER_Y, LAKE_Y } from "./environment.js";
 import * as models from "./models.js";
 import { createBoardTexture, createSignTexture } from "./textures.js";
@@ -35,6 +35,15 @@ const KEY_COLORS = KEYS.map(k => ({
 
 const damp = (cur, target, k) => cur + (target - cur) * k;
 
+// Weather look targets (eased in over a few seconds): overcast dimming, rain amount, fog haze, storm extras.
+const WEATHER_LOOK = {
+  clear: { cloud: 0, rain: 0, fog: 0, storm: 0 },
+  rain: { cloud: 0.55, rain: 0.6, fog: 0.15, storm: 0 },
+  fog: { cloud: 0.3, rain: 0, fog: 1, storm: 0 },
+  storm: { cloud: 0.9, rain: 1, fog: 0.3, storm: 1 },
+};
+const RAIN_DROPS = 1400, RAIN_BOX = 26, RAIN_TOP = 20;
+
 export function createRenderer(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -44,6 +53,19 @@ export function createRenderer(canvas) {
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#aedcee");
+  scene.fog = new THREE.Fog("#aedcee", 1000, 2000); // weather haze; always present so shaders never recompile
+
+  // Rain: short streaks in a box that follows the camera focus.
+  const wx = { cloud: 0, rain: 0, fog: 0, storm: 0, flash: 0, nextBolt: 0 };
+  const rainPos = new Float32Array(RAIN_DROPS * 6), rainDrop = new Float32Array(RAIN_DROPS * 3);
+  for (let i = 0; i < RAIN_DROPS; i++) rainDrop.set([(Math.random() * 2 - 1) * RAIN_BOX, Math.random() * RAIN_TOP, (Math.random() * 2 - 1) * RAIN_BOX], i * 3);
+  const rainGeo = new THREE.BufferGeometry();
+  rainGeo.setAttribute("position", new THREE.BufferAttribute(rainPos, 3));
+  const rain = new THREE.LineSegments(rainGeo, new THREE.LineBasicMaterial({ color: "#dbe6f0", transparent: true, opacity: 0, depthWrite: false, fog: false }));
+  rain.frustumCulled = false;
+  rain.visible = false;
+  scene.add(rain);
+  const greyTmp = new THREE.Color(), WHITE = new THREE.Color("#ffffff");
   const camera = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 200);
 
   const hemi = new THREE.HemisphereLight("#dcecf6", "#7e8c58", 1);
@@ -385,7 +407,51 @@ export function createRenderer(canvas) {
     lineGeo.attributes.position.needsUpdate = true;
   }
 
-  function render({ state, session, walking, dt, elapsed, result, questReady = false }) {
+  /** Overcast light, fog, rain streaks, lightning and storm swell; eased toward the current weather. */
+  function applyWeather(weather, dt, elapsed, indoors) {
+    const target = WEATHER_LOOK[weather] ?? WEATHER_LOOK.clear, k = 1 - Math.exp(-dt / 3);
+    for (const key of ["cloud", "rain", "fog", "storm"]) wx[key] += ((indoors ? 0 : target[key]) - wx[key]) * (indoors ? 1 : k);
+    const bg = scene.background;
+    const grey = (bg.r + bg.g + bg.b) / 3 * 0.92;
+    bg.lerp(greyTmp.setRGB(grey, grey, grey * 1.06), wx.cloud * 0.75);
+    hemi.color.lerp(greyTmp.setRGB(grey + 0.1, grey + 0.1, grey + 0.14), wx.cloud * 0.4);
+    sun.intensity *= 1 - wx.cloud * 0.7;
+    hemi.intensity *= 1 - wx.cloud * 0.12;
+    // Lightning: a bright flash now and then; the thunder follows from the audio side.
+    let lightning = false;
+    if (wx.storm > 0.6 && elapsed > wx.nextBolt) {
+      if (wx.nextBolt) { wx.flash = 1; lightning = true; }
+      wx.nextBolt = elapsed + 6 + Math.random() * 10;
+    }
+    wx.flash *= Math.exp(-dt * 7);
+    if (wx.flash > 0.01) { hemi.intensity += wx.flash * 2.5; bg.lerp(WHITE, wx.flash * 0.5); }
+    scene.fog.color.copy(bg);
+    const f = wx.fog;
+    scene.fog.near = f > 0.01 ? THREE.MathUtils.lerp(45, 6, f) : 1000;
+    scene.fog.far = f > 0.01 ? THREE.MathUtils.lerp(110, 58, f) : 2000;
+    WAVE_GAIN.value = 1 + wx.storm * 0.9 + wx.rain * 0.15;
+    rain.visible = wx.rain > 0.02;
+    if (rain.visible) {
+      const n = Math.floor(RAIN_DROPS * Math.min(1, wx.rain));
+      rainGeo.setDrawRange(0, n * 2);
+      rain.material.opacity = 0.3 + 0.35 * wx.rain;
+      const fall = (16 + 10 * wx.storm) * dt, len = 0.8 + wx.storm * 0.6, slant = 0.2 + wx.storm * 0.45;
+      for (let i = 0; i < n; i++) {
+        const j = i * 3;
+        let y = rainDrop[j + 1] - fall;
+        if (y < 0) { y += RAIN_TOP; rainDrop[j] = (Math.random() * 2 - 1) * RAIN_BOX; rainDrop[j + 2] = (Math.random() * 2 - 1) * RAIN_BOX; }
+        rainDrop[j + 1] = y;
+        const x = rainDrop[j], z = rainDrop[j + 2], o = i * 6;
+        rainPos[o] = x; rainPos[o + 1] = y; rainPos[o + 2] = z;
+        rainPos[o + 3] = x + slant * len; rainPos[o + 4] = y + len; rainPos[o + 5] = z;
+      }
+      rainGeo.attributes.position.needsUpdate = true;
+      rain.position.set(camLook.x, 0, camLook.z);
+    }
+    return lightning;
+  }
+
+  function render({ state, session, walking, dt, elapsed, result, questReady = false, weather = "clear" }) {
     TIME.value = elapsed;
     footstep = false;
     const p = state.player;
@@ -564,8 +630,9 @@ export function createRenderer(canvas) {
       sun.position.copy(shadowFocus).add(sunDir);
     }
 
+    const lightning = applyWeather(weather, dt, elapsed, indoors);
     renderer.render(scene, camera);
-    return { footstep };
+    return { footstep, lightning };
   }
 
   resize();
