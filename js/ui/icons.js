@@ -56,6 +56,10 @@ export const ICONS = {
   ruler: svg(`<rect x="2.5" y="8" width="19" height="8" rx="1.5" ${ink}/><path d="M6.5 8v3M10.5 8v4.5M14.5 8v3M18.5 8v4.5" ${ink}/>`),
   crate: svg(`<rect x="3.5" y="7" width="17" height="13" rx="1.5" ${ink}/><path d="M3.5 12h17M9 7V4.5h6V7M8 16h8" ${ink}/>`),
   trophy: svg(`<path d="M8 4h8v5a4 4 0 0 1-8 0Z" ${ink}/><path d="M8 6H5c0 3 1.5 4.5 3.5 4.5M16 6h3c0 3-1.5 4.5-3.5 4.5M12 13v4M8.5 20h7M10 17h4" ${ink}/>`),
+  ink: svg(`<path d="M12 3c2 4 5 6.5 5 10a5 5 0 0 1-10 0c0-3.5 3-6 5-10Z" ${ink}/><path d="M9.5 13.5a2.5 2.5 0 0 0 2.5 2.5" ${ink}/>`),
+  jelly: svg(`<path d="M5 12a7 7 0 0 1 14 0c-1.2 1-2.3-.4-3.5.6S13.2 11 12 12s-2.3-.4-3.5.6S6.2 11 5 12Z" ${ink}/><path d="M8.5 14c-1 2 1 3 0 6M12 14c-1 2 1 3 0 6M15.5 14c-1 2 1 3 0 6" ${ink}/>`),
+  tentacle: svg(`<path d="M5 21c0-7 3-12 8-14 4-1.5 7 1 6 4-.8 2.4-4 2.6-4.6.6-.4-1.2.6-2 1.6-1.6" ${ink}/><circle cx="9" cy="15.5" r="1" fill="currentColor"/><circle cx="11" cy="11.5" r="1" fill="currentColor"/>`),
+  bolt: svg(`<path d="M13.5 2.5 5.5 13.5h6l-1 8 8-11h-6Z" ${ink}/>`),
   lock: svg(`<rect x="5" y="10.5" width="14" height="10" rx="2" ${ink}/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" ${ink}/>`),
 };
 

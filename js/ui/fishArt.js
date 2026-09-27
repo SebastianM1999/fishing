@@ -22,6 +22,7 @@ const SHAPES = {
   flat: { L: 56, H: 34, peak: 0.5, belly: 1, blunt: 0.5, ny: 0.1, pH: 0.3, tail: "round", eye: [0.64, -0.3], eyeR: 4.5, gill: 0.4 },
   puffer: { L: 42, H: 33, peak: 0.55, belly: 1, blunt: 0.85, ny: 0.1, pH: 0.24, tail: "truncate", dorsal: [-0.6, -0.28, 11, "soft"], anal: [-0.6, -0.3, 10], eye: [0.6, -0.32], eyeR: 7.5, gill: 0.38 },
   angler: { L: 50, H: 38, peak: 0.72, belly: 0.95, blunt: 0.95, ny: 0.15, pH: 0.24, tail: "forkSoft", dorsal: [-0.6, -0.25, 11, "soft"], anal: [-0.62, -0.3, 10], eye: [0.5, -0.5], eyeR: 4.2, gill: 0.28, noGill: true },
+  whaleshark: { L: 82, H: 22, peak: 0.6, belly: 0.9, blunt: 0.95, ny: 0.05, pH: 0.2, tail: "hetero", dorsal: [-0.08, 0.28, 20, "shark"], dorsal2: [-0.62, -0.52, 7, "shark"], anal: [-0.62, -0.5, 6], eye: [0.82, -0.12], eyeR: 3, gill: "slits" },
   shark: { L: 80, H: 20, peak: 0.55, belly: 0.85, blunt: 0.25, ny: 0.12, pH: 0.18, tail: "hetero", dorsal: [0.02, 0.32, 24, "shark"], dorsal2: [-0.62, -0.52, 7, "shark"], anal: [-0.62, -0.5, 6], eye: [0.74, -0.25], eyeR: 3.6, gill: "slits" },
 };
 
@@ -45,6 +46,7 @@ function shade(hex, amt) {
 
 export function fishSvg(species, { silhouette = false, size = 96 } = {}) {
   const a = species.art;
+  if (CREATURES[a.shape]) return creatureSvg(species, silhouette, size);
   const S = { ...SHAPES[a.shape] };
   if (a.sail) S.dorsal = [-0.2, 0.55, 36, "sail"];
   const id = `f${++uidCounter}`;
@@ -203,12 +205,26 @@ export function fishSvg(species, { silhouette = false, size = 96 } = {}) {
         }
         break;
       }
+      case "crystal": {
+        // Facets: a lattice of pale triangles with bright edges.
+        for (let i = 0; i < 9; i++) for (let j = 0; j < 4; j++) {
+          const x = cx - L + i * L * 0.24 + (j % 2) * L * 0.12, y = cy - H + j * H * 0.55;
+          marks += `<path d="M${f1(x)} ${f1(y)} L${f1(x + L * 0.12)} ${f1(y + H * 0.55)} L${f1(x - L * 0.12)} ${f1(y + H * 0.55)} Z" fill="${(i + j) % 3 ? pc : "#bfe8f4"}" opacity="${(i + j) % 2 ? 0.55 : 0.3}" stroke="#fff" stroke-width="1" stroke-opacity="0.9"/>`;
+        }
+        break;
+      }
+      case "moon": {
+        marks += `<path d="M${f1(cx - L * 0.05)} ${f1(cy - H * 0.55)} a${f1(H * 0.5)} ${f1(H * 0.5)} 0 1 0 ${f1(H * 0.2)} ${f1(H * 0.95)} a${f1(H * 0.38)} ${f1(H * 0.38)} 0 1 1 ${f1(-H * 0.2)} ${f1(-H * 0.95)} Z" fill="${pc}" opacity="0.95"/>`;
+        marks += scatter(14, -0.7, 0.7, (x, y) => `<circle cx="${f1(x)}" cy="${f1(y)}" r="3" fill="${pc}" opacity="0.3"/><circle cx="${f1(x)}" cy="${f1(y)}" r="1.1" fill="#fff"/>`);
+        break;
+      }
+      case "planks": for (const dy of [-0.55, -0.15, 0.25, 0.65]) marks += `<path d="M${tailX} ${f1(cy + dy * H)} Q${cx} ${f1(cy + dy * H - 2)} ${cx + L} ${f1(cy + dy * H - 1)}" stroke="${pc}" stroke-width="1.3" fill="none" opacity="0.7"/>` + [0.2, 0.5, 0.8].map(t => `<circle cx="${f1(tailX + t * 2 * L - (dy * 20))}" cy="${f1(cy + dy * H + 3)}" r="0.9" fill="${pc}" opacity="0.8"/>`).join(""); break;
       case "lateral": marks += `<path d="M${tailX} ${cy - 2} Q${cx} ${cy - H * 0.35} ${cx + L * 0.55} ${cy - H * 0.25}" stroke="${pc}" stroke-width="2" fill="none" opacity="0.8"/>`; break;
     }
     if (a.stripe) marks += `<path d="M${tailX} ${cy + 1} Q${cx} ${cy - 3} ${cx + L * 0.62} ${cy - 1}" stroke="${a.stripe}" stroke-width="${f1(H * 0.38)}" stroke-linecap="round" fill="none" opacity="0.55"/>`;
-    const scaleOpacity = a.pattern === "scales" ? 0.5 : ["shark", "catfish", "sturgeon"].includes(a.shape) ? 0 : 0.2;
+    const scaleOpacity = a.pattern === "scales" ? 0.5 : ["shark", "whaleshark", "catfish", "sturgeon"].includes(a.shape) ? 0 : 0.2;
     if (scaleOpacity) marks += `<rect x="0" y="0" width="224" height="120" fill="url(#${id}scales)" opacity="${scaleOpacity}"/>`;
-    if (a.pattern !== "lateral" && a.shape !== "flat" && a.shape !== "shark") marks += `<path d="M${tailX} ${cy - 1} Q${cx} ${f1(cy - H * 0.32)} ${cx + L * 0.5} ${f1(cy - H * 0.2)}" stroke="${shade(a.back, -0.25)}" stroke-width="0.9" fill="none" opacity="0.6" stroke-dasharray="2 2"/>`;
+    if (a.pattern !== "lateral" && a.shape !== "flat" && a.shape !== "shark" && a.shape !== "whaleshark") marks += `<path d="M${tailX} ${cy - 1} Q${cx} ${f1(cy - H * 0.32)} ${cx + L * 0.5} ${f1(cy - H * 0.2)}" stroke="${shade(a.back, -0.25)}" stroke-width="0.9" fill="none" opacity="0.6" stroke-dasharray="2 2"/>`;
     // Soft highlight along the back + optional sheen
     marks += `<ellipse cx="${cx + L * 0.1}" cy="${f1(cy - H * 0.55)}" rx="${f1(L * 0.65)}" ry="${f1(H * 0.22)}" fill="#fff" opacity="${a.shine ? 0.35 : 0.14}"/>`;
     if (a.shine) marks += `<circle cx="${cx - L * 0.2}" cy="${f1(cy - H * 0.2)}" r="3" fill="#fff" opacity="0.8"/><circle cx="${cx + L * 0.2}" cy="${f1(cy + H * 0.2)}" r="2" fill="#fff" opacity="0.7"/>`;
@@ -216,8 +232,13 @@ export function fishSvg(species, { silhouette = false, size = 96 } = {}) {
 
   // --- Head details ----------------------------------------------------------
   let head = "";
-  const ex = a.shape === "flat" ? cx + 36 : cx + L * S.eye[0];
-  const ey = a.shape === "flat" ? cy - 10 : cy + H * S.eye[1];
+  // Two-headed trout: a second, smaller head sprouting up and forward from the shoulders.
+  const h2 = { x: cx + L * 0.78, y: cy - H * 1.05 };
+  const twoHeadPath = a.twoHead ? `M${f1(cx + L * 0.35)} ${f1(cy - H * 0.6)} C${f1(cx + L * 0.45)} ${f1(cy - H * 1.5)} ${f1(h2.x + 8)} ${f1(h2.y - 12)} ${f1(h2.x + 16)} ${f1(h2.y + 1)} C${f1(h2.x + 12)} ${f1(h2.y + 9)} ${f1(cx + L * 0.7)} ${f1(cy - H * 0.35)} ${f1(cx + L * 0.55)} ${f1(cy - H * 0.3)} Z` : "";
+  // Hammerhead: a flat hammer across the nose, with the eye at its upper tip.
+  const hammer = a.hammer ? { x: cx + L * 0.84, top: cy - H * 1.2, bot: cy + H * 1.1 } : null;
+  const ex = a.shape === "flat" ? cx + 36 : hammer ? hammer.x + 1 : cx + L * S.eye[0];
+  const ey = a.shape === "flat" ? cy - 10 : hammer ? hammer.top + 5 : cy + H * S.eye[1];
   const eR = a.shape === "flat" ? 4.5 : S.eyeR;
   if (!silhouette) {
     const gillC = shade(a.back, -0.3);
@@ -236,6 +257,15 @@ export function fishSvg(species, { silhouette = false, size = 96 } = {}) {
       case "big": head += `<path d="M${nx} ${f1(my - 1)} L${f1(nx - L * 0.3)} ${f1(my + 3)} Q${f1(nx - L * 0.33)} ${f1(my + 6)} ${f1(nx - L * 0.26)} ${f1(my + 6)}" stroke="${outline}" stroke-width="1.8" fill="none" stroke-linecap="round"/>`; break;
       case "duck": head += `<path d="M${nx + 1} ${f1(my)} L${f1(nx - L * 0.3)} ${f1(my + 2)}" stroke="${outline}" stroke-width="1.5" fill="none" stroke-linecap="round"/>`; break;
       case "shark": head += `<path d="M${f1(nx - L * 0.12)} ${f1(my + H * 0.4)} q-8 4 -14 1" stroke="${outline}" stroke-width="1.5" fill="none" stroke-linecap="round"/>`; break;
+      case "grin": {
+        // A big, friendly smile with a few rounded teeth.
+        const gx = nx - L * 0.04, gy = my + H * 0.22;
+        head += `<path d="M${f1(gx)} ${f1(gy - 3)} Q${f1(gx - 14)} ${f1(gy + 12)} ${f1(gx - 34)} ${f1(gy + 2)} Q${f1(gx - 16)} ${f1(gy + 4)} ${f1(gx)} ${f1(gy - 3)} Z" stroke="${outline}" stroke-width="1.6" fill="#b85a5a"/>`;
+        for (let i = 0; i < 5; i++) { const x = gx - 5 - i * 5.5, y = gy + 0.4 + Math.sin((i + 1) / 6 * Math.PI) * 2.6; head += `<path d="M${f1(x - 2)} ${f1(y - 1)} L${f1(x)} ${f1(y + 3)} L${f1(x + 2)} ${f1(y - 1)} Z" fill="#fff" stroke="${outline}" stroke-width="0.5"/>`; }
+        head += `<path d="M${f1(gx - 36)} ${f1(gy)} q-3 2 -2 5" stroke="${outline}" stroke-width="1.3" fill="none" stroke-linecap="round"/>`;
+        break;
+      }
+      case "wide": head += `<path d="M${nx + 1} ${f1(my + 2)} L${f1(nx - L * 0.16)} ${f1(my + 3)}" stroke="${outline}" stroke-width="1.8" fill="none" stroke-linecap="round"/>`; break;
       case "sword": case "spear": break;
       case "fangs": {
         head += `<path d="M${nx} ${f1(my)} L${f1(nx - L * 0.2)} ${f1(my + 3)}" stroke="${outline}" stroke-width="1.5" fill="none" stroke-linecap="round"/>`;
@@ -258,12 +288,10 @@ export function fishSvg(species, { silhouette = false, size = 96 } = {}) {
       if (long) head += `<path d="M${nx - 10} ${f1(noseY - H * 0.3)} q10 -8 20 -4" stroke="${bc}" stroke-width="1.5" fill="none" stroke-linecap="round"/>`;
     }
     // Eye: rim, iris, pupil, two highlights. Flounder has both eyes on the upper side.
-    const eye = (x, y, r) => `<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(r + 1.2)}" fill="${shade(a.back, -0.2)}" opacity="0.6"/>
-      <circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(r)}" fill="${a.iris ?? "#e9c36a"}"/>
-      <circle cx="${f1(x + r * 0.12)}" cy="${f1(y)}" r="${f1(r * 0.62)}" fill="#1d1a18"/>
-      <circle cx="${f1(x + r * 0.4)}" cy="${f1(y - r * 0.35)}" r="${f1(r * 0.25)}" fill="#fff"/>
-      <circle cx="${f1(x - r * 0.15)}" cy="${f1(y + r * 0.3)}" r="${f1(r * 0.12)}" fill="#fff" opacity="0.8"/>`;
+    const eye = (x, y, r) => eyeSvg(a, x, y, r);
     head += eye(ex, ey, eR);
+    if (hammer) head += eye(hammer.x + 1, hammer.bot - 5, eR * 0.85);
+    if (a.twoHead) head += eye(h2.x + 4, h2.y - 2, eR * 0.9) + `<path d="M${f1(h2.x + 16)} ${f1(h2.y + 1)} q-5 3 -8 1" stroke="${outline}" stroke-width="1.3" fill="none" stroke-linecap="round"/>`;
     if (a.shape === "flat") head += eye(ex - 12, ey - 8, eR * 0.9);
   }
 
@@ -283,7 +311,7 @@ export function fishSvg(species, { silhouette = false, size = 96 } = {}) {
   // Pectoral fin (in front of the body)
   const pecX = a.shape === "flat" ? cx + 18 : cx + L * (S.gill === "slits" ? 0.3 : S.gill - 0.1);
   const pecY = a.shape === "flat" ? cy + 8 : cy + H * 0.25;
-  const pecLen = a.shape === "shark" ? 26 : a.shape === "mahi" || a.shape === "tuna" || a.shape === "billfish" ? 20 : 15;
+  const pecLen = a.shape === "shark" || a.shape === "whaleshark" ? 26 : a.shape === "mahi" || a.shape === "tuna" || a.shape === "billfish" ? 20 : 15;
   const pectoral = a.wings
     ? `<path d="M${f1(pecX)} ${f1(pecY - 3)} Q${f1(pecX - 14)} ${f1(pecY - 40)} ${f1(pecX - 50)} ${f1(pecY - 46)} Q${f1(pecX - 40)} ${f1(pecY - 24)} ${f1(pecX - 56)} ${f1(pecY - 8)} Q${f1(pecX - 24)} ${f1(pecY + 2)} ${f1(pecX)} ${f1(pecY + 3)} Z" fill="${finFill}" opacity="${silhouette ? 1 : 0.92}" stroke="${silhouette ? SIL.stroke : shade(a.fin, -0.3)}" stroke-width="1"/>`
       + (silhouette ? "" : [0, 1, 2, 3].map(i => `<path d="M${f1(pecX - 3)} ${f1(pecY - 1)} L${f1(pecX - 48 - i * 2)} ${f1(pecY - 42 + i * 11)}" stroke="${shade(a.fin, -0.3)}" stroke-width="0.8" opacity="0.6"/>`).join(""))
@@ -311,9 +339,284 @@ export function fishSvg(species, { silhouette = false, size = 96 } = {}) {
   ${finRays}
   ${bill}
   <path d="${body}" fill="${fill ?? `url(#${id}body)`}" stroke="${outline}" stroke-width="1.6"/>
+  ${a.twoHead ? `<path d="${twoHeadPath}" fill="${fill ?? `url(#${id}body)`}" stroke="${outline}" stroke-width="1.5"/>` : ""}
+  ${hammer ? `<path d="M${f1(hammer.x - 7)} ${f1(hammer.top + 4)} Q${f1(hammer.x - 6)} ${f1(hammer.top - 2)} ${f1(hammer.x + 1)} ${f1(hammer.top - 1)} Q${f1(hammer.x + 8)} ${f1(hammer.top)} ${f1(hammer.x + 8)} ${f1(hammer.top + 6)} L${f1(hammer.x + 9)} ${f1(hammer.bot - 5)} Q${f1(hammer.x + 8)} ${f1(hammer.bot + 1)} ${f1(hammer.x + 1)} ${f1(hammer.bot)} Q${f1(hammer.x - 6)} ${f1(hammer.bot - 1)} ${f1(hammer.x - 5)} ${f1(hammer.bot - 6)} Z" fill="${fill ?? `url(#${id}body)`}" stroke="${outline}" stroke-width="1.5"/>` : ""}
   ${silhouette ? "" : `<g clip-path="url(#${id}clip)">${marks}</g>`}
   ${pectoral}
   ${head}
+</g></svg>`;
+}
+
+/** The shared eye: rim, iris, pupil, two highlights. */
+function eyeSvg(a, x, y, r) {
+  return `<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(r + 1.2)}" fill="${shade(a.back, -0.2)}" opacity="0.6"/>
+      <circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(r)}" fill="${a.iris ?? "#e9c36a"}"/>
+      <circle cx="${f1(x + r * 0.12)}" cy="${f1(y)}" r="${f1(r * 0.62)}" fill="#1d1a18"/>
+      <circle cx="${f1(x + r * 0.4)}" cy="${f1(y - r * 0.35)}" r="${f1(r * 0.25)}" fill="#fff"/>
+      <circle cx="${f1(x - r * 0.15)}" cy="${f1(y + r * 0.3)}" r="${f1(r * 0.12)}" fill="#fff" opacity="0.8"/>`;
+}
+
+// --- Creatures that aren't fish-shaped --------------------------------------------
+// Same visual language as the fish: 224 x 120 viewBox facing right, back -> colour -> belly body gradient, fin
+// gradient from `fin`, outline shade(back, -0.35), the shared eye, markings clipped to the body, flat grey silhouettes.
+
+const pt = (x, y) => ({ x, y });
+/** Smooth open path through points (quadratic curves through the midpoints). */
+function smoothPath(p, move = true) {
+  let d = move ? `M${f1(p[0].x)} ${f1(p[0].y)}` : ` L${f1(p[0].x)} ${f1(p[0].y)}`;
+  for (let i = 1; i < p.length - 1; i++) d += ` Q${f1(p[i].x)} ${f1(p[i].y)} ${f1((p[i].x + p[i + 1].x) / 2)} ${f1((p[i].y + p[i + 1].y) / 2)}`;
+  const last = p[p.length - 1];
+  return `${d} L${f1(last.x)} ${f1(last.y)}`;
+}
+/** Closed ribbon around a centerline: widths above (wu) and below (wd) per point; rounded far end. */
+function ribbon(c, wu, wd = wu) {
+  const top = [], bot = [];
+  c.forEach((p, i) => {
+    const a = c[Math.max(0, i - 1)], b = c[Math.min(c.length - 1, i + 1)];
+    let nx = -(b.y - a.y), ny = b.x - a.x;
+    const l = Math.hypot(nx, ny) || 1;
+    nx /= l; ny /= l;
+    const u = typeof wu === "function" ? wu(i / (c.length - 1), i) : wu, w = typeof wd === "function" ? wd(i / (c.length - 1), i) : wd;
+    top.push(pt(p.x - nx * u, p.y - ny * u));
+    bot.push(pt(p.x + nx * w, p.y + ny * w));
+  });
+  const end = c[c.length - 1], prev = c[c.length - 2], tip = pt(end.x + (end.x - prev.x) * 0.8, end.y + (end.y - prev.y) * 0.8);
+  const lt = top[top.length - 1], lb = bot[bot.length - 1];
+  return `${smoothPath(top)} Q${f1(tip.x + (lt.x - end.x))} ${f1(tip.y + (lt.y - end.y))} ${f1(tip.x)} ${f1(tip.y)} Q${f1(tip.x + (lb.x - end.x))} ${f1(tip.y + (lb.y - end.y))} ${f1(lb.x)} ${f1(lb.y)}${smoothPath(bot.reverse(), false).replace(/^ L[^Q]*/, "")} Z`;
+}
+/** A curling limb: start point, heading, length, curl (radians gained over the length, mostly near the tip). */
+function limb(x, y, ang, len, curl, steps = 16) {
+  const c = [pt(x, y)];
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    ang += (curl / steps) * (0.3 + 2.1 * t * t);
+    x += Math.cos(ang) * (len / steps); y += Math.sin(ang) * (len / steps);
+    c.push(pt(x, y));
+  }
+  return c;
+}
+function ellipsePath(cx, cy, rx, ry, rot = 0) {
+  const k = 0.5523, c = Math.cos(rot), s = Math.sin(rot);
+  const T = (x, y) => `${f1(cx + x * c - y * s)} ${f1(cy + x * s + y * c)}`;
+  return `M${T(rx, 0)} C${T(rx, ry * k)} ${T(rx * k, ry)} ${T(0, ry)} C${T(-rx * k, ry)} ${T(-rx, ry * k)} ${T(-rx, 0)} C${T(-rx, -ry * k)} ${T(-rx * k, -ry)} ${T(0, -ry)} C${T(rx * k, -ry)} ${T(rx, -ry * k)} ${T(rx, 0)} Z`;
+}
+const smoothstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+
+/**
+ * Each builder returns { behind: [fin paths], limbs: [body-coloured paths behind the body], body: [paths],
+ * front: [fin paths over the body], lines: [stroke-only paths], eyes: [[x, y, r]], extras (svg drawn last),
+ * silExtras (the same, in silhouette mode), marks (clipped to the body), grad: "vertical" | "center" }.
+ */
+const CREATURES = {
+  eel(a, rnd) {
+    const serpent = a.shape === "serpent";
+    const N = 40, xt = 14, xh = serpent ? 184 : 192, A = serpent ? 17 : 12, th = serpent ? 13 : a.thick ?? 12, ph = rnd() * 0.6;
+    const c = Array.from({ length: N }, (_, i) => {
+      const u = i / (N - 1);
+      return pt(xt + u * (xh - xt), 62 + Math.pow(1 - u, serpent ? 0.6 : 1.1) * A * Math.sin(u * Math.PI * (serpent ? 3.2 : 2.4) + ph) - (serpent ? u * 8 : 0));
+    });
+    const w = u => th * (0.18 + 0.82 * Math.sin(Math.min(1, u / 0.8) * Math.PI / 2)) * (u > 0.9 ? 1 - (u - 0.9) * 3.5 : 1);
+    const finTop = u => w(u) + (a.mouth === "moray" ? 5 * (1 - smoothstep(0.82, 0.9, u)) : 5.5 * (1 - smoothstep(0.35, 0.62, u)));
+    const finBot = u => w(u) + 4.5 * (1 - smoothstep(0.25, 0.5, u));
+    const head = c[N - 1], neck = c[N - 5];
+    const out = { behind: [serpent ? null : ribbon(c, finTop, finBot)].filter(Boolean), body: [ribbon(c, w)], front: [], lines: [], eyes: [[head.x - 2, head.y - th * 0.38, a.eyeR ?? (serpent ? 4.6 : 3.4)]], extras: "", silExtras: "", marks: "" };
+    if (serpent) {
+      // Frill of soft spikes along the back, little horns and whiskers.
+      for (let i = 6; i < N - 6; i += 3) {
+        const p = c[i], u = i / (N - 1), h = 7 + 4 * Math.sin(u * Math.PI);
+        out.behind.push(`M${f1(p.x - 5)} ${f1(p.y - w(u) + 3)} Q${f1(p.x - 1)} ${f1(p.y - w(u) - h)} ${f1(p.x + 4)} ${f1(p.y - w(u) - h * 0.9)} Q${f1(p.x + 2)} ${f1(p.y - w(u) - 2)} ${f1(p.x + 6)} ${f1(p.y - w(u) + 3)} Z`);
+      }
+      out.behind.push(`M${f1(head.x - 12)} ${f1(head.y - th * 0.7)} q-4 -14 -14 -16 q8 6 8 17 Z`, `M${f1(head.x - 5)} ${f1(head.y - th * 0.8)} q-1 -13 -9 -17 q5 7 3 18 Z`);
+      out.lines.push(`M${f1(head.x + 6)} ${f1(head.y + 3)} q10 4 14 14`, `M${f1(head.x + 3)} ${f1(head.y + 5)} q4 8 2 16`);
+    } else if (a.mouth !== "moray") {
+      out.front.push(`M${f1(neck.x)} ${f1(neck.y + 2)} Q${f1(neck.x - 6)} ${f1(neck.y + 12)} ${f1(neck.x - 12)} ${f1(neck.y + 9)} Q${f1(neck.x - 6)} ${f1(neck.y + 4)} ${f1(neck.x - 4)} ${f1(neck.y - 1)} Z`);
+    }
+    out.mouth = a.mouth === "moray"
+      ? `<ellipse cx="${f1(head.x + 5)}" cy="${f1(head.y + 3)}" rx="5" ry="4" fill="#5a2a2a" stroke="OUTLINE" stroke-width="1.3"/>`
+      : `<path d="M${f1(head.x + 7)} ${f1(head.y + 1)} q-6 4 -12 2" stroke="OUTLINE" stroke-width="1.4" fill="none" stroke-linecap="round"/>`;
+    out.centre = c; out.width = w;
+    return out;
+  },
+  squid(a, rnd) {
+    const big = (a.eyeR ?? 6.5) > 7;
+    const body = [`M20 60 C34 42 96 34 126 44 C134 47 138 54 138 60 C138 66 134 73 126 76 C96 86 34 78 20 60 Z`,
+      ellipsePath(142, 60, 15, 15)];
+    const behind = [`M34 58 L16 34 Q40 40 62 50 Z`, `M34 62 L16 86 Q40 80 62 70 Z`];
+    const limbs = [];
+    for (let i = 0; i < 6; i++) {
+      const y = 50 + i * 4, c = limb(150, y, (i - 2.5) * 0.12, 48 + rnd() * 10, (rnd() - 0.5) * 1.6, 12);
+      limbs.push(ribbon(c, u => 3.4 * (1 - u) + 0.8));
+    }
+    for (const s of [-1, 1]) {
+      const c = limb(150, 60 + s * 3, s * 0.18, 64, -s * 0.7, 14);
+      limbs.push(ribbon(c, u => (u > 0.82 ? 3.2 : 1.8)));
+    }
+    return { behind, limbs, body, front: [], lines: [], eyes: [[141, 56, a.eyeR ?? 6.5]], extras: "", silExtras: "", marks: "", mouth: "" , big };
+  },
+  octopus(a, rnd) {
+    const kraken = a.shape === "kraken";
+    const hx = 108, hy = kraken ? 38 : 40, rx = kraken ? 42 : 34, ry = kraken ? 30 : 25;
+    const limbs = [], suckers = [];
+    const arms = kraken ? 8 : 6;
+    for (let i = 0; i < arms; i++) {
+      const t = i / (arms - 1), x = hx - rx * 0.55 + t * rx * 1.1, dir = t < 0.5 ? -1 : 1;
+      const ang = Math.PI / 2 + (0.5 - t) * (kraken ? 2.9 : 2.5), len = (kraken ? 84 : 62) + rnd() * 12, curl = -dir * (kraken ? 2.6 : 2.3) * (0.8 + rnd() * 0.4);
+      const c = limb(x, hy + ry * 0.5, ang, len, curl, 18);
+      limbs.push(ribbon(c, u => (kraken ? 8.5 : 6.5) * (1 - u * 0.85)));
+      for (let k = 3; k < c.length - 2; k += 2) suckers.push([c[k].x, c[k].y, (kraken ? 2.2 : 1.7) * (1 - k / c.length)]);
+    }
+    const out = { behind: [], limbs, body: [ellipsePath(hx, hy, rx, ry, -0.25)], front: [], lines: [], eyes: [[hx + rx * 0.55, hy + ry * 0.35, a.eyeR ?? 5.5], [hx + rx * 0.2, hy + ry * 0.5, (a.eyeR ?? 5.5) * 0.85]], extras: "", silExtras: "", marks: "", mouth: "" };
+    out.suckers = suckers;
+    if (kraken) {
+      // Barnacle crown on top of the head.
+      for (let i = 0; i < 5; i++) { const x = hx - 26 + i * 12, y = hy - ry * 0.86 + Math.abs(i - 2) * 4 - 2; out.silExtras += `<path d="M${x - 5} ${y + 4} L${x - 3} ${y - 5} L${x + 3} ${y - 5} L${x + 5} ${y + 4} Z" fill="SILFILL" stroke="SILSTROKE" stroke-width="1"/>`; out.extras += `<path d="M${x - 5} ${y + 4} L${x - 3} ${y - 5} L${x + 3} ${y - 5} L${x + 5} ${y + 4} Z" fill="${a.crown ?? "#e8dcc0"}" stroke="${shade(a.crown ?? "#e8dcc0", -0.35)}" stroke-width="1"/><ellipse cx="${x}" cy="${y - 5}" rx="3" ry="1.2" fill="${shade(a.crown ?? "#e8dcc0", -0.3)}"/>`; }
+    }
+    return out;
+  },
+  jelly(a, rnd) {
+    const bx = 112, top = 20, bot = 58, R = 46;
+    let bell = `M${bx - R} ${bot} C${bx - R} ${top - 2} ${bx + R} ${top - 2} ${bx + R} ${bot}`;
+    const sc = 7;
+    for (let i = 0; i < sc; i++) { const x0 = bx + R - (i * 2 * R) / sc, x1 = bx + R - ((i + 1) * 2 * R) / sc; bell += ` Q${f1((x0 + x1) / 2)} ${bot + 7} ${f1(x1)} ${bot}`; }
+    const behind = [], lines = [];
+    const ribbons = a.mane ? 5 : 3;
+    for (let i = 0; i < ribbons; i++) {
+      const x = bx - 16 + (i * 32) / Math.max(1, ribbons - 1), c = [];
+      for (let k = 0; k <= 10; k++) c.push(pt(x + Math.sin(k * 0.9 + i) * 4 + k * 0.6, bot - 2 + k * (a.mane ? 5.4 : 5)));
+      behind.push(ribbon(c, u => (a.mane ? 5 : 4) * (1 - u * 0.6) + Math.sin(u * 18) * 1.2));
+    }
+    const tent = a.mane ? 14 : 8;
+    for (let i = 0; i < tent; i++) {
+      const x = bx - R + 4 + (i * (2 * R - 8)) / (tent - 1), len = (a.mane ? 52 : 40) + rnd() * 10;
+      lines.push(`M${f1(x)} ${bot + 3} q${f1(4 + rnd() * 3)} ${f1(len * 0.35)} 0 ${f1(len * 0.6)} t${f1(rnd() * 3)} ${f1(len * 0.4)}`);
+    }
+    return { behind, limbs: [], body: [`${bell} Z`], front: [], lines, lineWidth: a.mane ? 1.5 : 1.2, eyes: [[bx - 11, 44, 3.4], [bx + 11, 44, 3.4]], extras: "", silExtras: "", marks: "", mouth: `<path d="M${bx - 4} 51 q4 3 8 0" stroke="OUTLINE" stroke-width="1.3" fill="none" stroke-linecap="round"/>`, grad: "vertical", bodyOpacity: 0.93 };
+  },
+  ray(a) {
+    const manta = !!a.manta, tipX = manta ? 96 : 104, ty = manta ? 4 : 10;
+    const nose = manta ? `C176 46 180 52 180 56 L180 64 C180 68 176 74 170 80` : `C170 40 178 52 180 60 C178 68 170 80 170 80`;
+    const body = manta
+      ? `M170 40 C150 22 124 ${ty} ${tipX} ${ty} C108 30 82 48 60 55 L60 65 C82 72 108 90 ${tipX} ${120 - ty} C124 ${120 - ty} 150 98 170 80 C176 74 180 68 180 64 L180 56 C180 52 176 46 170 40 Z`
+      : `M180 60 C170 40 140 ${ty + 2} ${tipX} ${ty} C112 30 84 48 60 56 L60 64 C84 72 112 90 ${tipX} ${120 - ty} C140 ${118 - ty} 170 80 180 60 Z`;
+    void nose;
+    const tail = ribbon([pt(62, 60), pt(44, 59), pt(28, 60), pt(12, 58)], u => 3.2 * (1 - u) + 0.6);
+    const behind = [tail, `M70 54 Q56 44 52 52 Q58 56 66 58 Z`, `M70 66 Q56 76 52 68 Q58 64 66 62 Z`];
+    if (manta) behind.push(`M176 50 Q196 44 194 32 Q186 40 172 44 Z`, `M176 70 Q196 76 194 88 Q186 80 172 76 Z`);
+    return { behind, limbs: [], body: [body], front: [], lines: [], eyes: [[156, 48, 3.4], [156, 72, 3.4]], extras: "", silExtras: "", marks: "", mouth: manta ? "" : `<path d="M174 57 q3 3 0 6" stroke="OUTLINE" stroke-width="1.2" fill="none" stroke-linecap="round"/>`, grad: "center" };
+  },
+  crab(a) {
+    const body = [`M60 64 C58 40 88 32 112 32 C136 32 166 40 164 64 C162 80 140 86 112 86 C84 86 62 80 60 64 Z`];
+    const behind = [], limbs = [];
+    for (const s of [-1, 1]) for (let i = 0; i < 3; i++) {
+      const x0 = 112 + s * (38 - i * 8), y0 = 72 + i * 4;
+      limbs.push(ribbon([pt(x0, y0), pt(x0 + s * 16, y0 + 4 - i * 2), pt(x0 + s * 24, y0 + 18 + i * 3), pt(x0 + s * 26, y0 + 28 + i * 3)], u => 3.6 - u * 2.2));
+    }
+    // Left claw resting, right claw raised in a wave.
+    limbs.push(ribbon([pt(66, 62), pt(48, 66), pt(38, 72)], 4.5), ribbon([pt(158, 56), pt(174, 46), pt(182, 32)], 4.5));
+    const front = [];
+    const claw = (x, y, rot) => { const c = Math.cos(rot), s = Math.sin(rot), T = (u, v) => `${f1(x + u * c - v * s)} ${f1(y + u * s + v * c)}`;
+      return [`M${T(-6, -8)} C${T(10, -14)} ${T(22, -8)} ${T(22, -2)} L${T(8, -1)} C${T(10, 3)} ${T(18, 6)} ${T(20, 9)} C${T(10, 14)} ${T(-6, 12)} ${T(-6, 0)} Z`]; };
+    front.push(...claw(32, 74, Math.PI), ...claw(184, 26, -1.25));
+    const lines = [`M100 36 L97 22`, `M124 36 L127 22`];
+    return { behind, limbs, body, front, lines, lineWidth: 2.4, eyes: [[97, 20, 4.2], [127, 20, 4.2]], extras: "", silExtras: `<circle cx="97" cy="20" r="4.6" fill="SILFILL" stroke="SILSTROKE" stroke-width="1"/><circle cx="127" cy="20" r="4.6" fill="SILFILL" stroke="SILSTROKE" stroke-width="1"/>`, marks: "", mouth: `<path d="M104 58 q8 6 16 0" stroke="OUTLINE" stroke-width="1.5" fill="none" stroke-linecap="round"/>`, grad: "vertical" };
+  },
+  lobster(a) {
+    const body = [`M112 48 C128 40 158 40 176 52 L188 54 L176 58 C168 68 140 72 116 70 C108 68 106 52 112 48 Z`];
+    for (let i = 0; i < 5; i++) {
+      const x = 112 - i * 15, y = 52 + i * 2.5, h = 18 - i * 1.6;
+      body.push(`M${x + 4} ${y - 2} C${x - 4} ${y - 4} ${x - 13} ${y - 3} ${x - 15} ${y} L${x - 15} ${y + h} C${x - 13} ${y + h + 3} ${x - 4} ${y + h + 3} ${x + 4} ${y + h} Z`);
+    }
+    const behind = [`M40 60 Q24 48 14 52 Q20 60 16 68 Q26 74 40 72 Z`];
+    const limbs = [];
+    for (let i = 0; i < 4; i++) limbs.push(ribbon([pt(128 + i * 10, 66), pt(124 + i * 10, 76), pt(120 + i * 11, 86)], 2));
+    limbs.push(ribbon([pt(162, 64), pt(178, 72), pt(188, 76)], 4.2), ribbon([pt(156, 60), pt(170, 48), pt(178, 36)], 4.2));
+    const claw = (x, y, rot) => { const c = Math.cos(rot), s = Math.sin(rot), T = (u, v) => `${f1(x + u * c - v * s)} ${f1(y + u * s + v * c)}`;
+      return `M${T(-4, -7)} C${T(10, -12)} ${T(24, -7)} ${T(26, -1)} L${T(10, 0)} C${T(12, 3)} ${T(20, 5)} ${T(22, 8)} C${T(10, 12)} ${T(-4, 10)} ${T(-4, 0)} Z`; };
+    const front = [claw(190, 78, 0.1), claw(180, 32, -1.2)];
+    const lines = [`M184 52 Q150 20 96 22`, `M182 54 Q160 30 120 28`];
+    return { behind, limbs, body, front, lines, lineWidth: 1.4, eyes: [[172, 48, 3.4]], extras: "", silExtras: "", marks: "", mouth: "", grad: "vertical" };
+  },
+  turtle(a) {
+    const shell = `M44 68 C44 30 96 18 126 22 C156 26 172 46 172 68 Z`;
+    const body = [shell, `M42 66 L174 66 C172 74 164 78 152 78 L64 78 C52 78 44 74 42 66 Z`,
+      `M166 60 C174 52 196 48 204 58 C208 66 198 74 186 74 C176 74 168 72 166 70 Z`];
+    const behind = [`M150 72 C164 80 178 94 176 102 C166 100 150 88 140 78 Z`, `M70 72 C62 84 50 94 42 94 C44 86 54 76 62 72 Z`, `M46 70 L32 74 L46 76 Z`];
+    const out = { behind, limbs: [], body, front: [], lines: [], eyes: [[192, 58, 3.8]], extras: "", silExtras: "", marks: "", mouth: `<path d="M204 63 q-6 5 -12 3" stroke="OUTLINE" stroke-width="1.4" fill="none" stroke-linecap="round"/>`, grad: "vertical" };
+    if (a.ridges) for (const [x, y] of [[66, 40], [84, 29], [102, 24], [120, 23], [138, 27], [155, 37]]) out.front.push(`M${x - 6} ${y + 5} Q${x - 2} ${y - 7} ${x + 1} ${y - 8} Q${x + 3} ${y - 3} ${x + 6} ${y + 5} Z`);
+    if (a.island) {
+      // Sandy, grassy shell top and a tiny palm tree.
+      const palm = `M120 28 C118 18 122 12 127 8 L130 10 C125 14 124 20 126 28 Z`;
+      const leaves = [`M128 9 C120 3 110 4 104 11 C113 8 120 8 128 9 Z`, `M128 9 C136 2 147 4 153 11 C144 8 136 8 128 9 Z`, `M128 9 C126 0 131 -5 138 -5 C133 0 131 4 128 9 Z`];
+      out.silExtras += [palm, ...leaves].map(d => `<path d="${d}" fill="SILFILL" stroke="SILSTROKE" stroke-width="1"/>`).join("");
+      out.extras += `<path d="${palm}" fill="#9a6a3e" stroke="#5e3e22" stroke-width="1"/>` + leaves.map(d => `<path d="${d}" fill="#6fae52" stroke="#3e7032" stroke-width="1"/>`).join("") + `<circle cx="126" cy="11" r="2.4" fill="#8a5a2a"/><circle cx="130" cy="12" r="2.2" fill="#8a5a2a"/>`;
+      out.islandTop = true;
+    }
+    return out;
+  },
+};
+CREATURES.serpent = CREATURES.eel;
+CREATURES.kraken = CREATURES.octopus;
+
+function creatureSvg(species, silhouette, size) {
+  const a = species.art;
+  const id = `f${++uidCounter}`;
+  const rnd = hashRng(species.id);
+  const C = { behind: [], limbs: [], front: [], lines: [], extras: "", silExtras: "", ...CREATURES[a.shape](a, rnd) };
+  const outline = silhouette ? SIL.stroke : shade(a.back, -0.35);
+  const finStroke = silhouette ? SIL.stroke : shade(a.fin, -0.35);
+  const finFill = silhouette ? SIL.fill : `url(#${id}fin)`;
+  const bodyFill = silhouette ? SIL.fill : `url(#${id}body)`;
+  const P = (d, fill, stroke, w) => `<path d="${d}" fill="${fill}" stroke="${stroke}" stroke-width="${w}"/>`;
+
+  let marks = "";
+  if (!silhouette) {
+    const pc = a.patternColor;
+    const scatter = (n, fn) => { let o = ""; for (let i = 0; i < n; i++) o += fn(8 + rnd() * 208, 8 + rnd() * 104, i); return o; };
+    switch (a.pattern) {
+      case "spots": marks += scatter(60, (x, y) => `<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(1.2 + rnd() * 2)}" fill="${pc}" opacity="0.7"/>`); break;
+      case "mottle": marks += scatter(40, (x, y) => `<ellipse cx="${f1(x)}" cy="${f1(y)}" rx="${f1(3 + rnd() * 6)}" ry="${f1(2 + rnd() * 3)}" fill="${pc}" opacity="0.45"/>`); break;
+      case "lightspots": marks += scatter(55, (x, y) => `<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(1.4 + rnd() * 1.8)}" fill="${pc}" opacity="0.85"/>`); break;
+      case "stars": marks += scatter(34, (x, y) => `<path d="M${f1(x)} ${f1(y - 2.6)} L${f1(x + 0.8)} ${f1(y - 0.8)} L${f1(x + 2.6)} ${f1(y)} L${f1(x + 0.8)} ${f1(y + 0.8)} L${f1(x)} ${f1(y + 2.6)} L${f1(x - 0.8)} ${f1(y + 0.8)} L${f1(x - 2.6)} ${f1(y)} L${f1(x - 0.8)} ${f1(y - 0.8)} Z" fill="${pc}" opacity="0.95"/>`); break;
+      case "glow": {
+        const dots = C.centre ? C.centre.filter((_, i) => i % 3 === 1 && i < C.centre.length - 3).map((p, i) => [p.x, p.y + C.width(i * 3 / C.centre.length) * 0.25]) : Array.from({ length: 14 }, () => [20 + rnd() * 190, 20 + rnd() * 80]);
+        for (const [x, y] of dots) marks += `<circle cx="${f1(x)}" cy="${f1(y)}" r="3.6" fill="${pc}" opacity="0.35"/><circle cx="${f1(x)}" cy="${f1(y)}" r="1.5" fill="${pc}"/>`;
+        break;
+      }
+      case "lateral": if (C.centre) marks += `<path d="${smoothPath(C.centre.slice(2, -3))}" stroke="${pc}" stroke-width="2.2" fill="none" opacity="0.9"/><path d="${smoothPath(C.centre.slice(2, -3))}" stroke="${pc}" stroke-width="6" fill="none" opacity="0.25"/>`; break;
+      case "zap": if (C.centre) for (let i = 3; i < C.centre.length - 4; i += 4) { const p = C.centre[i]; marks += `<path d="M${f1(p.x - 3)} ${f1(p.y - 4)} l3 3 l-2 1 l3 4" stroke="${pc}" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="4" fill="${pc}" opacity="0.25"/>`; } break;
+      case "rings": for (const [x, y] of [[98, 34], [112, 29], [126, 34], [112, 42]]) marks += `<path d="M${x - 5} ${y + 2} a5 4.2 0 1 1 10 0" stroke="${pc}" stroke-width="2.6" fill="none" opacity="0.85"/>`; break;
+      case "bands": for (let i = 0; i < 16; i++) marks += `<path d="M${14 + i * 13} 0 l-8 120" stroke="${pc}" stroke-width="3" opacity="0.4"/>`; break;
+      case "plates": for (const [x, y, r] of [[80, 46, 11], [106, 38, 12], [132, 42, 11], [154, 56, 8], [60, 58, 8], [94, 60, 9], [120, 60, 9]]) marks += `<path d="M${x - r} ${y} L${x - r / 2} ${y - r * 0.8} L${x + r / 2} ${y - r * 0.8} L${x + r} ${y} L${x + r / 2} ${y + r * 0.8} L${x - r / 2} ${y + r * 0.8} Z" fill="none" stroke="${pc}" stroke-width="1.8" opacity="0.75"/>`; break;
+      case "patches": marks += `<ellipse cx="146" cy="36" rx="12" ry="7" fill="${pc}" opacity="0.8" transform="rotate(-25 146 36)"/><ellipse cx="146" cy="84" rx="12" ry="7" fill="${pc}" opacity="0.8" transform="rotate(25 146 84)"/>`; break;
+    }
+    if (C.islandTop) marks += `<path d="M40 40 C70 14 150 10 176 40 L176 30 L40 30 Z" fill="#e6cf92"/><path d="M52 36 C80 18 146 16 168 36" stroke="#8ab35a" stroke-width="6" fill="none" stroke-linecap="round"/>`;
+    // Soft highlight + optional sheen, as on the fish.
+    marks += `<ellipse cx="112" cy="36" rx="70" ry="10" fill="#fff" opacity="${a.shine ? 0.3 : 0.12}"/>`;
+    if (a.shine) marks += `<circle cx="92" cy="44" r="3" fill="#fff" opacity="0.8"/><circle cx="132" cy="62" r="2" fill="#fff" opacity="0.7"/>`;
+  }
+  const grad = C.grad === "center"
+    ? `<stop offset="0" stop-color="${a.back}"/><stop offset="0.5" stop-color="${a.color}"/><stop offset="1" stop-color="${a.back}"/>`
+    : a.aurora
+      ? a.aurora.map((c, i) => `<stop offset="${f1(i / (a.aurora.length - 1))}" stop-color="${c}"/>`).join("")
+      : `<stop offset="0" stop-color="${a.back}"/><stop offset="0.45" stop-color="${a.color}"/><stop offset="0.72" stop-color="${a.color}"/><stop offset="1" stop-color="${a.belly}"/>`;
+  const defs = silhouette ? "" : `<defs>
+    <linearGradient id="${id}body" x1="0" y1="0" x2="${a.aurora ? 1 : 0}" y2="${a.aurora ? 0.4 : 1}">${grad}</linearGradient>
+    <linearGradient id="${id}fin" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${shade(a.fin, 0.15)}"/><stop offset="1" stop-color="${shade(a.fin, -0.15)}"/></linearGradient>
+    <clipPath id="${id}clip">${C.body.map(d => `<path d="${d}"/>`).join("")}</clipPath>
+  </defs>`;
+  const sil = str => str.replaceAll("SILFILL", SIL.fill).replaceAll("SILSTROKE", SIL.stroke);
+  const suckers = silhouette || !C.suckers ? "" : C.suckers.map(([x, y, r]) => `<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(Math.max(0.8, r))}" fill="${a.belly}" stroke="${shade(a.back, -0.2)}" stroke-width="0.5" opacity="0.9"/>`).join("");
+  return `<svg viewBox="0 0 224 120" width="${size}" height="${Math.round(size * 0.536)}" aria-hidden="true" focusable="false" overflow="visible">${defs}
+<g stroke-linejoin="round" stroke-linecap="round">
+  ${C.lines.map(d => `<path d="${d}" stroke="${silhouette ? SIL.stroke : shade(a.fin, -0.2)}" stroke-width="${C.lineWidth ?? 1.3}" fill="none" opacity="${silhouette ? 1 : 0.85}"/>`).join("")}
+  ${C.behind.map(d => P(d, finFill, finStroke, 1.1)).join("")}
+  ${C.limbs.map(d => P(d, silhouette ? SIL.fill : a.limb ?? a.color, outline, 1.3)).join("")}
+  ${suckers}
+  <g opacity="${C.bodyOpacity ?? 1}">${C.body.map(d => P(d, bodyFill, outline, 1.6)).join("")}</g>
+  ${silhouette ? "" : `<g clip-path="url(#${id}clip)">${marks}</g>`}
+  ${C.front.map(d => P(d, finFill, finStroke, 1.1)).join("")}
+  ${silhouette ? sil(C.silExtras) : C.extras}
+  ${silhouette ? "" : (C.mouth ?? "").replaceAll("OUTLINE", outline) + C.eyes.map(([x, y, r]) => eyeSvg(a, x, y, r)).join("")}
 </g></svg>`;
 }
 

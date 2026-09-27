@@ -2,11 +2,11 @@
 import {
   FISH, FISH_BY_ID, TIME_LABELS, WEATHER, LOCATION_LABELS, RARITY_LABELS, GEAR, GEAR_SLOTS, GEAR_LABELS,
   BAGS, SKILLS, SKILLS_BY_ID, SKILL_BRANCHES, TIER_POINTS, STREAK, LEGENDARIES,
-  LOCATIONS, COLLECTION, KINDS, KIND_LABELS, kindOf,
+  LOCATIONS, COLLECTION, KINDS, KIND_LABELS, kindOf, MOON,
 } from "../game/content.js";
 import { priceOf, inventoryWorth, bagCapacity, bagFull, streakBonus } from "../game/economy.js";
 import { orderText, matchingFish, canHandIn } from "../game/orders.js";
-import { huntGear } from "../game/fishing.js";
+import { huntChecks, moonPhase } from "../game/fishing.js";
 import { levelInfo, pointsFree, pointsSpent, rankOf, tierOpen, canLearn, respecCost, skillEffects, branchOf } from "../game/skills.js";
 import { fishSvg, rarityIcon } from "./fishArt.js";
 import { ICONS } from "./icons.js";
@@ -20,15 +20,41 @@ const STAT_DEFS = {
 };
 
 const $ = id => document.getElementById(id);
-const BEHAVIOR_ICONS = { calm: "smooth", darting: "speed", zigzag: "zigzag", heavy: "weight", frenzy: "flame", boss: "star" };
-const BEHAVIOR_HINTS = { calm: "Calm fish", darting: "Darting fish", zigzag: "Zigzagging fish", heavy: "Heavy fish", frenzy: "Frenzied fish", boss: "Legendary giant" };
+const BEHAVIOR_ICONS = { calm: "smooth", darting: "speed", zigzag: "zigzag", heavy: "weight", frenzy: "flame", boss: "star", ink: "ink", sting: "jelly", tentacle: "tentacle", jolt: "bolt", kraken: "tentacle" };
+const BEHAVIOR_HINTS = {
+  calm: "Calm fish", darting: "Darting fish", zigzag: "Zigzagging fish", heavy: "Heavy fish", frenzy: "Frenzied fish", boss: "Legendary giant",
+  ink: "Inks when it bursts", sting: "Don't touch it while it glows", tentacle: "Grabs your line when it bursts", jolt: "Let go when it crackles", kraken: "The Kraken",
+};
+const KRAKEN_ROUNDS = ["Tentacles", "Ink", "Everything!"];
+// Lane marker per body type (64 x 32, drawn facing left like the fish marker).
+const LANE_ICONS = {
+  fish: `<path d="M4 16c8-11 30-13 42-4l12-9v26l-12-9C34 29 12 27 4 16Z" fill="currentColor"/><path d="M22 8c4-5 12-6 16-3-5 1-9 3-11 6Z" fill="currentColor"/><circle cx="13" cy="14" r="2.2" fill="#fff" opacity="0.9"/>`,
+  eel: `<path d="M3 16c4-6 10-6 15-3s10 5 16 1 12-6 18-2 7 5 10 4c-3 4-8 3-11 0s-9-1-14 2-12 5-18 1-9-6-16-3Z" fill="currentColor"/><circle cx="9" cy="14" r="2" fill="#fff" opacity="0.9"/>`,
+  squid: `<path d="M4 16c2-3 6-6 10-6l2 2-2 8c-4 0-8-2-10-4Z" fill="currentColor"/><path d="M12 9c8-4 26-4 38 0l10-4-4 11 4 11-10-4c-12 4-30 4-38 0Z" fill="currentColor"/><circle cx="18" cy="14" r="2.4" fill="#fff" opacity="0.9"/>`,
+  octopus: `<ellipse cx="34" cy="10" rx="14" ry="9" fill="currentColor"/><path d="M22 14c-6 4-10 10-16 9 4-2 7-6 10-10M28 16c-2 6-6 10-10 12M34 17c0 6-2 9-4 12M40 16c2 6 6 10 10 12M46 14c6 4 10 10 16 9-4-2-7-6-10-10" stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none"/><circle cx="29" cy="11" r="2" fill="#fff" opacity="0.9"/>`,
+  jelly: `<path d="M16 16c0-10 32-10 32 0-3 2-5-1-8 1s-5-1-8 1-5-1-8 1-5-1-8-3Z" fill="currentColor"/><path d="M22 18c-2 4 2 6 0 11M30 18c-2 4 2 6 0 11M38 18c-2 4 2 6 0 11M44 18c-2 4 2 6 0 11" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="27" cy="11" r="1.8" fill="#fff" opacity="0.9"/><circle cx="37" cy="11" r="1.8" fill="#fff" opacity="0.9"/>`,
+  crab: `<ellipse cx="32" cy="17" rx="15" ry="9" fill="currentColor"/><path d="M18 16l-8-3M17 21l-9 5M46 16l8-3M47 21l9 5M22 24l-4 6M42 24l4 6" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="7" cy="11" r="4.5" fill="currentColor"/><circle cx="57" cy="11" r="4.5" fill="currentColor"/><circle cx="27" cy="12" r="1.8" fill="#fff" opacity="0.9"/><circle cx="37" cy="12" r="1.8" fill="#fff" opacity="0.9"/>`,
+  ray: `<path d="M4 16c8-4 16-14 26-14-2 6 4 11 12 13l20-1-20 3c-8 2-14 7-12 13-10 0-18-10-26-14Z" fill="currentColor"/><circle cx="13" cy="13" r="1.8" fill="#fff" opacity="0.9"/><circle cx="13" cy="19" r="1.8" fill="#fff" opacity="0.9"/>`,
+  turtle: `<path d="M16 21c0-10 8-16 18-16s16 6 16 16Z" fill="currentColor"/><ellipse cx="9" cy="18" rx="7" ry="5" fill="currentColor"/><path d="M20 22l-4 7M44 22l4 7M50 20l6 2" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/><circle cx="7" cy="16.5" r="1.8" fill="#fff" opacity="0.9"/>`,
+};
+const LANE_KIND = { eel: "eel", serpent: "eel", squid: "squid", octopus: "octopus", kraken: "octopus", jelly: "jelly", crab: "crab", lobster: "crab", ray: "ray", turtle: "turtle" };
+const laneFishHtml = kind => `<svg viewBox="0 0 64 32" aria-hidden="true">${LANE_ICONS[kind]}</svg><span class="fish-zzz">z</span><span class="fish-crown" aria-hidden="true">${rarityIcon("legendary", 18)}</span>`;
 
+/** Moon icon for a phase (0 = new, MOON.full = full): the lit part grows from the right, then shrinks to the left. */
+function moonSvg(phase) {
+  const f = phase / MOON.cycle, lit = 1 - Math.abs(1 - f * 2); // 0 new .. 1 full
+  const r = 8, k = Math.cos(lit * Math.PI) * r, waxing = f <= 0.5;
+  const d = lit <= 0 ? "" : lit >= 1 ? `M12 4a8 8 0 1 1 0 16a8 8 0 1 1 0-16Z`
+    : `M12 4a8 8 0 0 ${waxing ? 1 : 0} 0 16a${f1(Math.abs(k))} 8 0 0 ${(k > 0) === waxing ? 0 : 1} 0-16Z`;
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="${r}" fill="#4a4f6e" stroke="#2e3250" stroke-width="1.2"/>${d ? `<path d="${d}" fill="#f6ecc4"/>` : ""}</svg>`;
+}
+const f1 = n => Math.round(n * 10) / 10;
 const coinHtml = n => `<span class="value"><span class="coin-icon" aria-hidden="true"></span>${n}</span>`;
 const rarityHtml = (r, size) => rarityIcon(r, size);
 
 export function createUI(handlers) {
   const el = {
-    coins: $("hud-coins"), time: $("hud-time"), timeChip: $("hud-time-chip"), timeBar: $("hud-time-bar"),
+    moon: $("hud-moon"), coins: $("hud-coins"), time: $("hud-time"), timeChip: $("hud-time-chip"), timeBar: $("hud-time-bar"),
     region: $("hud-region"), collection: $("hud-collection"), bagCount: $("bag-count"),
     action: $("action-btn"), actionLabel: $("action-label"),
     fishing: $("fishing"), status: $("fishing-status"), statusIco: $("fishing-status-ico"), statusText: $("fishing-status-text"), minigame: $("minigame"),
@@ -167,7 +193,7 @@ export function createUI(handlers) {
   el.catchOk.addEventListener("keydown", e => { if (e.code === "Space" || e.code === "Enter") e.preventDefault(); });
   el.catchOk.addEventListener("keyup", e => { if (e.code === "Space" || e.code === "Enter") e.preventDefault(); });
   document.querySelectorAll("#fishing [data-icon]").forEach(n => { n.innerHTML = ICONS[n.dataset.icon]; });
-  el.laneFish.innerHTML = `<svg viewBox="0 0 64 32" aria-hidden="true"><path d="M4 16c8-11 30-13 42-4l12-9v26l-12-9C34 29 12 27 4 16Z" fill="currentColor"/><path d="M22 8c4-5 12-6 16-3-5 1-9 3-11 6Z" fill="currentColor"/><circle cx="13" cy="14" r="2.2" fill="#fff" opacity="0.9"/></svg><span class="fish-zzz">z</span><span class="fish-crown" aria-hidden="true">${rarityIcon("legendary", 18)}</span>`;
+  el.laneFish.innerHTML = laneFishHtml("fish");
   $("btn-bag").addEventListener("click", () => openBag());
   el.ordersBody.addEventListener("click", e => { const b = e.target.closest("[data-hand-in]"); if (b && !b.disabled) handlers.handIn(b.dataset.handIn); });
   el.trophyBody.addEventListener("click", e => {
@@ -325,17 +351,21 @@ export function createUI(handlers) {
     }).join("")}</div>${rumorsHtml()}`;
   }
 
-  // Legendary hunts: clues, place and the gear each giant demands (✓ / ✗ against what you own).
+  // Legendary hunts and mythics: clues, place and every condition (gear, moon, collection, skill, level) with ✓ / ✗.
   function rumorsHtml() {
-    const rows = LEGENDARIES.map(f => {
+    const row = f => {
       const caught = !!state.records[f.id];
-      const gear = Object.entries(huntGear(state, f)).map(([slot, [need, has]]) =>
-        `<span class="rumor-gear ${has >= need ? "ok" : ""}" title="${GEAR[slot][need].name}${has >= need ? " — you have it" : ""}">${ICONS[slot]} ${GEAR[slot][need].name} ${has >= need ? ICONS.check : "✗"}</span>`).join("");
-      return `<article class="rumor ${caught ? "caught" : ""}"><div class="rumor-art">${fishSvg(f, { silhouette: !caught, size: 96 })}</div>
-        <div class="rumor-main"><strong>${caught ? `${rarityHtml("legendary", 18)} ${f.name}` : "???"} <span class="muted">· ${LOCATION_LABELS[f.location]}</span></strong>
-          <span class="rumor-clue">“${f.hunt.clue}”</span><div class="rumor-gears">${gear}</div></div></article>`;
-    }).join("");
-    return `<h3 class="section-title">${ICONS.whisper} Rumours <span class="muted">legendary fish, for the patient and well equipped</span></h3><div class="rumors">${rows}</div>`;
+      const checks = huntChecks(state, f).map(c =>
+        `<span class="rumor-gear ${c.ok ? "ok" : ""}" title="${c.label}${c.ok ? " — done" : ""}">${ICONS[c.icon] ?? ""} ${c.label} ${c.ok ? ICONS.check : "✗"}</span>`).join("");
+      return `<article class="rumor ${caught ? "caught" : ""} ${f.mythic ? "myth" : ""}"><div class="rumor-art">${fishSvg(f, { silhouette: !caught, size: 96 })}</div>
+        <div class="rumor-main"><strong>${caught ? `${rarityHtml("legendary", 18)} ${f.name}` : "???"} <span class="muted">· ${LOCATION_LABELS[f.location]} · ${TIME_LABELS[f.hunt.bucket]}</span></strong>
+          <span class="rumor-clue">“${f.hunt.clue}”</span><div class="rumor-gears">${checks}</div></div></article>`;
+    };
+    const moon = MOON.names[moonPhase(state.day)];
+    return `<h3 class="section-title">${ICONS.whisper} Rumours <span class="muted">legendary fish, for the patient and well equipped</span></h3>
+      <div class="rumors">${LEGENDARIES.filter(f => !f.mythic).map(row).join("")}</div>
+      <h3 class="section-title">${ICONS.moon} Myths <span class="muted">tonight: ${moon}</span></h3>
+      <div class="rumors">${LEGENDARIES.filter(f => f.mythic).map(row).join("")}</div>`;
   }
 
   function renderTrophies() {
@@ -440,6 +470,12 @@ export function createUI(handlers) {
       setText(el.time, "time", TIME_LABELS[bucket]);
       if (last.bucket !== bucket) { last.bucket = bucket; el.timeChip.dataset.bucket = bucket; }
       el.timeBar.style.width = `${Math.round(bucketProgress * 100)}%`;
+      const phase = moonPhase(s.day);
+      if (last.moon !== phase) {
+        last.moon = phase;
+        el.moon.innerHTML = moonSvg(phase);
+        el.moon.title = el.moon.ariaLabel = MOON.names[phase];
+      }
       setText(el.region, "region", region);
       setText(el.collection, "collection", `${s.discovered.length} / ${FISH.length}`);
       const cap = bagCapacity(s);
@@ -523,19 +559,30 @@ export function createUI(handlers) {
       }
       if (phase !== "fight") return;
       const f = session.fight;
+      const laneKind = LANE_KIND[FISH_BY_ID[session.encounter.speciesId].art.shape] ?? "fish";
+      if (last.laneKind !== laneKind) { last.laneKind = laneKind; el.laneFish.innerHTML = laneFishHtml(laneKind); }
       if (last.behavior !== f.behavior) {
         last.behavior = f.behavior;
         el.mgBehavior.textContent = BEHAVIOR_HINTS[f.behavior];
         el.mgBehaviorIco.innerHTML = ICONS[BEHAVIOR_ICONS[f.behavior]];
         el.minigame.dataset.rarity = f.rarity;
       }
-      if (f.boss) setText(el.mgBoss, "mgBoss", `${FISH_BY_ID[session.encounter.speciesId].name} · round ${f.rage + 1} / 3`);
+      if (f.boss) setText(el.mgBoss, "mgBoss", `${FISH_BY_ID[session.encounter.speciesId].name} · round ${f.rage + 1} / 3${f.mech === "kraken" ? ` · ${KRAKEN_ROUNDS[Math.min(f.rage, 2)]}` : ""}`);
       el.mgBoss.hidden = !f.boss;
-      const label = f.secondWindAt !== undefined && f.elapsed - f.secondWindAt < 1.6 ? "secondwind" : f.enraged ? "rage" : f.fishPhase;
+      // Mechanics first: they are what the player must react to right now.
+      const mechLabel = f.jolt === "charge" ? "charge" : f.jolt === "zap" ? "zap" : f.pulseLeft > 0 ? "glow" : f.grabLeft > 0 ? "grab" : f.inkLeft > 0 ? "ink" : null;
+      const label = f.secondWindAt !== undefined && f.elapsed - f.secondWindAt < 1.6 ? "secondwind" : mechLabel ?? (f.enraged ? "rage" : f.fishPhase);
+      if (f.inkLeft > 0 && !el.minigame.classList.contains("inked")) el.minigame.style.setProperty("--ink-x", `${f.fishPos * 100}%`);
+      el.minigame.classList.toggle("inked", f.inkLeft > 0);
+      el.minigame.classList.toggle("zapping", f.jolt === "zap");
+      el.zone.classList.toggle("grabbed", f.grabLeft > 0);
+      el.laneFish.classList.toggle("glowing", f.pulseLeft > 0);
+      el.laneFish.classList.toggle("charging", f.jolt === "charge");
       if (last.mgPhase !== label) {
         last.mgPhase = label;
         el.mgPhase.hidden = label === "normal";
-        el.mgPhase.innerHTML = label === "secondwind" ? `${ICONS.recovery} Second wind!` : label === "rage" ? `${ICONS.flame} Enraged!` : label === "burst" ? `${ICONS.burst} Burst!` : `${ICONS.sleep} Tired`;
+        const MECH_LABELS = { charge: `${ICONS.bolt} It crackles — let go!`, zap: `${ICONS.bolt} Zap!`, glow: `${ICONS.jelly} Glowing — keep clear!`, grab: `${ICONS.tentacle} Grabbed!`, ink: `${ICONS.ink} Ink!` };
+        el.mgPhase.innerHTML = MECH_LABELS[label] ?? (label === "secondwind" ? `${ICONS.recovery} Second wind!` : label === "rage" ? `${ICONS.flame} Enraged!` : label === "burst" ? `${ICONS.burst} Burst!` : `${ICONS.sleep} Tired`);
         el.mgPhase.className = `mg-phase ${label}`;
         el.laneFish.dataset.phase = f.enraged ? "burst" : f.fishPhase;
       }

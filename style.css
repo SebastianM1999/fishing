@@ -719,3 +719,20 @@ body.at-title .hud, body.at-title .hud-buttons, body.at-title .action-btn, body.
 .title-play { min-height: 54px; font-size: 20px; }
 .title-settings { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; }
 .title-ico .ico { width: 20px; height: 20px; vertical-align: middle; }
+/* Special creature mechanics in the catch lane */
+.lane::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.25s; background:
+  radial-gradient(circle at var(--ink-x, 50%) 50%, rgb(28 22 40 / 0.92) 0 38px, rgb(28 22 40 / 0.6) 60px, transparent 110px); }
+.minigame.inked .lane::after { opacity: 1; }
+.minigame.inked .lane-fish { opacity: 0; }
+.lane-fish.glowing { color: #e25aa0; filter: drop-shadow(0 0 6px #ffb0e0) drop-shadow(0 0 12px #ff80c8); }
+.lane-fish.charging { color: #d8b820; animation: jitter 0.08s linear infinite; filter: drop-shadow(0 0 6px #fff17a); }
+.minigame.zapping .lane { box-shadow: inset 0 0 0 3px #fff17a, 0 0 18px #ffe45a; }
+.zone.grabbed { border-color: #a860a0; background: rgb(168 96 160 / 0.35); box-shadow: 0 0 12px 2px rgb(168 96 160 / 0.6); animation: jitter 0.1s linear infinite; }
+.mg-phase.ink { background: #2c2440; color: #e8dcff; }
+.mg-phase.glow { background: #fde2f0; color: #b03a7a; }
+.mg-phase.charge, .mg-phase.zap { background: #fff6c4; color: #8a6a00; animation: pop 0.2s ease-out; }
+.mg-phase.grab { background: #f1dcef; color: #7a3a74; animation: pop 0.2s ease-out; }
+.rumor.myth { background: linear-gradient(90deg, #dfe6fb, #f3eefe); border-color: #b9c4ec; }
+.rumor-gear .ico { width: 14px; height: 14px; }
+.moon-phase { display: inline-grid; width: 18px; height: 18px; margin-left: 2px; }
+.moon-phase svg { width: 100%; height: 100%; }

@@ -379,14 +379,97 @@ export function makeBoat(M, scale = 1) {
 }
 
 /** A small caught-fish mesh coloured like the species (held up when celebrating). */
+/** The held-up catch (and trophy): a tiny low-poly model per body type, coloured from art.color / art.fin. Head = +x. */
 export function makeHeldFish(art) {
   const g = new THREE.Group();
   const body = new THREE.MeshStandardMaterial({ color: art.color, roughness: 0.4, flatShading: true });
   const fin = new THREE.MeshStandardMaterial({ color: art.fin, roughness: 0.6, flatShading: true });
-  g.add(mesh(G.sphere(0.2, 10, 8), body, 0, 0, 0, 0, 0, 0, [1.7, 0.75, 0.45]));
-  g.add(mesh(G.cone(0.16, 0.28, 4), fin, -0.42, 0, 0, 0, 0, PI / 2, [1, 1, 0.3]));
-  g.add(mesh(G.cone(0.08, 0.18, 3), fin, 0, 0.17, 0, 0, 0, 0, [1.5, 1, 0.3]));
-  g.add(mesh(G.sphere(0.035, 6, 4), new THREE.MeshStandardMaterial({ color: "#1d1a18" }), 0.24, 0.04, 0.08));
+  const limb = art.limb ? new THREE.MeshStandardMaterial({ color: art.limb, roughness: 0.5, flatShading: true }) : body;
+  const eyeMat = new THREE.MeshStandardMaterial({ color: "#1d1a18" });
+  const eye = (x, y, z = 0.08, r = 0.035) => { g.add(mesh(G.sphere(r, 6, 4), eyeMat, x, y, z)); g.add(mesh(G.sphere(r, 6, 4), eyeMat, x, y, -z)); };
+  const add = (...a) => g.add(mesh(...a));
+  switch (art.shape) {
+    case "eel": case "serpent": {
+      // Segmented tube along a gentle wave; the serpent gets a frill.
+      const n = 9, r = art.shape === "serpent" ? 0.085 : 0.065;
+      for (let i = 0; i < n; i++) {
+        const u = i / (n - 1), x = -0.55 + u * 1.05, y = Math.sin(u * 5) * 0.06 * (1 - u);
+        const k = 0.45 + 0.55 * Math.sin(Math.min(1, u / 0.8) * PI / 2);
+        add(G.sphere(r, 8, 6), body, x, y, 0, 0, 0, 0, [1.5, k, k * 0.9]);
+        if (art.shape === "serpent" && i > 1 && i < n - 1) add(G.cone(0.05, 0.12, 3), fin, x, y + r * k + 0.04, 0, 0, 0, -0.3, [1, 1, 0.3]);
+      }
+      add(G.cone(0.07, 0.16, 4), fin, -0.62, 0, 0, 0, 0, PI / 2, [1, 1, 0.3]);
+      eye(0.47, 0.03, 0.05, 0.028);
+      break;
+    }
+    case "squid": {
+      add(G.cone(0.13, 0.5, 7), body, -0.2, 0, 0, 0, 0, PI / 2);
+      add(G.cone(0.12, 0.12, 3), fin, -0.42, 0, 0, 0, 0, PI / 2, [1, 2, 0.25]);
+      add(G.sphere(0.11, 8, 6), body, 0.1, 0, 0);
+      for (let i = 0; i < 8; i++) { const a = (i / 8) * PI * 2; add(G.box(0.3, 0.025, 0.035), limb, 0.33, Math.sin(a) * 0.05, Math.cos(a) * 0.05, 0, 0, Math.sin(a) * 0.25); }
+      eye(0.12, 0.03, 0.09, 0.04);
+      break;
+    }
+    case "octopus": case "kraken": {
+      const k = art.shape === "kraken" ? 1.25 : 1;
+      add(G.sphere(0.17 * k, 10, 8), body, 0, 0.12 * k, 0, 0, 0, 0.35, [1, 1.15, 1]);
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * PI * 2, cx = Math.cos(a) * 0.1 * k, cz = Math.sin(a) * 0.1 * k;
+        add(G.cyl(0.035 * k, 0.02 * k, 0.22 * k, 5), limb, cx * 1.3, -0.05 * k, cz * 1.3, cz * 3, 0, -cx * 3);
+        add(G.cyl(0.02 * k, 0.01 * k, 0.16 * k, 5), limb, cx * 2.4, -0.19 * k, cz * 2.4, cz * 1.5, 0, -cx * 1.5);
+      }
+      eye(0.13 * k, 0.1 * k, 0.07 * k, 0.035 * k);
+      break;
+    }
+    case "jelly": {
+      const bell = new THREE.MeshStandardMaterial({ color: art.color, roughness: 0.3, flatShading: true, transparent: true, opacity: 0.85 });
+      add(new THREE.SphereGeometry(0.22, 10, 6, 0, PI * 2, 0, PI / 2), bell, 0, 0.1, 0, 0, 0, 0, [1, 0.8, 1]);
+      for (let i = 0; i < (art.mane ? 10 : 6); i++) { const a = (i / (art.mane ? 10 : 6)) * PI * 2; add(G.box(0.03, art.mane ? 0.42 : 0.3, 0.012), fin, Math.cos(a) * 0.13, art.mane ? -0.12 : -0.06, Math.sin(a) * 0.13, 0, a, 0); }
+      eye(0.2, 0.15, 0.07, 0.025);
+      break;
+    }
+    case "ray": {
+      add(G.sphere(0.25, 4, 2), body, 0, 0, 0, 0, 0, 0, [1, 1.55, 0.12]);
+      add(G.cyl(0.012, 0.02, 0.45, 4), fin, -0.45, 0, 0, 0, 0, PI / 2);
+      if (art.manta) { add(G.cone(0.03, 0.12, 4), fin, 0.28, 0.07, 0, 0, 0, -PI / 2); add(G.cone(0.03, 0.12, 4), fin, 0.28, -0.07, 0, 0, 0, -PI / 2); }
+      eye(0.14, 0.06, 0.03, 0.025); eye(0.14, -0.06, 0.03, 0.025);
+      break;
+    }
+    case "crab": case "lobster": {
+      const lob = art.shape === "lobster";
+      if (lob) for (let i = 0; i < 5; i++) add(G.sphere(0.075 - i * 0.008, 7, 5), body, -0.08 - i * 0.1, -0.01 * i, 0, 0, 0, 0, [1.1, 0.8, 1]);
+      add(G.sphere(0.16, 8, 6), body, lob ? 0.12 : 0, 0, 0, 0, 0, 0, lob ? [1.2, 0.7, 0.75] : [1.3, 0.75, 0.95]);
+      for (const s of [-1, 1]) {
+        add(G.cyl(0.02, 0.02, 0.2, 4), limb, lob ? 0.3 : 0.1, 0.02, s * (lob ? 0.08 : 0.2), s * 0.9, 0, lob ? -1.1 : -0.3);
+        add(G.sphere(0.065, 6, 5), limb, lob ? 0.42 : 0.2, lob ? 0.04 : 0.1, s * (lob ? 0.12 : 0.28), 0, 0, 0, [1.4, 0.8, 0.7]);
+        for (let i = 0; i < 3; i++) add(G.cyl(0.012, 0.012, 0.16, 4), limb, (lob ? 0.08 : -0.08) + i * 0.08, -0.08, s * 0.13, s * 0.7, 0, 0);
+      }
+      eye(lob ? 0.26 : 0.16, 0.08, lob ? 0.04 : 0.05, 0.03);
+      break;
+    }
+    case "turtle": {
+      const shell = new THREE.MeshStandardMaterial({ color: art.back, roughness: 0.6, flatShading: true });
+      add(new THREE.SphereGeometry(0.24, 9, 6, 0, PI * 2, 0, PI / 2), shell, 0, 0, 0, 0, 0, 0, [1.25, 0.8, 1]);
+      add(G.cyl(0.29, 0.29, 0.04, 9), new THREE.MeshStandardMaterial({ color: art.belly, roughness: 0.7, flatShading: true }), 0, 0, 0, 0, 0, 0, [1.03, 1, 0.84]);
+      add(G.sphere(0.08, 8, 6), fin, 0.34, 0.03, 0, 0, 0, 0, [1.3, 0.9, 0.9]);
+      for (const [x, z, r] of [[0.16, 0.2, -0.5], [0.16, -0.2, 0.5], [-0.18, 0.18, 0.4], [-0.18, -0.18, -0.4]]) add(G.box(0.16, 0.025, 0.07), fin, x, -0.02, z, 0, r, 0);
+      if (art.island) {
+        add(G.cyl(0.018, 0.024, 0.28, 5), new THREE.MeshStandardMaterial({ color: "#9a6a3e", flatShading: true }), 0.02, 0.32, 0, 0, 0, -0.15);
+        add(G.cone(0.14, 0.06, 5), new THREE.MeshStandardMaterial({ color: "#6fae52", flatShading: true }), 0.04, 0.47, 0);
+      }
+      eye(0.4, 0.06, 0.05, 0.022);
+      break;
+    }
+    default: {
+      add(G.sphere(0.2, 10, 8), body, 0, 0, 0, 0, 0, 0, [1.7, art.shape === "puffer" ? 1.3 : 0.75, art.shape === "puffer" ? 1 : 0.45]);
+      add(G.cone(0.16, 0.28, 4), fin, -0.42, 0, 0, 0, 0, PI / 2, [1, 1, 0.3]);
+      add(G.cone(0.08, 0.18, 3), fin, 0, art.shape === "puffer" ? 0.27 : 0.17, 0, 0, 0, 0, [1.5, 1, 0.3]);
+      if (art.hammer) add(G.box(0.07, 0.05, 0.36), body, 0.3, 0.02, 0);
+      if (art.wings) for (const s of [-1, 1]) add(G.box(0.26, 0.012, 0.16), fin, 0.02, 0.02, s * 0.14, s * 0.4, 0, 0);
+      if (art.mouth === "sword" || art.mouth === "spear") add(G.cone(0.025, 0.3, 4), fin, 0.46, 0, 0, 0, 0, -PI / 2);
+      g.add(mesh(G.sphere(0.035, 6, 4), eyeMat, 0.24, 0.04, 0.08));
+    }
+  }
   return g;
 }
 
