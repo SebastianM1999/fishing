@@ -57,9 +57,26 @@ export const FISH = [
   { id: "offshore_marlin", name: "Marlin", location: "offshore", times: ["day", "dusk"], baseValue: 110, sizeCm: [120, 250], behavior: "zigzag", assetId: "fish_marlin", art: { color: "#5d8cbc", back: "#1d4a7e", belly: "#e2eaf2", fin: "#2d5f9a", shape: "billfish", pattern: "vbars", patternColor: "#a9d0f0", mouth: "spear", sail: true, len: 1, h: 0.3 } },
   { id: "offshore_mahi_mahi", name: "Mahi-Mahi", location: "offshore", times: ["day", "dusk"], baseValue: 70, sizeCm: [60, 120], behavior: "darting", assetId: "fish_mahi_mahi", art: { color: "#5aa86a", back: "#2e7a8a", belly: "#f0d84a", fin: "#3a8a9a", shape: "mahi", pattern: "dots", patternColor: "#2e6a8a", len: 0.92, h: 0.34 } },
   { id: "offshore_blue_shark", name: "Blue Shark", location: "offshore", times: ["dusk", "night"], baseValue: 85, sizeCm: [90, 190], behavior: "frenzy", assetId: "fish_blue_shark", art: { color: "#5f86ba", back: "#35599a", belly: "#eef2f6", fin: "#43669e", shape: "shark", pattern: "none", patternColor: "#35599a", mouth: "shark", len: 1, h: 0.26 } },
+
+  // Legendary hunts: one named giant per location. They never appear in the normal fish tables; they can only bite
+  // in their precise time window (bucket + share of that bucket) at their spot, with the listed minimum gear tiers.
+  // Their baseValue is the final price basis (no rarity multiplier).
+  { id: "legend_old_whiskers", name: "Old Whiskers", location: "lake", times: ["night"], baseValue: 320, sizeCm: [110, 160], behavior: "boss", legendary: true, assetId: "fish_old_whiskers",
+    hunt: { bucket: "night", window: [0.5, 1], gear: { rod: 2, line: 2 }, chance: 0.25, clue: "Late in the night, when the lamps burn low, something ancient stirs under the lake pier." },
+    art: { color: "#4a5a3e", back: "#2a3522", belly: "#cdbb8e", fin: "#34422c", shape: "catfish", pattern: "mottle", patternColor: "#7a8a52", mouth: "barbels", shine: true, len: 1, h: 0.3 } },
+  { id: "legend_silver_ghost", name: "Silver Ghost", location: "river", times: ["dawn"], baseValue: 380, sizeCm: [80, 120], behavior: "boss", legendary: true, assetId: "fish_silver_ghost",
+    hunt: { bucket: "dawn", window: [0, 0.5], gear: { reel: 2, line: 1 }, chance: 0.25, clue: "In the first mist of dawn, a pale shape races upstream. Only a quick reel keeps up with it." },
+    art: { color: "#e2eaf0", back: "#9fb2c6", belly: "#ffffff", fin: "#c6d4e0", shape: "salmon", pattern: "spots", patternColor: "#8aa0b8", stripe: "#c8e4ff", shine: true, len: 0.95, h: 0.3 } },
+  { id: "legend_coral_queen", name: "Coral Queen", location: "sea", times: ["dusk"], baseValue: 450, sizeCm: [55, 85], behavior: "boss", legendary: true, assetId: "fish_coral_queen",
+    hunt: { bucket: "dusk", window: [0.25, 0.75], gear: { rod: 2, line: 2 }, chance: 0.25, clue: "When the sunset paints the jetty, the queen of the reef rises for a look." },
+    art: { color: "#ff7d7a", back: "#d8405a", belly: "#ffdcc4", fin: "#ffb040", shape: "deep", pattern: "stripe2", patternColor: "#ffe08a", spiny: true, shine: true, len: 0.72, h: 0.46 } },
+  { id: "legend_abyssal_king", name: "Abyssal King", location: "offshore", times: ["night"], baseValue: 900, sizeCm: [260, 420], behavior: "boss", legendary: true, assetId: "fish_abyssal_king",
+    hunt: { bucket: "night", window: [0, 0.5], gear: { rod: 3, reel: 3, line: 3 }, chance: 0.25, clue: "Far offshore, early in the night, the deep answers only to the finest rod, reel and line." },
+    art: { color: "#4a3d86", back: "#1e1848", belly: "#9a8ae0", fin: "#7a5cff", shape: "billfish", pattern: "vbars", patternColor: "#bba6ff", mouth: "sword", sail: true, shine: true, len: 1, h: 0.3 } },
 ];
 
 export const FISH_BY_ID = Object.fromEntries(FISH.map(f => [f.id, f]));
+export const LEGENDARIES = FISH.filter(f => f.legendary);
 
 export const RARITIES = ["common", "rare", "legendary"];
 export const RARITY_LABELS = { common: "Common", rare: "Rare", legendary: "Legendary" };
@@ -88,7 +105,11 @@ export const BEHAVIORS = {
   zigzag: { speed: 0.4, retarget: [0.35, 0.6], jump: 0.3, burstSpeed: 0.7, burstTime: [0.8, 1.2], normalTime: [2.2, 3.2], tensionSpike: 1.1 },
   heavy: { speed: 0.16, retarget: [1.4, 2.2], jump: 0.25, burstSpeed: 0.4, burstTime: [1.0, 1.6], normalTime: [2.4, 3.4], tensionSpike: 2.1 },
   frenzy: { speed: 0.18, retarget: [1.2, 2.0], jump: 0.3, burstSpeed: 1.0, burstTime: [1.2, 1.8], normalTime: [2.2, 3.0], tensionSpike: 1.4 },
+  boss: { speed: 0.26, retarget: [0.6, 1.2], jump: 0.4, burstSpeed: 0.95, burstTime: [1.0, 1.6], normalTime: [1.8, 2.6], tensionSpike: 1.5 },
 };
+
+// Legendary boss fights: slower progress (about twice as long) and an enraged burst at each third of the way.
+export const BOSS_FIGHT = { progressGain: 0.6, rageAt: [0.33, 0.66], rageTime: 2.6, rageSpeed: 1.35, rageTension: 1.3 };
 
 export const EXHAUSTED = { speedMult: 0.55, progressGainMult: 1.2, tensionGrowthMult: 0.8, time: [1.6, 2.4] };
 

@@ -1,10 +1,11 @@
 // HTML/CSS UI: HUD, fishing panel, catch card, shop, bag, wallboard, skills. Reads state; calls handlers for actions.
 import {
   FISH, FISH_BY_ID, TIME_LABELS, LOCATION_LABELS, RARITY_LABELS, GEAR, GEAR_SLOTS, GEAR_LABELS,
-  BAGS, SKILLS, SKILLS_BY_ID, SKILL_BRANCHES, TIER_POINTS, STREAK,
+  BAGS, SKILLS, SKILLS_BY_ID, SKILL_BRANCHES, TIER_POINTS, STREAK, LEGENDARIES,
 } from "../game/content.js";
 import { priceOf, inventoryWorth, bagCapacity, bagFull, streakBonus } from "../game/economy.js";
 import { orderText, matchingFish, canHandIn } from "../game/orders.js";
+import { huntGear } from "../game/fishing.js";
 import { levelInfo, pointsFree, pointsSpent, rankOf, tierOpen, canLearn, respecCost, skillEffects, branchOf } from "../game/skills.js";
 import { fishSvg, rarityIcon } from "./fishArt.js";
 import { ICONS } from "./icons.js";
@@ -18,8 +19,8 @@ const STAT_DEFS = {
 };
 
 const $ = id => document.getElementById(id);
-const BEHAVIOR_ICONS = { calm: "smooth", darting: "speed", zigzag: "zigzag", heavy: "weight", frenzy: "flame" };
-const BEHAVIOR_HINTS = { calm: "Calm fish", darting: "Darting fish", zigzag: "Zigzagging fish", heavy: "Heavy fish", frenzy: "Frenzied fish" };
+const BEHAVIOR_ICONS = { calm: "smooth", darting: "speed", zigzag: "zigzag", heavy: "weight", frenzy: "flame", boss: "star" };
+const BEHAVIOR_HINTS = { calm: "Calm fish", darting: "Darting fish", zigzag: "Zigzagging fish", heavy: "Heavy fish", frenzy: "Frenzied fish", boss: "Legendary giant" };
 
 const coinHtml = n => `<span class="value"><span class="coin-icon" aria-hidden="true"></span>${n}</span>`;
 const rarityHtml = (r, size) => rarityIcon(r, size);
@@ -47,6 +48,7 @@ export function createUI(handlers) {
     skillsPoints: $("skills-points"), skillsDetail: $("skills-detail"),
     trophy: $("trophy-dialog"), trophyBody: $("trophy-body"),
     orders: $("orders-dialog"), ordersBody: $("orders-body"), ordersDay: $("orders-day"),
+    legendBanner: $("legend-banner"), mgBoss: $("mg-boss"),
     streak: $("hud-streak"), streakText: $("hud-streak-text"), catchStreak: $("catch-streak"),
   };
   let trophyPick = null; // shelf slot whose bag-fish picker is open
@@ -162,7 +164,7 @@ export function createUI(handlers) {
   el.catchOk.addEventListener("keydown", e => { if (e.code === "Space" || e.code === "Enter") e.preventDefault(); });
   el.catchOk.addEventListener("keyup", e => { if (e.code === "Space" || e.code === "Enter") e.preventDefault(); });
   document.querySelectorAll("#fishing [data-icon]").forEach(n => { n.innerHTML = ICONS[n.dataset.icon]; });
-  el.laneFish.innerHTML = `<svg viewBox="0 0 64 32" aria-hidden="true"><path d="M4 16c8-11 30-13 42-4l12-9v26l-12-9C34 29 12 27 4 16Z" fill="currentColor"/><path d="M22 8c4-5 12-6 16-3-5 1-9 3-11 6Z" fill="currentColor"/><circle cx="13" cy="14" r="2.2" fill="#fff" opacity="0.9"/></svg><span class="fish-zzz">z</span>`;
+  el.laneFish.innerHTML = `<svg viewBox="0 0 64 32" aria-hidden="true"><path d="M4 16c8-11 30-13 42-4l12-9v26l-12-9C34 29 12 27 4 16Z" fill="currentColor"/><path d="M22 8c4-5 12-6 16-3-5 1-9 3-11 6Z" fill="currentColor"/><circle cx="13" cy="14" r="2.2" fill="#fff" opacity="0.9"/></svg><span class="fish-zzz">z</span><span class="fish-crown" aria-hidden="true">${rarityIcon("legendary", 18)}</span>`;
   $("btn-bag").addEventListener("click", () => openBag());
   el.ordersBody.addEventListener("click", e => { const b = e.target.closest("[data-hand-in]"); if (b && !b.disabled) handlers.handIn(b.dataset.handIn); });
   el.trophyBody.addEventListener("click", e => {
@@ -297,7 +299,20 @@ export function createUI(handlers) {
           <span class="meta">${hint}</span></div>
         <div class="order-reward">${coinHtml(o.coins)}<span class="order-xp">+${o.xp} XP</span></div>
         ${status}</article>`;
-    }).join("")}</div>`;
+    }).join("")}</div>${rumorsHtml()}`;
+  }
+
+  // Legendary hunts: clues, place and the gear each giant demands (✓ / ✗ against what you own).
+  function rumorsHtml() {
+    const rows = LEGENDARIES.map(f => {
+      const caught = !!state.records[f.id];
+      const gear = Object.entries(huntGear(state, f)).map(([slot, [need, has]]) =>
+        `<span class="rumor-gear ${has >= need ? "ok" : ""}" title="${GEAR[slot][need].name}${has >= need ? " — you have it" : ""}">${ICONS[slot]} ${GEAR[slot][need].name} ${has >= need ? ICONS.check : "✗"}</span>`).join("");
+      return `<article class="rumor ${caught ? "caught" : ""}"><div class="rumor-art">${fishSvg(f, { silhouette: !caught, size: 96 })}</div>
+        <div class="rumor-main"><strong>${caught ? `${rarityHtml("legendary", 18)} ${f.name}` : "???"} <span class="muted">· ${LOCATION_LABELS[f.location]}</span></strong>
+          <span class="rumor-clue">“${f.hunt.clue}”</span><div class="rumor-gears">${gear}</div></div></article>`;
+    }).join("");
+    return `<h3 class="section-title">${ICONS.whisper} Rumours <span class="muted">legendary fish, for the patient and well equipped</span></h3><div class="rumors">${rows}</div>`;
   }
 
   function renderTrophies() {
@@ -425,8 +440,8 @@ export function createUI(handlers) {
     },
 
     /** Fish Finder strip above the action button: species that can bite here right now. */
-    setFinder(species, discovered) {
-      const key = species ? species.map(f => f.id + (discovered.includes(f.id) ? "+" : "")).join() : "";
+    setFinder(species, discovered, hunt = null) {
+      const key = species ? species.map(f => f.id + (discovered.includes(f.id) ? "+" : "")).join() + (hunt ? `|${hunt.id}` : "") : "";
       if (last.finder === key) return;
       last.finder = key;
       el.finder.hidden = !species;
@@ -434,7 +449,7 @@ export function createUI(handlers) {
       el.finder.innerHTML = `<span class="finder-label">${ICONS.eye}</span>` + species.map(f => {
         const found = discovered.includes(f.id);
         return `<span class="finder-fish ${found ? "found" : ""}" title="${found ? f.name : "Undiscovered"}">${fishSvg(f, { silhouette: !found, size: 44 })}<span>${found ? f.name : "?"}</span></span>`;
-      }).join("");
+      }).join("") + (hunt ? `<span class="finder-fish legend" title="Something legendary is about">${fishSvg(hunt, { silhouette: true, size: 44 })}<span>?</span></span>` : "");
     },
 
     setAction(label, locked = false) {
@@ -448,6 +463,13 @@ export function createUI(handlers) {
       const show = !!session && session.phase !== "done";
       el.fishing.hidden = !show;
       document.body.classList.toggle("fishing", !!session);
+      const legend = show && FISH_BY_ID[session.encounter.speciesId].legendary && (session.phase === "bite" || session.phase === "fight");
+      if (last.legend !== legend) {
+        last.legend = legend;
+        el.fishing.classList.toggle("boss", legend);
+        el.legendBanner.hidden = !legend;
+        document.body.classList.toggle("boss-fight", legend);
+      }
       if (!show) return;
       const phase = session.phase;
       el.minigame.hidden = phase !== "fight";
@@ -472,13 +494,15 @@ export function createUI(handlers) {
         el.mgBehaviorIco.innerHTML = ICONS[BEHAVIOR_ICONS[f.behavior]];
         el.minigame.dataset.rarity = f.rarity;
       }
-      const label = f.secondWindAt !== undefined && f.elapsed - f.secondWindAt < 1.6 ? "secondwind" : f.fishPhase;
+      if (f.boss) setText(el.mgBoss, "mgBoss", `${FISH_BY_ID[session.encounter.speciesId].name} · round ${f.rage + 1} / 3`);
+      el.mgBoss.hidden = !f.boss;
+      const label = f.secondWindAt !== undefined && f.elapsed - f.secondWindAt < 1.6 ? "secondwind" : f.enraged ? "rage" : f.fishPhase;
       if (last.mgPhase !== label) {
         last.mgPhase = label;
         el.mgPhase.hidden = label === "normal";
-        el.mgPhase.innerHTML = label === "secondwind" ? `${ICONS.recovery} Second wind!` : label === "burst" ? `${ICONS.burst} Burst!` : `${ICONS.sleep} Tired`;
+        el.mgPhase.innerHTML = label === "secondwind" ? `${ICONS.recovery} Second wind!` : label === "rage" ? `${ICONS.flame} Enraged!` : label === "burst" ? `${ICONS.burst} Burst!` : `${ICONS.sleep} Tired`;
         el.mgPhase.className = `mg-phase ${label}`;
-        el.laneFish.dataset.phase = f.fishPhase;
+        el.laneFish.dataset.phase = f.enraged ? "burst" : f.fishPhase;
       }
       // Fish faces the way it swims.
       const dir = f.fishPos - (last.fishPos ?? f.fishPos);

@@ -376,6 +376,12 @@ export function createRenderer(canvas) {
     P.root.rotation.y = shownFacing;
 
     const active = session && session.phase !== "done" ? session : null;
+    // Legendary bites and boss fights: golden ripples and a slow camera push-in.
+    const boss = !!active && !!FISH_BY_ID[active.encounter.speciesId].legendary && (active.phase === "bite" || active.phase === "fight");
+    const zoom = boss ? 1.22 : 1;
+    if (Math.abs(camera.zoom - zoom) > 0.001) { camera.zoom += (zoom - camera.zoom) * Math.min(1, dt * 2.5); camera.updateProjectionMatrix(); }
+    splash.material.color.set(boss ? "#ffd36a" : "#ffffff");
+    splash2.material.color.copy(splash.material.color);
     const mode = result === "caught" ? "celebrate" : result ? "sad" : active ? (active.phase === "cast" ? "cast" : active.phase === "fight" ? "fight" : active.phase === "bite" ? "bite" : "wait") : walking ? "walk" : "idle";
     animatePlayer(mode, active, dt, elapsed);
     animateNpcs(p, dt, elapsed, !!session);
@@ -407,7 +413,8 @@ export function createRenderer(canvas) {
         const k = ((elapsed * (active.phase === "bite" ? 2.2 : 1.2) + i * 0.5) % 1);
         s.position.set(bobber.position.x, waterY + 0.02, bobber.position.z);
         s.scale.setScalar(1 + k * 3);
-        s.material.opacity = ripple ? 0.8 * (1 - k) : 0;
+        s.material.opacity = ripple ? (boss ? 1 : 0.8) * (1 - k) : 0;
+        if (boss) s.scale.multiplyScalar(1.6);
       });
     } else {
       bobber.visible = false;
