@@ -1,15 +1,16 @@
 // Plain-data game state, plus (de)serialization with defensive validation for saves.
-import { STARTING_COINS, DAY_LENGTH_MS, FISH_BY_ID, GEAR, GEAR_SLOTS, TACKLE_BY_ID, RARITIES, FISH, REGIONS } from "./content.js";
+import { STARTING_COINS, DAY_LENGTH_MS, FISH_BY_ID, GEAR, GEAR_SLOTS, TACKLE_BY_ID, RARITIES, FISH, REGIONS, BAGS } from "./content.js";
 import { WORLD, isWalkable } from "./world.js";
 
-// v2: construction-barrier unlocks + per-species best-catch records.
-export const SAVE_VERSION = 2;
+// v2: construction-barrier unlocks + per-species best-catch records. v3: bag tier.
+export const SAVE_VERSION = 3;
 
 export function createState(seed = (Date.now() ^ 0x5eed) >>> 0) {
   return {
     coins: STARTING_COINS,
     // Owned tier index per gear slot (tiers are sequential); equipped = highest owned.
     gear: { rod: 0, reel: 0, line: 0, hook: 0 },
+    bag: 0, // tier index into BAGS (capacity of sellable fish)
     ownedTackle: [],
     equippedTackle: null,
     boatOwned: false,
@@ -31,6 +32,7 @@ export function serialize(state, rng) {
     savedAt: Date.now(),
     coins: state.coins,
     gear: { ...state.gear },
+    bag: state.bag,
     ownedTackle: [...state.ownedTackle],
     equippedTackle: state.equippedTackle,
     boatOwned: state.boatOwned,
@@ -59,6 +61,8 @@ export function deserialize(data) {
       s.gear[slot] = Number.isInteger(tier) && tier >= 0 && tier < GEAR[slot].length ? tier : 0;
     }
   }
+  const bag = num(data.bag, 0);
+  s.bag = Number.isInteger(bag) && bag >= 0 && bag < BAGS.length ? bag : 0;
   if (Array.isArray(data.ownedTackle)) s.ownedTackle = [...new Set(data.ownedTackle.filter(id => TACKLE_BY_ID[id]))];
   s.equippedTackle = s.ownedTackle.includes(data.equippedTackle) ? data.equippedTackle : null;
   s.boatOwned = data.boatOwned === true;
@@ -78,6 +82,7 @@ export function deserialize(data) {
         value: Math.max(1, Math.round(num(r.value, 1))),
         uid: Number.isInteger(r.uid) ? r.uid : null,
         sold: r.sold === true,
+        released: r.released === true,
       };
     }
   }

@@ -71,6 +71,9 @@ const ui = createUI({
   buyTackle(id) {
     if (economy.buyTackle(state, id)) { ui.toast(`Equipped ${content.TACKLE_BY_ID[id].name}`); audio.play("buy"); afterChange(); }
   },
+  buyBag() {
+    if (economy.buyBag(state)) { ui.toast(`${content.BAGS[state.bag].name}: ${economy.bagCapacity(state)} slots`); audio.play("buy"); afterChange(); }
+  },
   equipTackle(id) {
     if (economy.equipTackle(state, id)) { ui.toast(`Equipped ${content.TACKLE_BY_ID[id].name}`); audio.play("ui"); afterChange(); }
   },
@@ -81,7 +84,7 @@ const ui = createUI({
 });
 
 function closeCatchCard() {
-  if (!ui.catchVisible()) return;
+  if (!ui.catchVisible() || !ui.catchReady()) return;
   ui.hideCatchResult();
   game.session = null;
   audio.play("ui");
@@ -115,7 +118,17 @@ if (matchMedia("(pointer: coarse)").matches || params.has("touch")) markTouch();
 addEventListener("touchstart", markTouch, { once: true, passive: true });
 
 addEventListener("keydown", e => {
+  const consume = () => { e.stopImmediatePropagation(); e.preventDefault(); input.cancelInteract(); };
+  if (e.code === "KeyE" && !e.repeat && (ui.catchVisible() || ui.anyDialogOpen())) {
+    if (ui.catchVisible()) closeCatchCard();
+    else ui.dialogPrimary();
+    consume();
+    return;
+  }
   if (e.code === "Escape" && ui.catchVisible()) { closeCatchCard(); return; }
+}, { capture: true });
+
+addEventListener("keydown", e => {
   if (e.repeat || ui.anyDialogOpen() || game.session) return;
   if (e.code === "KeyI") ui.openBag();
   if (e.code === "KeyC") ui.openBoard();
@@ -166,6 +179,7 @@ function actionLabelFor(it) {
 }
 
 function startFishing(spot) {
+  if (economy.bagFull(state)) ui.toast(`Bag full (${state.inventory.length}/${economy.bagCapacity(state)}) — only new species can be kept. Sell at the shop!`);
   const stats = fishing.getStats(state);
   const bucket = timeBucket(state.timeMs);
   game.session = fishing.startCast(rng, spot.location, bucket, stats);
@@ -197,8 +211,9 @@ function updateSession(actions, dtMs) {
   const s = game.session;
   const stats = fishing.getStats(state);
   if (ui.catchVisible()) return; // closed only by its Continue button or Esc
-  const hookPress = actions.interact || (s.phase === "bite" && actions.taps.length > 0);
-  if (hookPress && (s.phase === "bite" || actions.interact)) {
+  const reelIn = actions.interact && (s.phase === "cast" || s.phase === "wait");
+  const hook = actions.hook && s.phase === "bite";
+  if (reelIn || hook) {
     const ev = fishing.pressAction(s, rng, stats);
     if (ev === "hooked") audio.play("hook", s.hookQuality === "perfect");
     if (ev === "early") { finishSession(); return; }

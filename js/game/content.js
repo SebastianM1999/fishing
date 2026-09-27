@@ -17,6 +17,13 @@ export const REGIONS = {
   sea: { id: "sea", name: "Beach & docks", price: 750, sign: "Beach & docks under construction" },
 };
 
+// Fish bag tiers: sellable fish you can carry. First catches go to the wallboard and take no space.
+export const BAGS = [
+  { id: "bag_pouch", name: "Canvas Pouch", price: 0, slots: 8 },
+  { id: "bag_basket", name: "Fishing Basket", price: 200, slots: 15 },
+  { id: "bag_creel", name: "Big Creel", price: 600, slots: 30 },
+];
+
 // First catch of a species pays a wallboard bonus equal to this fraction of the specimen's value.
 export const DISCOVERY_BONUS = 1.0;
 

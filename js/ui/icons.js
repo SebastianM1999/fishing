@@ -16,7 +16,7 @@ export const ICONS = {
   fish: svg(`<path d="M3 12c3-5 10-6 14-1l4-3v8l-4-3c-4 5-11 4-14-1Z" fill="#6fa3c9" stroke="#3d6688" stroke-width="1.2"/><circle cx="7" cy="11" r="1" fill="#1d1a18"/>`),
   bag: svg(`<path d="M6 8h12l1 12H5Z" fill="#c49a5a" stroke="#8a6242" stroke-width="1.3"/><path d="M9 8a3 3 0 0 1 6 0" fill="none" stroke="#8a6242" stroke-width="1.6"/>`),
   board: svg(`<rect x="3" y="4" width="18" height="14" rx="1.5" fill="#b98a58" stroke="#6b4a2e"/><rect x="5.5" y="6.5" width="5" height="4" rx="1" fill="#fbf4e4"/><rect x="13.5" y="6.5" width="5" height="4" rx="1" fill="#fbf4e4"/><rect x="5.5" y="12" width="5" height="4" rx="1" fill="#fbf4e4"/><rect x="13.5" y="12" width="5" height="4" rx="1" fill="#d9ccb4"/><path d="M8 18v3M16 18v3" stroke="#6b4a2e" stroke-width="1.6"/>`),
-  gear: svg(`<circle cx="12" cy="12" r="3.2" ${ink}/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1" ${ink}/>`),
+  gear: svg(`<path d="M10.3 2.5h3.4l.5 2.6a7.5 7.5 0 0 1 1.9 1.1l2.5-.9 1.7 2.9-2 1.7a7.6 7.6 0 0 1 0 2.2l2 1.7-1.7 2.9-2.5-.9a7.5 7.5 0 0 1-1.9 1.1l-.5 2.6h-3.4l-.5-2.6a7.5 7.5 0 0 1-1.9-1.1l-2.5.9-1.7-2.9 2-1.7a7.6 7.6 0 0 1 0-2.2l-2-1.7 1.7-2.9 2.5.9a7.5 7.5 0 0 1 1.9-1.1Z" ${ink}/><circle cx="12" cy="12" r="3" ${ink}/>`),
   music: svg(`<path d="M9 18V6l11-2v12" ${ink}/><circle cx="6.5" cy="18" r="2.5" ${ink}/><circle cx="17.5" cy="16" r="2.5" ${ink}/>`),
   speaker: svg(`<path d="M4 9h4l5-4v14l-5-4H4Z" ${ink}/><path d="M16 9c1.5 1.5 1.5 4.5 0 6M18.5 6.5c3 3 3 8 0 11" ${ink}/>`),
   leaf: svg(`<path d="M5 19C5 10 10 5 20 4c0 10-6 15-15 15Z" ${ink}/><path d="M5 19 13 11" ${ink}/>`),

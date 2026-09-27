@@ -419,3 +419,20 @@ dialog.panel.small { width: min(420px, calc(100vw - 24px)); }
 .mg-mouse .ico { width: 16px; height: 16px; }
 @media (pointer: coarse) { .hint-keys { display: none; } }
 @keyframes jitter { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-1.5px); } 75% { transform: translateX(1.5px); } }
+
+/* Bag capacity & fixes ------------------------------------------------------ */
+.fish-row svg { width: auto; }
+.fish-row > svg { width: 64px; height: auto; }
+.fish-row .rarity-icon svg { width: 100%; height: 100%; }
+.badge.full { background: var(--danger); }
+.bag-count { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; }
+.bag-count .ico { width: 22px; height: 22px; }
+.bag-slots { display: flex; flex-wrap: wrap; gap: 3px; flex: 1; max-width: 260px; }
+.bag-slots i { width: 12px; height: 12px; border-radius: 4px; background: #e6d9bf; box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.12); }
+.bag-slots i.on { background: var(--leaf); }
+.bag-slots.full i.on { background: var(--danger); }
+.bag-note { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; font-size: 13px; color: var(--ink-soft); }
+.bag-note .ico { width: 18px; height: 18px; flex: none; }
+.catch-note.warn { color: var(--danger); }
+.catch-extra .ico { width: 18px; height: 18px; vertical-align: -3px; }
+@media (max-width: 640px) { .fish-row > svg { width: 48px; } }

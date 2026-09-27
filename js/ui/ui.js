@@ -1,7 +1,7 @@
 // HTML/CSS UI: HUD, fishing panel, catch card, shop, bag, wallboard. Reads state; calls handlers for actions.
 import {
   FISH, FISH_BY_ID, TIME_LABELS, LOCATION_LABELS, RARITY_LABELS, GEAR, GEAR_SLOTS, GEAR_LABELS,
-  TACKLE,
+  TACKLE, BAGS,
 } from "../game/content.js";
 import { fishSvg, rarityIcon } from "./fishArt.js";
 import { ICONS } from "./icons.js";
@@ -79,6 +79,7 @@ export function createUI(handlers) {
     const b = e.target.closest("button");
     if (!b) return;
     if (b.dataset.buyGear) handlers.buyGear(b.dataset.buyGear);
+    if (b.dataset.buyBag !== undefined) handlers.buyBag();
     if (b.dataset.buyTackle) handlers.buyTackle(b.dataset.buyTackle);
     if (b.dataset.equipTackle) handlers.equipTackle(b.dataset.equipTackle);
   });
@@ -95,7 +96,7 @@ export function createUI(handlers) {
     } else if (!rec) {
       html = `<strong>${f.name}</strong><span>No record yet — catch another one to log your best.</span>`;
     } else {
-      const fate = rec.sold ? `Sold for ${coinHtml(rec.value)}` : rec.uid === null ? `Kept on the wallboard · worth ${coinHtml(rec.value)}` : `In your bag · worth ${coinHtml(rec.value)}`;
+      const fate = rec.sold ? `Sold for ${coinHtml(rec.value)}` : rec.released ? `Released (bag was full) · worth ${coinHtml(rec.value)}` : rec.uid === null ? `Kept on the wallboard · worth ${coinHtml(rec.value)}` : `In your bag · worth ${coinHtml(rec.value)}`;
       html = `<div class="tip-art">${fishSvg(f, { size: 200 })}</div>
         <strong>${f.name} ${rarityHtml(rec.rarity, 22)}</strong>
         <span class="tip-label">Best catch</span>
@@ -138,7 +139,7 @@ export function createUI(handlers) {
     showModal(el.settings);
   }
   $("btn-settings").addEventListener("click", openSettings);
-  function showModal(d) { d.showModal(); handlers.onDialogOpened?.(); }
+  function showModal(d) { d.showModal(); last.dialogOpenedAt = performance.now(); handlers.onDialogOpened?.(); }
 
   el.action.addEventListener("click", () => handlers.onAction());
   el.catchOk.addEventListener("click", () => handlers.onCatchContinue());
@@ -189,6 +190,16 @@ export function createUI(handlers) {
           <div class="stats">${stats}</div>${next ? `<div class="next-name">→ ${next.name}</div>` : ""}</div>
         ${action}</article>`;
     });
+    {
+      const tier = state.bag, cur = BAGS[tier], next = BAGS[tier + 1];
+      const pips = BAGS.map((_, i) => `<i class="${i <= tier ? "on" : ""}"></i>`).join("");
+      const stat = `<span class="stat" title="Bag slots">${ICONS.fish}<span>${cur.slots}</span>${next ? `<span class="arrow">→</span><b>${next.slots}</b>` : ""} slots</span>`;
+      const action = next
+        ? `<button type="button" class="buy" data-buy-bag ${state.coins < next.price ? "disabled" : ""} aria-label="Buy ${next.name} for ${next.price} coins">${coinHtml(next.price)}</button>`
+        : `<span class="max-badge">MAX</span>`;
+      cards.push(`<article class="gear-card" aria-label="Bag"><div class="gear-art" title="Bag">${ICONS.bag}</div>
+        <div class="gear-main"><div class="gear-title">${cur.name}<span class="pips">${pips}</span></div><div class="stats">${stat}</div>${next ? `<div class="next-name">→ ${next.name}</div>` : ""}</div>${action}</article>`);
+    }
     const tackle = TACKLE.map(t => {
       const owned = state.ownedTackle.includes(t.id), equipped = state.equippedTackle === t.id;
       const chips = TACKLE_CHIPS[t.id].map(c => `<span class="chip" title="${c.label}">${ICONS[c.icon]}${c.value}</span>`).join("");
@@ -205,10 +216,11 @@ export function createUI(handlers) {
   }
 
   function renderBag() {
-    el.bagBody.innerHTML = state.inventory.length
-      ? `<div class="list-head"><span>${state.inventory.length} fish · worth ${coinHtml(state.inventory.reduce((s, f) => s + f.value, 0))}</span><span class="meta">Sell at the shop</span></div>
-        <ul class="fish-list">${state.inventory.map(f => fishRow(f, { sellable: false })).join("")}</ul>`
-      : `<p class="empty">Your bag is empty. Go fishing!</p>`;
+    const cap = BAGS[state.bag].slots, n = state.inventory.length;
+    const slots = `<div class="bag-slots ${n >= cap ? "full" : ""}" title="${n} of ${cap} slots used">${Array.from({ length: cap }, (_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</div>`;
+    el.bagBody.innerHTML = `<div class="list-head"><span class="bag-count">${ICONS.bag} ${n} / ${cap}</span>${slots}<span>worth ${coinHtml(state.inventory.reduce((a, f) => a + f.value, 0))}</span></div>
+      <p class="bag-note">${ICONS.board} The first catch of each species goes to the wallboard, not your bag.${n >= cap ? " <b>Bag full — sell at the shop.</b>" : ""}</p>
+      ${n ? `<ul class="fish-list">${state.inventory.map(f => fishRow(f, { sellable: false })).join("")}</ul>` : `<p class="empty">Your bag is empty. Go fishing!</p>`}`;
   }
 
   function renderBoard() {
@@ -241,8 +253,9 @@ export function createUI(handlers) {
     el.unlockText.textContent = text;
     el.unlockPrice.textContent = price;
     el.unlockHave.textContent = s.coins >= price ? `(you have ${s.coins})` : `(you have ${s.coins} — keep fishing!)`;
-    el.unlockPay.textContent = confirmLabel;
+    el.unlockPay.innerHTML = `${confirmLabel} <span class="key">E</span>`;
     el.unlockPay.disabled = s.coins < price;
+    last.dialogOpenedAt = performance.now();
     showModal(el.unlock);
   }
 
@@ -270,7 +283,9 @@ export function createUI(handlers) {
       el.timeBar.style.width = `${Math.round(bucketProgress * 100)}%`;
       setText(el.region, "region", region);
       setText(el.collection, "collection", `${s.discovered.length} / 20`);
-      setText(el.bagCount, "bag", String(s.inventory.length));
+      const cap = BAGS[s.bag].slots;
+      setText(el.bagCount, "bag", `${s.inventory.length}/${cap}`);
+      el.bagCount.classList.toggle("full", s.inventory.length >= cap);
     },
 
     setAction(label, locked = false) {
@@ -290,7 +305,7 @@ export function createUI(handlers) {
       if (last.fishPhaseUi !== phase) {
         last.fishPhaseUi = phase;
         el.fishing.dataset.phase = phase;
-        const [ico, text] = phase === "cast" ? ["rod", "Casting…"] : phase === "wait" ? ["bobber", "Waiting for a bite…"] : phase === "bite" ? ["alert", "Bite! Hook it now!"] : [session.hookQuality === "perfect" ? "star" : "check", session.hookQuality === "perfect" ? "Perfect hook!" : "Hooked!"];
+        const [ico, text] = phase === "cast" ? ["rod", "Casting…"] : phase === "wait" ? ["bobber", "Waiting for a bite…"] : phase === "bite" ? ["alert", "Bite! Click or press Space!"] : [session.hookQuality === "perfect" ? "star" : "check", session.hookQuality === "perfect" ? "Perfect hook!" : "Hooked!"];
         el.statusIco.innerHTML = ICONS[ico];
         el.statusText.textContent = text;
       }
@@ -349,9 +364,11 @@ export function createUI(handlers) {
         el.catchTitle.textContent = `${species.name}`;
         el.catchTitle.innerHTML = `${rarityHtml(enc.rarity, 28)} ${species.name}`;
         el.catchDetails.innerHTML = `${RARITY_LABELS[enc.rarity]} · ${enc.sizeCm.toFixed(1)} cm · value ${coinHtml(enc.value)}`;
+        const cap = BAGS[state.bag].slots;
         el.catchNote.textContent = result.discovered
-          ? `New discovery! Added to the wallboard (${state.discovered.length} / 20).`
-          : "Added to your bag.";
+          ? `New discovery! Kept on the wallboard (${state.discovered.length} / 20).`
+          : result.released ? `Your bag is full (${state.inventory.length}/${cap}) — you let it go.` : `Added to your bag (${state.inventory.length}/${cap}).`;
+        el.catchNote.classList.toggle("warn", !!result.released);
         el.catchExtra.innerHTML = result.discovered
           ? `Wallboard bonus ${coinHtml(`+${result.bonus}`)}`
           : result.newRecord ? `${ICONS.star} New personal best for this species!` : "";
@@ -363,6 +380,15 @@ export function createUI(handlers) {
       last.catchGuard = setTimeout(() => { el.catchOk.disabled = false; }, 700);
     },
     hideCatchResult() { el.catchCard.hidden = true; },
+    catchReady: () => !el.catchOk.disabled,
+    /** E inside a dialog: confirm a purchase (after a short guard), otherwise close the dialog. */
+    dialogPrimary() {
+      const open = [el.unlock, el.shop, el.bag, el.board, el.settings].find(d => d.open);
+      if (!open) return;
+      if (performance.now() - (last.dialogOpenedAt ?? 0) < 350) return;
+      if (open === el.unlock && !el.unlockPay.disabled) el.unlockPay.click();
+      else open.close();
+    },
     catchVisible: () => !el.catchCard.hidden,
 
     fade(on) { el.fade.classList.toggle("on", on); },

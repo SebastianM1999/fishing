@@ -1,14 +1,16 @@
 // Keyboard, mouse, touch and virtual joystick normalized into the same game actions:
-//   move {x, y} (screen space, y = up), interact (edge), reel (held), worldTap (screen point)
+//   move {x, y} (screen space, y = up), interact (E/Enter/action button, edge),
+//   hook (Space/click edge), reel (Space/pointer held), taps (screen points)
 const MOVE_KEYS = {
   KeyW: [0, 1], ArrowUp: [0, 1], KeyS: [0, -1], ArrowDown: [0, -1],
   KeyA: [-1, 0], ArrowLeft: [-1, 0], KeyD: [1, 0], ArrowRight: [1, 0],
 };
-const INTERACT_KEYS = new Set(["KeyE", "Enter", "Space"]);
+const INTERACT_KEYS = new Set(["KeyE", "Enter"]);
 
 export function createInput({ canvas, joystick, knob, reelPad }) {
   const keys = new Set();
   let interactQueued = false;
+  let hookQueued = false;
   let pointerReel = false;
   let taps = [];
   const stick = { id: null, x: 0, y: 0 };
@@ -20,8 +22,9 @@ export function createInput({ canvas, joystick, knob, reelPad }) {
     if (MOVE_KEYS[e.code] || e.code === "Space") e.preventDefault();
     if (!e.repeat && INTERACT_KEYS.has(e.code)) {
       // Enter/Space on a focused button should click that button, not act in the world.
-      if (!(e.code !== "KeyE" && e.target instanceof HTMLButtonElement)) interactQueued = true;
+      if (!(e.code === "Enter" && e.target instanceof HTMLButtonElement)) interactQueued = true;
     }
+    if (!e.repeat && e.code === "Space" && !(e.target instanceof HTMLButtonElement)) hookQueued = true;
     keys.add(e.code);
   });
   addEventListener("keyup", e => keys.delete(e.code));
@@ -72,6 +75,8 @@ export function createInput({ canvas, joystick, knob, reelPad }) {
 
   return {
     queueInteract() { interactQueued = true; },
+    /** Drop a queued interact (when a keypress was already consumed by a dialog). */
+    cancelInteract() { interactQueued = false; },
     poll() {
       let x = 0, y = 0;
       for (const code of keys) {
@@ -84,10 +89,12 @@ export function createInput({ canvas, joystick, knob, reelPad }) {
       const actions = {
         move: { x, y },
         interact: interactQueued,
+        hook: hookQueued || taps.length > 0,
         reel: pointerReel || keys.has("Space"),
         taps,
       };
       interactQueued = false;
+      hookQueued = false;
       taps = [];
       return actions;
     },

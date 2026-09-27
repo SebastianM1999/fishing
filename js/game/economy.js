@@ -1,5 +1,8 @@
 // Inventory, collection, selling, shop and boat rules on plain state.
-import { GEAR, TACKLE_BY_ID, BOAT_PRICE, REGIONS, RARITY_RANK, DISCOVERY_BONUS } from "./content.js";
+import { GEAR, TACKLE_BY_ID, BOAT_PRICE, REGIONS, RARITY_RANK, DISCOVERY_BONUS, BAGS } from "./content.js";
+
+export const bagCapacity = state => BAGS[state.bag].slots;
+export const bagFull = state => state.inventory.length >= bagCapacity(state);
 
 /** True if catch a beats catch b as a species record: rarer first, then bigger. */
 export function isBetterRecord(a, b) {
@@ -10,26 +13,30 @@ export function isBetterRecord(a, b) {
 
 /**
  * Register a caught fish. The first catch of a species goes to the wallboard (not sellable) and pays a
- * discovery bonus; later copies go to the bag. Either can become the species' best-catch record.
+ * discovery bonus; later copies go to the bag, or are released when the bag is full.
+ * Any catch can become the species' best-catch record.
  */
 export function addCatch(state, encounter) {
   const id = encounter.speciesId;
   const discovered = !state.discovered.includes(id);
   let fish = null;
   let bonus = 0;
+  let released = false;
   if (discovered) {
     state.discovered.push(id);
     bonus = Math.max(1, Math.round(encounter.value * DISCOVERY_BONUS));
     state.coins += bonus;
+  } else if (bagFull(state)) {
+    released = true;
   } else {
     fish = { uid: state.nextFishUid++, ...encounter };
     state.inventory.push(fish);
   }
   const newRecord = isBetterRecord(encounter, state.records[id]);
   if (newRecord) {
-    state.records[id] = { rarity: encounter.rarity, sizeCm: encounter.sizeCm, value: encounter.value, uid: fish ? fish.uid : null, sold: false };
+    state.records[id] = { rarity: encounter.rarity, sizeCm: encounter.sizeCm, value: encounter.value, uid: fish ? fish.uid : null, sold: false, released };
   }
-  return { discovered, fish, bonus, newRecord: newRecord && !discovered };
+  return { discovered, fish, bonus, released, newRecord: newRecord && !discovered };
 }
 
 function markSold(state, fish) {
@@ -52,6 +59,14 @@ export function sellAll(state) {
   state.inventory = [];
   state.coins += total;
   return total;
+}
+
+export function buyBag(state) {
+  const next = BAGS[state.bag + 1];
+  if (!next || state.coins < next.price) return false;
+  state.coins -= next.price;
+  state.bag += 1;
+  return true;
 }
 
 export function unlockRegion(state, id) {

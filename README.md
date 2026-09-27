@@ -15,13 +15,14 @@ Open http://localhost:8080/. Append `?debug` to expose a `window.cozy` test hook
 | Action | Desktop | Touch |
 |---|---|---|
 | Move | WASD / arrow keys, or click the ground | Virtual joystick (bottom left) |
-| Interact / cast / hook | `E` (or `Enter` / `Space`), or the action button | Action button |
-| Reel (minigame) | Hold `Space` or hold the mouse button | Press & hold anywhere |
-| Bag / Collection | `I` / `C` | Buttons (top right) |
+| Interact: cast, reel in, Continue, confirm/close dialogs | `E` (or `Enter`), or the action button | Action button |
+| Hook on a bite | `Space` or mouse click | Tap |
+| Reel (minigame) | Hold `Space` or hold the mouse button | Press & hold |
+| Bag / Collection / close | `I` / `C` / `Esc` | Buttons (top right) |
 
 ## Progression
 
-Start at the lake with 30 coins. Construction barriers close off the **river bank (250 coins)** and the **beach & docks (750 coins)**; pay the builders at the barrier to open them for good. The **boat (1000 coins, shop)** then unlocks offshore fishing from the dock. The first catch of each species goes to the wallboard and pays a bonus equal to its value; the wallboard remembers your best specimen per species (rarest, then biggest) — hover, focus or tap a slot to see it.
+Start at the lake with 30 coins. Construction barriers close off the **river bank (250 coins)** and the **beach & docks (750 coins)**; pay the builders at the barrier to open them for good. The **boat (1000 coins, bought at the sea dock)** then unlocks offshore fishing from the dock. The bag holds 8 sellable fish (upgrades at the shop: 15 for 200, 30 for 600); when it's full, new species still count but other catches are released. The first catch of each species goes to the wallboard and pays a bonus equal to its value; the wallboard remembers your best specimen per species (rarest, then biggest) — hover, focus or tap a slot to see it.
 
 ## Audio
 
