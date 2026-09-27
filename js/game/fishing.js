@@ -1,7 +1,7 @@
 // Cast -> wait -> bite/hook -> catch minigame. Pure simulation on plain data; no DOM or Three.js.
 import {
   FISH, FISH_BY_ID, RARITY_WEIGHTS, RARITY_MULTIPLIER, RARITY_FIGHT, BEHAVIORS, EXHAUSTED,
-  HOOK, BITE_WAIT_MS, MINIGAME, GEAR,
+  HOOK, BITE_WAIT_MS, MINIGAME, GEAR, LEGENDARIES, BOSS_FIGHT,
 } from "./content.js";
 import { skillEffects } from "./skills.js";
 
@@ -36,7 +36,19 @@ export function getStats(state, bucket) {
 }
 
 export function fishTable(location, bucket) {
-  return FISH.filter(f => f.location === location && f.times.includes(bucket));
+  return FISH.filter(f => f.location === location && f.times.includes(bucket) && !f.legendary);
+}
+
+/** Does the player's gear meet a legendary's minimum tiers? Per slot: { slot: [need, has] }. */
+export function huntGear(state, species) {
+  return Object.fromEntries(Object.entries(species.hunt.gear).map(([slot, tier]) => [slot, [tier, state.gear[slot]]]));
+}
+export const gearReady = (state, species) => Object.values(huntGear(state, species)).every(([need, has]) => has >= need);
+export const inHuntWindow = (species, bucket, progress) => species.hunt.bucket === bucket && progress >= species.hunt.window[0] && progress <= species.hunt.window[1];
+
+/** The legendary that can bite here right now (time window + gear), or null. */
+export function huntAt(state, location, bucket, progress) {
+  return LEGENDARIES.find(f => f.location === location && inHuntWindow(f, bucket, progress) && gearReady(state, f)) ?? null;
 }
 
 export function rarityWeights(location, rareWeightMult = 1) {
@@ -57,19 +69,19 @@ export function salePrice(species, rarity, sizeCm) {
   const [min, max] = species.sizeCm;
   const normalizedSize = (sizeCm - min) / (max - min);
   const sizeMultiplier = 0.75 + normalizedSize * 0.5;
-  return Math.max(1, Math.round(species.baseValue * RARITY_MULTIPLIER[rarity] * sizeMultiplier));
+  return Math.max(1, Math.round(species.baseValue * (species.legendary ? 1 : RARITY_MULTIPLIER[rarity]) * sizeMultiplier));
 }
 
-export function rollEncounter(rng, location, bucket, stats) {
-  const table = fishTable(location, bucket);
-  const species = rng.pick(table);
-  const rarity = rollRarity(rng, location, stats.rareWeightMult);
+export function rollEncounter(rng, location, bucket, stats, hunt = null) {
+  const legend = hunt && rng.next() < hunt.hunt.chance;
+  const species = legend ? hunt : rng.pick(fishTable(location, bucket));
+  const rarity = legend ? "legendary" : rollRarity(rng, location, stats.rareWeightMult);
   const sizeCm = Math.round(rng.range(species.sizeCm[0], species.sizeCm[1]) * 10) / 10;
   return { speciesId: species.id, rarity, sizeCm, value: salePrice(species, rarity, sizeCm) };
 }
 
-/** Start a cast. The fish table is chosen from location + current time bucket at cast time. */
-export function startCast(rng, location, bucket, stats) {
+/** Start a cast. The fish table is chosen from location + current time bucket at cast time; hunt = huntAt(...). */
+export function startCast(rng, location, bucket, stats, hunt = null) {
   const waitMs = rng.range(BITE_WAIT_MS[0] * stats.biteWaitMult, BITE_WAIT_MS[1] * stats.biteWaitMult);
   return {
     phase: "cast",
@@ -81,7 +93,7 @@ export function startCast(rng, location, bucket, stats) {
     hookWindowMs: stats.hookWindowMs,
     perfectMs: stats.perfectMs,
     whisper: stats.fishWhisperer,
-    encounter: rollEncounter(rng, location, bucket, stats),
+    encounter: rollEncounter(rng, location, bucket, stats, hunt),
     hookQuality: null,
     fight: null,
     outcome: null, // "caught" | "missed" | "early" | "broke" | "escaped"
@@ -125,6 +137,8 @@ function createFight(session, rng, stats) {
     inside: false,
     elapsed: 0,
     secondWind: stats.secondWind, // unused Second Wind charge for this fight
+    boss: !!species.legendary,
+    rage: 0, // enraged bursts triggered so far (boss fights)
   };
   enterPhase(fight, "normal", rng);
   return fight;
@@ -134,6 +148,7 @@ function enterPhase(fight, phase, rng) {
   const b = BEHAVIORS[fight.behavior];
   const r = RARITY_FIGHT[fight.rarity];
   fight.fishPhase = phase;
+  fight.enraged = false;
   if (phase === "normal") fight.phaseLeft = rng.range(...b.normalTime) * r.burstEvery;
   else if (phase === "burst") fight.phaseLeft = rng.range(...b.burstTime);
   else fight.phaseLeft = rng.range(...EXHAUSTED.time);
@@ -193,7 +208,17 @@ function updateFight(session, dt, held, rng, stats) {
   // Fish movement.
   f.retargetIn -= dt;
   if (f.retargetIn <= 0 || Math.abs(f.fishTarget - f.fishPos) < 0.005) retarget(f, rng);
-  let speed = burst ? b.burstSpeed * r.burstStrength * stats.burstMult : b.speed;
+  // Boss fights: each third of the way the legendary goes into an enraged burst.
+  let event = null;
+  if (f.boss && f.rage < BOSS_FIGHT.rageAt.length && f.progress >= BOSS_FIGHT.rageAt[f.rage]) {
+    f.rage += 1;
+    enterPhase(f, "burst", rng);
+    f.enraged = true;
+    f.phaseLeft = BOSS_FIGHT.rageTime;
+    event = "rage";
+  }
+  const rageK = f.enraged ? BOSS_FIGHT.rageSpeed : 1;
+  let speed = (burst || f.enraged ? b.burstSpeed * r.burstStrength * stats.burstMult : b.speed) * rageK;
   if (exhausted) speed *= EXHAUSTED.speedMult;
   const delta = f.fishTarget - f.fishPos;
   f.fishPos += Math.sign(delta) * Math.min(Math.abs(delta), speed * dt);
@@ -208,14 +233,14 @@ function updateFight(session, dt, held, rng, stats) {
   // Catch progress.
   f.inside = Math.abs(f.fishPos - f.zonePos) <= half;
   if (f.inside) {
-    f.progress += MINIGAME.progressGain * stats.reelSpeed * r.progressGain * (exhausted ? EXHAUSTED.progressGainMult : 1) * dt;
+    f.progress += MINIGAME.progressGain * stats.reelSpeed * r.progressGain * (f.boss ? BOSS_FIGHT.progressGain : 1) * (exhausted ? EXHAUSTED.progressGainMult : 1) * dt;
   } else {
     f.progress -= MINIGAME.progressLoss * stats.progressLossMult * dt;
   }
 
   // Line tension.
   if (held) {
-    const spike = burst ? b.tensionSpike * r.burstStrength * stats.burstMult : 1;
+    const spike = (burst || f.enraged ? b.tensionSpike * r.burstStrength * stats.burstMult : 1) * (f.enraged ? BOSS_FIGHT.rageTension : 1);
     f.tension += MINIGAME.tensionGrowth * stats.tensionGrowthMult * spike * (exhausted ? EXHAUSTED.tensionGrowthMult : 1) * dt;
   } else {
     f.tension = Math.max(0, f.tension - MINIGAME.tensionRecovery * stats.reelRecovery * dt);
@@ -225,5 +250,5 @@ function updateFight(session, dt, held, rng, stats) {
   if (f.tension >= f.tensionLimit) { session.phase = "done"; session.outcome = "broke"; return "broke"; }
   if (f.progress >= 1) { f.progress = 1; session.phase = "done"; session.outcome = "caught"; return "caught"; }
   if (f.progress <= 0) { f.progress = 0; session.phase = "done"; session.outcome = "escaped"; return "escaped"; }
-  return null;
+  return event;
 }

@@ -47,11 +47,13 @@
   <button type="button" id="action-btn" class="action-btn" hidden><span class="key" id="action-key">E</span> <span id="action-label">Fish</span></button>
 
   <section id="fishing" class="fishing-panel" hidden aria-live="polite">
+    <div class="legend-banner" id="legend-banner" hidden>✦ Legendary! ✦</div>
     <div class="fishing-status" id="fishing-status"><span class="status-ico" id="fishing-status-ico"></span><span id="fishing-status-text">Casting…</span><span class="whisper" id="fishing-whisper" hidden></span></div>
     <div id="minigame" class="minigame" hidden>
       <div class="mg-head">
         <span class="mg-behavior"><span class="mg-behavior-ico" id="mg-behavior-ico"></span><span id="mg-behavior">Fish on!</span></span>
         <span id="mg-phase" class="mg-phase" hidden></span>
+        <span id="mg-boss" class="mg-boss" hidden></span>
       </div>
       <div class="lane" id="mg-lane">
         <div class="lane-waves" aria-hidden="true"></div>
@@ -85,6 +87,7 @@
   <div id="joystick" class="joystick" aria-hidden="true"><div id="joystick-knob" class="knob"></div></div>
   <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
   <div id="fade" class="fade" aria-hidden="true"></div>
+  <div id="vignette" class="vignette" aria-hidden="true"></div>
 
   <dialog id="shop-dialog" class="panel" aria-labelledby="shop-title">
     <header class="panel-head">

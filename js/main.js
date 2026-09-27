@@ -241,7 +241,8 @@ function startFishing(spot) {
   if (economy.bagFull(state)) ui.toast(`Bag full (${state.inventory.length}/${economy.bagCapacity(state)}) — only new species can be kept. Sell at the shop!`);
   const bucket = timeBucket(state.timeMs);
   const stats = fishing.getStats(state, bucket);
-  game.session = fishing.startCast(rng, spot.location, bucket, stats);
+  const hunt = fishing.huntAt(state, spot.location, bucket, bucketProgress(state.timeMs));
+  game.session = fishing.startCast(rng, spot.location, bucket, stats, hunt);
   game.session.spot = spot;
   game.moveTarget = null;
   state.player.x = spot.x; state.player.z = spot.z; state.player.facing = spot.facing;
@@ -278,7 +279,7 @@ function finishSession() {
     xp = awardCatchXp(s);
     orders.recordCatch(state, s.encounter, s.location, s.bucket);
     saveSoon();
-    audio.play("catch");
+    audio.play(content.FISH_BY_ID[s.encounter.speciesId].legendary ? "legendcatch" : "catch");
     if (economy.isNewSpecies(state, s.encounter)) {
       game.sessionResult = { newSpecies: true };
       audio.play("discover");
@@ -312,8 +313,9 @@ function updateSession(actions, dtMs) {
   const ev = fishing.updateFishing(s, dtMs, { reelHeld: s.reelHeld }, rng, stats);
   if (before === "cast" && s.phase === "wait") audio.play("plop");
   if (ev === "secondwind") { audio.play("secondwind"); ui.toast("Second wind! The line holds."); }
+  if (ev === "rage") audio.play("rage");
   if (ev === "bite") {
-    audio.play("bite");
+    audio.play(content.FISH_BY_ID[s.encounter.speciesId].legendary ? "legendbite" : "bite");
     if (document.body.classList.contains("touch") && navigator.userActivation?.hasBeenActive) navigator.vibrate?.(80);
   }
   if (s.phase === "done") finishSession();
@@ -367,7 +369,7 @@ function frame(now) {
   game.ordersSeen = true;
 
   const bucket = timeBucket(state.timeMs);
-  let finder = null;
+  let finder = null, finderHunt = null;
   if (game.travelling || dialogOpen) {
     game.walking = false;
     ui.setAction(null);
@@ -383,11 +385,14 @@ function frame(now) {
     if (it) {
       const { label, locked } = actionLabelFor(it);
       ui.setAction(label, locked);
-      if (it.type === "fish" && skills.skillEffects(state).fishFinder) finder = fishing.fishTable(it.location, bucket);
+      if (it.type === "fish" && skills.skillEffects(state).fishFinder) {
+        finder = fishing.fishTable(it.location, bucket);
+        finderHunt = fishing.huntAt(state, it.location, bucket, bucketProgress(state.timeMs));
+      }
       if (actions.interact) interact(it);
     } else ui.setAction(null);
   }
-  ui.setFinder(game.session ? null : finder, state.discovered);
+  ui.setFinder(game.session ? null : finder, state.discovered, finderHunt);
 
   ui.updateHud(state, bucket, bucketProgress(state.timeMs), regionName(state.player));
   ui.updateFishing(game.session);

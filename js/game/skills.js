@@ -83,7 +83,8 @@ export function skillEffects(state, bucket) {
 
 /** XP for one catch (before skill multipliers when mult is omitted). */
 export function catchXp(species, rarity, sizeCm, { first = false, perfect = false, mult = 1 } = {}) {
-  const base = Math.round((6 + species.baseValue * 0.25) * RARITY_XP[rarity] * (1 + normalizedSize(species, sizeCm) * 0.5));
+  // Named legendaries already have a huge baseValue, so they use the rare multiplier.
+  const base = Math.round((6 + species.baseValue * 0.25) * (species.legendary ? RARITY_XP.rare : RARITY_XP[rarity]) * (1 + normalizedSize(species, sizeCm) * 0.5));
   return Math.round((base + (first ? XP_FIRST_CATCH : 0) + (perfect ? XP_PERFECT_HOOK : 0)) * mult);
 }
 
