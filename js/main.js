@@ -25,9 +25,7 @@ const game = {
   travelling: false,
   elapsed: 0,
   saveTimer: 0,
-  stepDist: 0,
 };
-const STEP_LENGTH = 0.85; // world units between footstep sounds
 
 // --- Persistence -----------------------------------------------------------
 let saveQueued = null;
@@ -79,7 +77,15 @@ const ui = createUI({
   getPrefs: () => audio.prefs,
   setPref: (name, value) => audio.setPref(name, value),
   onDialogOpened: () => audio.play("open"),
+  onCatchContinue: closeCatchCard,
 });
+
+function closeCatchCard() {
+  if (!ui.catchVisible()) return;
+  ui.hideCatchResult();
+  game.session = null;
+  audio.play("ui");
+}
 
 function unlockRegion(id) {
   if (!economy.unlockRegion(state, id)) return;
@@ -109,6 +115,7 @@ if (matchMedia("(pointer: coarse)").matches || params.has("touch")) markTouch();
 addEventListener("touchstart", markTouch, { once: true, passive: true });
 
 addEventListener("keydown", e => {
+  if (e.code === "Escape" && ui.catchVisible()) { closeCatchCard(); return; }
   if (e.repeat || ui.anyDialogOpen() || game.session) return;
   if (e.code === "KeyI") ui.openBag();
   if (e.code === "KeyC") ui.openBoard();
@@ -189,10 +196,7 @@ function finishSession() {
 function updateSession(actions, dtMs) {
   const s = game.session;
   const stats = fishing.getStats(state);
-  if (ui.catchVisible()) {
-    if (actions.interact || actions.taps.length) { ui.hideCatchResult(); game.session = null; }
-    return;
-  }
+  if (ui.catchVisible()) return; // closed only by its Continue button or Esc
   const hookPress = actions.interact || (s.phase === "bite" && actions.taps.length > 0);
   if (hookPress && (s.phase === "bite" || actions.interact)) {
     const ev = fishing.pressAction(s, rng, stats);
@@ -241,8 +245,6 @@ function updateMovement(actions, dt) {
   if (p.x === ox && p.z === oz) { game.moveTarget = null; return; }
   p.facing = Math.atan2(mx, mz);
   game.walking = true;
-  game.stepDist += Math.hypot(p.x - ox, p.z - oz);
-  if (game.stepDist > STEP_LENGTH) { game.stepDist = 0; audio.play("step", surfaceAt(p.x, p.z, p.area)); }
 }
 
 // --- Main loop -------------------------------------------------------------
@@ -280,7 +282,8 @@ function frame(now) {
   ui.updateHud(state, bucket, bucketProgress(state.timeMs), regionName(state.player));
   ui.updateFishing(game.session);
   const result = ui.catchVisible() && game.session ? (game.session.outcome === "caught" ? "caught" : "lost") : null;
-  renderer.render({ state, session: game.session, walking: game.walking, dt, elapsed: game.elapsed, result });
+  const view = renderer.render({ state, session: game.session, walking: game.walking, dt, elapsed: game.elapsed, result });
+  if (view.footstep) audio.play("step", surfaceAt(state.player.x, state.player.z, state.player.area));
   const fight = game.session?.phase === "fight" ? game.session.fight : null;
   audio.update({ bucket, area: state.player.area, x: state.player.x, z: state.player.z, fightHeld: !!(fight && game.session.reelHeld), tension: fight ? fight.tension / fight.tensionLimit : 0 });
 

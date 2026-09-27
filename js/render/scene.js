@@ -175,7 +175,7 @@ export function createRenderer(canvas) {
   const camTarget = new THREE.Vector3(), camLook = new THREE.Vector3(), sunDir = new THREE.Vector3();
   const raycaster = new THREE.Raycaster();
   const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-  let camInit = false, shownFacing = Math.PI, walkPhase = 0, heldSpecies = null;
+  let camInit = false, shownFacing = Math.PI, walkPhase = 0, heldSpecies = null, footstep = false;
   const pose = { legL: 0, legR: 0, armLx: 0, armLz: 0, armRx: 0, armRz: 0, foreL: 0, foreR: 0, torsoX: 0, headX: 0, headY: 0, bodyY: 0 };
 
   function resize() {
@@ -236,7 +236,10 @@ export function createRenderer(canvas) {
   function animatePlayer(mode, session, dt, t) {
     const target = { legL: 0, legR: 0, armLx: 0.05 * Math.sin(t), armLz: -0.08, armRx: 0.05 * Math.sin(t + 1), armRz: 0.08, foreL: -0.15, foreR: -0.15, torsoX: 0, headX: 0, headY: Math.sin(t * 0.45) * 0.35, bodyY: 0 };
     if (mode === "walk") {
+      const before = walkPhase;
       walkPhase += dt * 11;
+      // A foot lands at each half cycle of the leg swing.
+      if (Math.floor(before / Math.PI) !== Math.floor(walkPhase / Math.PI)) footstep = true;
       const s = Math.sin(walkPhase);
       Object.assign(target, { legL: s * 0.65, legR: -s * 0.65, armLx: -s * 0.55, armRx: s * 0.55, foreL: -0.4, foreR: -0.4, headY: 0, bodyY: Math.abs(Math.cos(walkPhase)) * 0.07, torsoX: 0.06 });
     } else if (mode === "cast") {
@@ -304,6 +307,7 @@ export function createRenderer(canvas) {
 
   function render({ state, session, walking, dt, elapsed, result }) {
     TIME.value = elapsed;
+    footstep = false;
     const p = state.player;
     P.root.position.set(p.x, p.area === "offshore" ? 0.12 : 0.02, p.z);
     let dFacing = p.facing - shownFacing;
@@ -384,7 +388,7 @@ export function createRenderer(canvas) {
     ducks.forEach((d, i) => {
       const a = elapsed * (i ? -0.12 : 0.09) + i * 2.5, r = i ? 3.2 : 4.6;
       d.position.set(lk.x + Math.cos(a) * r, LAKE_Y - 0.02 + Math.sin(elapsed * 2 + i) * 0.02, lk.z + Math.sin(a) * r);
-      d.rotation.y = -a + (i ? 0 : Math.PI);
+      d.rotation.y = -a + (i ? Math.PI : 0); // clockwise vs counter-clockwise swimmer
     });
     for (const g of gulls) {
       const o = g.userData.orbit, a = elapsed * 0.35 + o.phase;
@@ -442,6 +446,7 @@ export function createRenderer(canvas) {
     sun.position.copy(camLook).add(sunDir);
 
     renderer.render(scene, camera);
+    return { footstep };
   }
 
   resize();

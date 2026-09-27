@@ -22,13 +22,8 @@ const TACKLE_CHIPS = {
 };
 
 const $ = id => document.getElementById(id);
-const BEHAVIOR_HINTS = {
-  calm: "A calm fish drifts on the line",
-  darting: "A darting fish makes sudden dashes!",
-  zigzag: "A zigzagging fish keeps changing course!",
-  heavy: "A heavy fish is pulling hard!",
-  frenzy: "A fish in a frenzy thrashes wildly!",
-};
+const BEHAVIOR_ICONS = { calm: "smooth", darting: "speed", zigzag: "zigzag", heavy: "weight", frenzy: "flame" };
+const BEHAVIOR_HINTS = { calm: "Calm fish", darting: "Darting fish", zigzag: "Zigzagging fish", heavy: "Heavy fish", frenzy: "Frenzied fish" };
 
 const coinHtml = n => `<span class="value"><span class="coin-icon" aria-hidden="true"></span>${n}</span>`;
 const rarityHtml = (r, size) => rarityIcon(r, size);
@@ -38,8 +33,9 @@ export function createUI(handlers) {
     coins: $("hud-coins"), time: $("hud-time"), timeChip: $("hud-time-chip"), timeBar: $("hud-time-bar"),
     region: $("hud-region"), collection: $("hud-collection"), bagCount: $("bag-count"),
     action: $("action-btn"), actionLabel: $("action-label"),
-    fishing: $("fishing"), status: $("fishing-status"), minigame: $("minigame"),
-    mgBehavior: $("mg-behavior"), mgPhase: $("mg-phase"), zone: $("mg-zone"), laneFish: $("mg-fish"),
+    fishing: $("fishing"), status: $("fishing-status"), statusIco: $("fishing-status-ico"), statusText: $("fishing-status-text"), minigame: $("minigame"),
+    mgBehavior: $("mg-behavior"), mgBehaviorIco: $("mg-behavior-ico"), mgPhase: $("mg-phase"), zone: $("mg-zone"), laneFish: $("mg-fish"),
+    progressVal: $("mg-progress-val"), tensionVal: $("mg-tension-val"), catchOk: $("catch-ok"),
     progress: $("mg-progress"), tension: $("mg-tension"),
     catchCard: $("catch-card"), catchArt: $("catch-art"), catchTitle: $("catch-title"), catchDetails: $("catch-details"), catchNote: $("catch-note"),
     toasts: $("toasts"), fade: $("fade"),
@@ -145,7 +141,12 @@ export function createUI(handlers) {
   function showModal(d) { d.showModal(); handlers.onDialogOpened?.(); }
 
   el.action.addEventListener("click", () => handlers.onAction());
-  $("catch-ok").addEventListener("click", () => handlers.onAction());
+  el.catchOk.addEventListener("click", () => handlers.onCatchContinue());
+  // Space/Enter are catching keys: never let them activate the Continue button.
+  el.catchOk.addEventListener("keydown", e => { if (e.code === "Space" || e.code === "Enter") e.preventDefault(); });
+  el.catchOk.addEventListener("keyup", e => { if (e.code === "Space" || e.code === "Enter") e.preventDefault(); });
+  document.querySelectorAll("#fishing [data-icon]").forEach(n => { n.innerHTML = ICONS[n.dataset.icon]; });
+  el.laneFish.innerHTML = `<svg viewBox="0 0 64 32" aria-hidden="true"><path d="M4 16c8-11 30-13 42-4l12-9v26l-12-9C34 29 12 27 4 16Z" fill="currentColor"/><path d="M22 8c4-5 12-6 16-3-5 1-9 3-11 6Z" fill="currentColor"/><circle cx="13" cy="14" r="2.2" fill="#fff" opacity="0.9"/></svg><span class="fish-zzz">z</span>`;
   $("btn-bag").addEventListener("click", () => openBag());
   $("btn-board").addEventListener("click", () => openBoard());
 
@@ -286,30 +287,44 @@ export function createUI(handlers) {
       if (!show) return;
       const phase = session.phase;
       el.minigame.hidden = phase !== "fight";
-      el.status.classList.toggle("bite", phase === "bite");
-      if (phase === "cast") setText(el.status, "status", "Casting…");
-      else if (phase === "wait") setText(el.status, "status", "Waiting for a bite…");
-      else if (phase === "bite") setText(el.status, "status", "! BITE — hook it now!");
-      else if (phase === "fight") {
-        const f = session.fight;
-        setText(el.status, "status", session.hookQuality === "perfect" ? "Perfect hook!" : "Hooked!");
-        setText(el.mgBehavior, "behavior", BEHAVIOR_HINTS[f.behavior]);
-        const phaseLabel = f.fishPhase === "burst" ? "Burst!" : f.fishPhase === "exhausted" ? "Tired…" : "";
-        if (last.mgPhase !== f.fishPhase) {
-          last.mgPhase = f.fishPhase;
-          el.mgPhase.textContent = phaseLabel;
-          el.mgPhase.className = `mg-phase ${f.fishPhase}`;
-          el.laneFish.classList.toggle("burst", f.fishPhase === "burst");
-        }
-        el.zone.style.width = `${f.zoneWidth * 100}%`;
-        el.zone.style.left = `${(f.zonePos - f.zoneWidth / 2) * 100}%`;
-        el.zone.classList.toggle("inside", f.inside);
-        el.laneFish.style.left = `${f.fishPos * 100}%`;
-        el.progress.style.width = `${f.progress * 100}%`;
-        const tf = f.tension / f.tensionLimit;
-        el.tension.style.width = `${Math.min(100, tf * 100)}%`;
-        el.tension.classList.toggle("high", tf > 0.75);
+      if (last.fishPhaseUi !== phase) {
+        last.fishPhaseUi = phase;
+        el.fishing.dataset.phase = phase;
+        const [ico, text] = phase === "cast" ? ["rod", "Casting…"] : phase === "wait" ? ["bobber", "Waiting for a bite…"] : phase === "bite" ? ["alert", "Bite! Hook it now!"] : [session.hookQuality === "perfect" ? "star" : "check", session.hookQuality === "perfect" ? "Perfect hook!" : "Hooked!"];
+        el.statusIco.innerHTML = ICONS[ico];
+        el.statusText.textContent = text;
       }
+      if (phase !== "fight") return;
+      const f = session.fight;
+      if (last.behavior !== f.behavior) {
+        last.behavior = f.behavior;
+        el.mgBehavior.textContent = BEHAVIOR_HINTS[f.behavior];
+        el.mgBehaviorIco.innerHTML = ICONS[BEHAVIOR_ICONS[f.behavior]];
+        el.minigame.dataset.rarity = f.rarity;
+      }
+      if (last.mgPhase !== f.fishPhase) {
+        last.mgPhase = f.fishPhase;
+        el.mgPhase.hidden = f.fishPhase === "normal";
+        el.mgPhase.innerHTML = f.fishPhase === "burst" ? `${ICONS.burst} Burst!` : `${ICONS.sleep} Tired`;
+        el.mgPhase.className = `mg-phase ${f.fishPhase}`;
+        el.laneFish.dataset.phase = f.fishPhase;
+      }
+      // Fish faces the way it swims.
+      const dir = f.fishPos - (last.fishPos ?? f.fishPos);
+      last.fishPos = f.fishPos;
+      if (Math.abs(dir) > 0.0005) el.laneFish.classList.toggle("right", dir > 0);
+      el.zone.style.width = `${f.zoneWidth * 100}%`;
+      el.zone.style.left = `${(f.zonePos - f.zoneWidth / 2) * 100}%`;
+      el.zone.classList.toggle("inside", f.inside);
+      el.zone.classList.toggle("reeling", !!session.reelHeld);
+      el.laneFish.style.left = `${f.fishPos * 100}%`;
+      el.progress.style.width = `${f.progress * 100}%`;
+      setText(el.progressVal, "progressVal", `${Math.round(f.progress * 100)}%`);
+      const tf = Math.min(1, f.tension / f.tensionLimit);
+      el.tension.style.width = `${tf * 100}%`;
+      el.tension.style.setProperty("--hue", String(Math.round(110 - 110 * tf)));
+      setText(el.tensionVal, "tensionVal", `${Math.round(tf * 100)}%`);
+      el.minigame.classList.toggle("danger", tf > 0.78);
     },
 
     showCatchResult(session, result) {
@@ -339,9 +354,13 @@ export function createUI(handlers) {
           : "Added to your bag.";
         el.catchExtra.innerHTML = result.discovered
           ? `Wallboard bonus ${coinHtml(`+${result.bonus}`)}`
-          : result.newRecord ? "🏆 New personal best for this species!" : "";
+          : result.newRecord ? `${ICONS.star} New personal best for this species!` : "";
       }
       el.catchCard.hidden = false;
+      // Brief guard so a reeling tap/click can't land on Continue by accident.
+      el.catchOk.disabled = true;
+      clearTimeout(last.catchGuard);
+      last.catchGuard = setTimeout(() => { el.catchOk.disabled = false; }, 700);
     },
     hideCatchResult() { el.catchCard.hidden = true; },
     catchVisible: () => !el.catchCard.hidden,

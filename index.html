@@ -41,16 +41,22 @@
   <button type="button" id="action-btn" class="action-btn" hidden><span class="key" id="action-key">E</span> <span id="action-label">Fish</span></button>
 
   <section id="fishing" class="fishing-panel" hidden aria-live="polite">
-    <p class="fishing-status" id="fishing-status">Casting…</p>
+    <div class="fishing-status" id="fishing-status"><span class="status-ico" id="fishing-status-ico"></span><span id="fishing-status-text">Casting…</span></div>
     <div id="minigame" class="minigame" hidden>
-      <div class="mg-label"><span id="mg-behavior">Fish on!</span><span id="mg-phase" class="mg-phase"></span></div>
+      <div class="mg-head">
+        <span class="mg-behavior"><span class="mg-behavior-ico" id="mg-behavior-ico"></span><span id="mg-behavior">Fish on!</span></span>
+        <span id="mg-phase" class="mg-phase" hidden></span>
+      </div>
       <div class="lane" id="mg-lane">
-        <div class="zone" id="mg-zone"></div>
+        <div class="lane-waves" aria-hidden="true"></div>
+        <div class="zone" id="mg-zone" aria-hidden="true"><span class="zone-edge left"></span><span class="zone-edge right"></span></div>
         <div class="lane-fish" id="mg-fish" aria-hidden="true"></div>
       </div>
-      <div class="bar-row"><span>Catch</span><div class="bar"><div class="bar-fill progress" id="mg-progress"></div></div></div>
-      <div class="bar-row"><span>Tension</span><div class="bar"><div class="bar-fill tension" id="mg-tension"></div></div></div>
-      <p class="mg-hint">Hold <span class="key">Space</span> / press &amp; hold to reel right — release to ease tension</p>
+      <div class="meters">
+        <div class="meter"><span class="meter-ico" data-icon="net" title="Catch progress"></span><div class="bar progress-bar"><div class="bar-fill progress" id="mg-progress"></div></div><span class="meter-val" id="mg-progress-val">0%</span></div>
+        <div class="meter"><span class="meter-ico" data-icon="line2" title="Line tension"></span><div class="bar tension-bar"><div class="bar-fill tension" id="mg-tension"></div><span class="danger-mark" aria-hidden="true"></span></div><span class="meter-val" id="mg-tension-val">0%</span></div>
+      </div>
+      <p class="mg-hint"><span class="hint-keys"><span class="key">Space</span><span class="hint-or">or</span><span class="mg-mouse" data-icon="mouse"></span></span> hold to reel <b>→</b> · release to ease the line</p>
     </div>
   </section>
 
@@ -60,7 +66,7 @@
     <p id="catch-details"></p>
     <p id="catch-note" class="catch-note"></p>
     <p id="catch-extra" class="catch-extra"></p>
-    <button type="button" id="catch-ok" class="primary">Continue <span class="key">E</span></button>
+    <button type="button" id="catch-ok" class="primary">Continue <span class="key">Esc</span></button>
   </section>
 
   <div id="joystick" class="joystick" aria-hidden="true"><div id="joystick-knob" class="knob"></div></div>

@@ -33,6 +33,16 @@ export const ICONS = {
   burst: svg(`<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6" ${ink}/>`),
   gem: svg(`<path d="M6 4h12l3 5-9 11L3 9Z" ${ink}/><path d="M3 9h18M9 4l3 16 3-16" ${ink}/>`),
   wait: svg(`<path d="M7 3h10M7 21h10M8 3c0 5 8 5 8 9s-8 4-8 9M16 3c0 5-8 5-8 9s8 4 8 9" ${ink}/>`),
+  net: svg(`<path d="M4 4l6 6" stroke="#8a6242" stroke-width="2.2" stroke-linecap="round"/><ellipse cx="14.5" cy="14.5" rx="6.5" ry="6.5" fill="#e8f3e0" stroke="#4f7a44" stroke-width="1.8"/><path d="M10 11l9 9M11 18l7-7M14.5 8v13M8 14.5h13" stroke="#6f9a5a" stroke-width="0.9"/>`),
+  line2: svg(`<path d="M3 5c6 0 6 14 18 14" fill="none" stroke="#e8e2d4" stroke-width="2.4" stroke-linecap="round"/><path d="M3 5c6 0 6 14 18 14" fill="none" stroke="#8a7f70" stroke-width="1" stroke-dasharray="1 2.5"/><circle cx="3" cy="5" r="2" fill="#6b4a2e"/><circle cx="21" cy="19" r="2.2" fill="#d8443a"/>`),
+  zigzag: svg(`<path d="M3 16l4-8 4 8 4-8 4 8 2-4" ${ink}/>`),
+  weight: svg(`<path d="M9 7a3 3 0 1 1 6 0" ${ink}/><path d="M6 9h12l2 11H4Z" ${ink}/>`),
+  flame: svg(`<path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-3 2-4 2-7 1 1 2 2 2 4 1-2 1-4 1-7Z" ${ink}/>`),
+  sleep: svg(`<path d="M4 8h5l-5 6h5M13 5h4l-4 5h4M16 14h4l-4 5h4" ${ink}/>`),
+  bobber: svg(`<path d="M12 2v5" stroke="#3b3129" stroke-width="1.6"/><circle cx="12" cy="12" r="5.5" fill="#f6f1e6" stroke="#8a7f70"/><path d="M6.5 12a5.5 5.5 0 0 0 11 0Z" fill="#d8443a"/><path d="M2 20c2.5-1.5 5-1.5 7.5 0s5 1.5 7.5 0 3.5-1 5-.5" stroke="#4f86c6" stroke-width="1.6" fill="none" stroke-linecap="round"/>`),
+  alert: svg(`<circle cx="12" cy="12" r="10" fill="#d8443a"/><path d="M12 6v8" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="12" cy="18" r="1.7" fill="#fff"/>`),
+  star: svg(`<path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9Z" fill="#f2cf5b" stroke="#c9962a" stroke-width="1.2" stroke-linejoin="round"/>`),
+  mouse: svg(`<rect x="6" y="3" width="12" height="18" rx="6" ${ink}/><path d="M12 3v6" ${ink}/><path d="M6.5 9h5.5V3.5A6 6 0 0 0 6.5 9Z" fill="currentColor" opacity="0.5"/>`),
   check: svg(`<path d="M5 12l4.5 4.5L19 7" ${ink}/>`),
 };
 
