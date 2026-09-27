@@ -1,8 +1,9 @@
 // Inventory, collection, selling, shop and boat rules on plain state.
 import { GEAR, BOAT_PRICE, REGIONS, RARITY_RANK, BAGS, FISH_BY_ID, STREAK } from "./content.js";
 import { skillEffects, normalizedSize } from "./skills.js";
+import { milestoneEffects } from "./collection.js";
 
-export const bagCapacity = state => BAGS[state.bag].slots + skillEffects(state).bagBonus;
+export const bagCapacity = state => BAGS[state.bag].slots + skillEffects(state).bagBonus + milestoneEffects(state).bag;
 export const bagFull = state => state.inventory.length >= bagCapacity(state);
 
 export const streakBonus = streak => Math.min(streak, STREAK.maxFish) * STREAK.perFish;
@@ -80,7 +81,8 @@ export function placeNewSpecies(state, encounter, choice) {
 /** Sell price today: fish.value (base) plus Haggler, Tall Tales and Trophy Hunter bonuses. */
 export function priceOf(state, fish) {
   const fx = skillEffects(state);
-  let mult = 1 + fx.sellBonus + fx.tallTales * normalizedSize(FISH_BY_ID[fish.speciesId], fish.sizeCm) + (fish.streakBonus ?? 0);
+  const species = FISH_BY_ID[fish.speciesId];
+  let mult = 1 + fx.sellBonus + fx.tallTales * normalizedSize(species, fish.sizeCm) + (fish.streakBonus ?? 0) + (milestoneEffects(state).sell[species.location] ?? 0);
   if (fx.trophyHunter) mult += state.discovered.length * 0.01 + (fish.rarity === "legendary" ? 0.5 : 0);
   return Math.max(1, Math.round(fish.value * mult));
 }

@@ -317,6 +317,54 @@ export function createRenderer(canvas) {
     });
   }
 
+  // Collection milestone rewards: pennants at home, a weathervane on the roof, golden bobber and hat band.
+  const gold = new THREE.MeshStandardMaterial({ color: "#f2c24a", roughness: 0.3, metalness: 0.6, flatShading: true });
+  const pennants = new THREE.Group();
+  {
+    // Bunting across the back wall above the trophy shelf: one pennant per location completed.
+    const h = WORLD.home, x0 = h.cx + 1.2, x1 = h.cx + 5.2, y = 3.02, z = h.minZ + 0.3;
+    const string = new THREE.Mesh(G.box(x1 - x0 + 0.4, 0.02, 0.02), M.woodDark);
+    string.position.set((x0 + x1) / 2, y + 0.02, z);
+    pennants.add(string);
+    for (let i = 0; i < 5; i++) {
+      const mat = new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.9, flatShading: true, side: THREE.DoubleSide });
+      const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-0.36, 0, 0), new THREE.Vector3(0.36, 0, 0), new THREE.Vector3(0, -0.5, 0)]);
+      geo.computeVertexNormals();
+      const flag = new THREE.Mesh(geo, mat);
+      flag.position.set(x0 + (i * (x1 - x0)) / 4, y, z);
+      flag.userData.mat = mat;
+      flag.visible = false;
+      pennants.add(flag);
+    }
+    string.userData.isString = true;
+  }
+  scene.add(pennants);
+  const vane = new THREE.Group();
+  {
+    const vk = new Kit(new GroupSink(vane));
+    vk.part(G.cyl(0.04, 0.05, 1.1, 5), M.metal, [0, 0.55, 0]);
+    vk.part(G.box(0.8, 0.04, 0.04), M.metal, [0, 0.62, 0]);
+    vk.part(G.box(0.04, 0.04, 0.8), M.metal, [0, 0.62, 0]);
+    const fish = new THREE.Group();
+    const fk = new Kit(new GroupSink(fish));
+    fk.part(G.sphere(0.22, 8, 6), gold, [0, 0, 0], [0, 0, 0], [1.8, 0.8, 0.3]);
+    fk.part(G.cone(0.18, 0.3, 4), gold, [-0.48, 0, 0], [0, 0, Math.PI / 2], [1, 1, 0.3]);
+    fish.position.y = 1.2;
+    vane.add(fish);
+    vane.userData.fish = fish;
+    vane.position.set(-8 + 2, 5.9, -10);
+    vane.visible = false;
+  }
+  scene.add(vane);
+  const bobberRed = bobber.children[0].material;
+  function setMilestones(fx) {
+    pennants.children.filter(f => !f.userData.isString).forEach((f, i) => { f.visible = i < fx.pennants.length; if (f.visible) f.userData.mat.color.set(fx.pennants[i]); });
+    pennants.children[0].visible = fx.pennants.length > 0;
+    vane.visible = fx.weathervane;
+    bobber.children[0].material = fx.goldenBobber ? gold : bobberRed;
+    P.materials.band.color.set(fx.goldenBand ? "#f2c24a" : "#b8433a");
+  }
+
   function setUnlocked(unlocked) {
     for (const [id, b] of Object.entries(env.barriers)) b.group.visible = !unlocked.includes(id);
   }
@@ -538,6 +586,7 @@ export function createRenderer(canvas) {
       m.material.opacity = Math.pow(Math.sin(Math.PI * u), 1.5) * 0.75;
     });
     for (const m of env.markers) m.material.opacity = 0.3 + Math.sin(elapsed * 2) * 0.15;
+    if (vane.visible) vane.userData.fish.rotation.y = Math.sin(elapsed * 0.4) * 0.8;
     { const t = env.trenchPatch.position; t.y = SEA_Y + 0.14 + waveHeight(t.x, t.z, elapsed); }
     env.buoys.forEach((b, i) => { b.position.y = SEA_Y + waveHeight(b.position.x, b.position.z, elapsed); b.rotation.z = Math.sin(elapsed * 1.3 + i) * 0.18; });
     M.foam.opacity = 0.35 + Math.sin(elapsed * 1.2) * 0.2;
@@ -637,5 +686,5 @@ export function createRenderer(canvas) {
   }
 
   resize();
-  return { render, resize, pickGround, screenAxes, setWallboard, setTrophies, setUnlocked, renderer, camera };
+  return { render, resize, pickGround, screenAxes, setWallboard, setTrophies, setUnlocked, setMilestones, renderer, camera };
 }

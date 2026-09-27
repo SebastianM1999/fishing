@@ -669,7 +669,7 @@ export function makeCharacter(opts) {
   heldFish.position.set(0, -0.05, 0.1);
   arms[0].hand.add(heldFish);
 
-  return { root, body, torso, head, hat, legs, arms, rod, tip, handSocket, backSocket, heldFish };
+  return { root, body, torso, head, hat, legs, arms, rod, tip, handSocket, backSocket, heldFish, materials: M };
 }
 
 export function makeDuck() {

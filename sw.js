@@ -21,6 +21,7 @@ const PRECACHE = [
   "/js/game/economy.js",
   "/js/game/skills.js",
   "/js/game/orders.js",
+  "/js/game/collection.js",
   "/js/input/input.js",
   "/js/ui/ui.js",
   "/js/ui/fishArt.js",

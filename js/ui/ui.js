@@ -2,10 +2,11 @@
 import {
   FISH, FISH_BY_ID, TIME_LABELS, WEATHER, LOCATION_LABELS, RARITY_LABELS, GEAR, GEAR_SLOTS, GEAR_LABELS,
   BAGS, SKILLS, SKILLS_BY_ID, SKILL_BRANCHES, TIER_POINTS, STREAK, LEGENDARIES,
-  LOCATIONS, COLLECTION, KINDS, KIND_LABELS, kindOf, MOON,
+  LOCATIONS, COLLECTION, KINDS, KIND_LABELS, kindOf, MOON, MILESTONES,
 } from "../game/content.js";
 import { priceOf, inventoryWorth, bagCapacity, bagFull, streakBonus } from "../game/economy.js";
 import { orderText, matchingFish, canHandIn } from "../game/orders.js";
+import { milestoneProgress } from "../game/collection.js";
 import { huntChecks, moonPhase } from "../game/fishing.js";
 import { levelInfo, pointsFree, pointsSpent, rankOf, tierOpen, canLearn, respecCost, skillEffects, branchOf } from "../game/skills.js";
 import { fishSvg, rarityIcon } from "./fishArt.js";
@@ -309,7 +310,11 @@ export function createUI(handlers) {
           ${fishSvg(f, { silhouette: !found, size: 120 })}
           <span class="name">${found ? f.name : "???"}</span></button>`;
       }).join("")}</div>`;
-    }).join("");
+    }).join("") + `<h3 class="board-section">${ICONS.trophy} Milestones</h3><div class="milestones">${MILESTONES.map(m => {
+      const p = milestoneProgress(state, m), done = p.have >= p.need;
+      return `<div class="milestone ${done ? "done" : ""}" title="${m.reward}">${ICONS[m.icon]}<div><b>${m.name}</b><span>${m.reward}</span></div>
+        <span class="ms-count">${done ? ICONS.check : `${p.have}/${p.need}`}</span></div>`;
+    }).join("")}</div>`;
   }
   el.boardTabs.addEventListener("click", e => {
     const tab = e.target.closest("[data-tab]");
