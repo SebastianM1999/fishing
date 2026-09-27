@@ -501,14 +501,18 @@ export function makeCharacter(opts) {
     head.add(mesh(new THREE.TorusGeometry(0.05, 0.014, 4, 8, PI), M.eye, 0, -0.1, 0.33, 0, 0, PI));
   }
   head.add(mesh(G.ico(0.32, 0), M.hair, 0, 0.08, -0.13, 0, 0, 0, [1.05, 0.8, 0.85]));
-  head.add(mesh(G.ico(0.12, 0), M.hair, 0.08, 0.22, 0.2, 0.4, 0, 0, [1.4, 0.5, 0.8])); // fringe under the hat
+  if (o.hat !== "bun") head.add(mesh(G.ico(0.12, 0), M.hair, 0.08, 0.22, 0.2, 0.4, 0, 0, [1.4, 0.5, 0.8])); // fringe under the hat
   const hat = new THREE.Group();
   head.add(hat);
   if (o.hat === "bun") {
-    // No hat: hair bun with a flower, hair falling behind the ears
-    hat.add(mesh(G.sphere(0.17, 10, 8), M.hair, 0, 0.28, -0.18));
-    hat.add(mesh(G.sphere(0.06, 6, 4), M.scarf, 0.14, 0.34, -0.08));
-    hat.add(mesh(G.box(0.5, 0.36, 0.14), M.hair, 0, -0.08, -0.25));
+    // No hat: smooth hair cap with side-swept bangs, a round bun on top and a little flower
+    hat.add(mesh(G.sphere(0.355, 16, 12), M.hair, 0, 0.06, -0.05, 0, 0, 0, [1.03, 0.82, 1.02]));
+    hat.add(mesh(G.sphere(0.3, 14, 10), M.hair, 0, -0.06, -0.14, 0, 0, 0, [1.08, 0.9, 0.85]));
+    hat.add(mesh(G.sphere(0.2, 12, 8), M.hair, -0.05, 0.19, 0.2, 0.35, 0, 0.25, [1.25, 0.42, 0.7]));
+    hat.add(mesh(G.sphere(0.15, 12, 10), M.hair, 0, 0.36, -0.08));
+    hat.add(mesh(G.torus(0.1, 0.025, 6, 12), M.scarf, 0, 0.3, -0.08, PI / 2, 0, 0));
+    hat.add(mesh(G.sphere(0.055, 8, 6), M.white, 0.2, 0.22, 0.12));
+    hat.add(mesh(G.sphere(0.03, 6, 4), M.scarf, 0.22, 0.23, 0.16));
   } else if (o.hat === "cap") {
     // Flat cap with a short brim
     hat.position.set(0, 0.22, 0);
