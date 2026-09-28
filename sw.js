@@ -1,5 +1,5 @@
 // Hand-written service worker: precache the app shell, cache-first for precached same-origin GETs.
-const CACHE = "driftwood-cove-v25";
+const CACHE = "driftwood-cove-v26";
 // Paths are relative to this file, so the game works at a domain root or under a sub-path (e.g. GitHub Pages).
 const PRECACHE = [
   "./",

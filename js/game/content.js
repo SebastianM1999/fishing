@@ -11,7 +11,7 @@ export const LOCATION_LABELS = { lake: "Lake", river: "River", sea: "Sea Shore",
 export const LOCATION_GATES = { trench: { gear: { line: 2 }, hint: "Your line can't reach the trench floor. A Braided Line can." } };
 
 export const STARTING_COINS = 0;
-export const CHEAT_COINS = 1000; // Ctrl+Alt+G
+export const CHEAT_COINS = 1000; // press X three times quickly
 // Catch streak: each fish landed in a row adds sell value to the fish caught during the streak.
 export const STREAK = { perFish: 0.02, maxFish: 5 };
 // Notice-board orders: new ones every in-game dawn; rewards beat the market price.

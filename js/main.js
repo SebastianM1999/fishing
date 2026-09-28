@@ -254,10 +254,15 @@ addEventListener("keydown", e => {
   if (e.code === "KeyK") ui.openSkills();
 });
 
-// Cheat: Ctrl+Alt+G adds coins (also AltGr+G on German keyboards).
+// Cheat: press X three times within a second for coins.
+const cheatTaps = [];
 addEventListener("keydown", e => {
-  if (e.code !== "KeyG" || !e.ctrlKey || !e.altKey || e.repeat || game.menu) return;
-  e.preventDefault();
+  if (e.code !== "KeyX" || e.repeat || e.ctrlKey || e.altKey || e.metaKey || game.menu) return;
+  const now = performance.now();
+  cheatTaps.push(now);
+  while (cheatTaps.length && now - cheatTaps[0] > 1000) cheatTaps.shift();
+  if (cheatTaps.length < 3) return;
+  cheatTaps.length = 0;
   state.coins += content.CHEAT_COINS;
   ui.toast(`Cheat: +${content.CHEAT_COINS} coins`);
   audio.play("coin");
