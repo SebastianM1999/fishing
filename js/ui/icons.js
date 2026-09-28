@@ -60,6 +60,7 @@ export const ICONS = {
   jelly: svg(`<path d="M5 12a7 7 0 0 1 14 0c-1.2 1-2.3-.4-3.5.6S13.2 11 12 12s-2.3-.4-3.5.6S6.2 11 5 12Z" ${ink}/><path d="M8.5 14c-1 2 1 3 0 6M12 14c-1 2 1 3 0 6M15.5 14c-1 2 1 3 0 6" ${ink}/>`),
   tentacle: svg(`<path d="M5 21c0-7 3-12 8-14 4-1.5 7 1 6 4-.8 2.4-4 2.6-4.6.6-.4-1.2.6-2 1.6-1.6" ${ink}/><circle cx="9" cy="15.5" r="1" fill="currentColor"/><circle cx="11" cy="11.5" r="1" fill="currentColor"/>`),
   bolt: svg(`<path d="M13.5 2.5 5.5 13.5h6l-1 8 8-11h-6Z" ${ink}/>`),
+  gift: svg(`<rect x="4" y="10" width="16" height="10" rx="1.5" fill="#f2cf5b" stroke="#a8711a" stroke-width="1.3"/><rect x="3" y="7" width="18" height="4" rx="1" fill="#e2a83a" stroke="#a8711a" stroke-width="1.3"/><path d="M12 7v13" stroke="#c9463d" stroke-width="2.2"/><path d="M12 7c-2-4-6-4-6-1.5S10 7 12 7c2 0 6-1 6-1.5S14 3 12 7Z" fill="none" stroke="#c9463d" stroke-width="1.6" stroke-linejoin="round"/>`),
   lock: svg(`<rect x="5" y="10.5" width="14" height="10" rx="2" ${ink}/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" ${ink}/>`),
 };
 

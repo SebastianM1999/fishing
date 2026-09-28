@@ -17,11 +17,11 @@ Everything is data in `js/game/content.js` and stays compatible with existing sa
 | Kind | Where it bites | Value | Rarity roll | Notes |
 |---|---|---|---|---|
 | **Regular fish** | Normal fish table (weight 1) | 8–120 | Common / Rare / Legendary as today | Needed for the "Keeper" milestones and some mythic conditions. |
-| **Odd catch** (`special: true`) | Normal fish table with a low `weight` (0.10–0.2) | 100–400 | Rolled as today | Some need a minimum gear tier (`gear`) to appear at all. Never used by order templates. |
+| **Odd catch** (`special: true`) | Normal fish table with a low `weight` (0.03–0.10; 0.12–0.16 at the lake and river, which only have two) | 100–400 | Common / Rare only (`SPECIAL_MAX_RARITY`) | Some need a minimum gear tier (`gear`) to appear at all. Never used by order templates. |
 | **Legendary hunt** (existing 4) | Hunt window only | 320–900 | Always Legendary | Unchanged. |
 | **Mythic** (`legendary: true, mythic: true`) | Hunt window only, plus extra conditions | 500–2000 | Always Legendary | Reuses the hunt system and boss fight. The Kraken has its own multi-stage fight. |
 
-With the weights, about 1 cast in 8–12 at a spot turns up an odd catch. Adding one is a jackpot, not the new normal income.
+With the weights, about 1 cast in 17–33 turns up an odd catch (most often at the sea shore and in the trench). Their rarity roll tops out at Rare, so the best one sells for about 2.5× its base value. Legends and myths earn XP from their baseValue up to `LEGEND_XP_VALUE_CAP` (900), so the Kraken gives about 580–870 XP.
 
 ## New location: Deep Trench
 
@@ -147,7 +147,7 @@ The Rumours list on Nell's board shows every legend and myth: its clue, place, a
 
 ## Collection milestones
 
-Milestones are derived from `state.discovered`, so nothing new is saved. A toast plays when one is reached, and the collection dialog lists them all.
+Progress comes from `state.discovered`. When one is reached, a toast says to claim it at home. The collection dialog lists them all, and reached ones get a golden **Claim** button. The reward applies only once claimed, which is stored in `state.milestonesClaimed` (save v6). The door and board prompts say "rewards to claim" while any are waiting.
 
 | Milestone | Requirement | Reward |
 |---|---|---|
@@ -200,11 +200,10 @@ Milestones are derived from `state.discovered`, so nothing new is saved. A toast
 ## Saves
 
 - New species are only new entries in `FISH`. Saved `discovered`, `records`, inventory and trophies are validated against `FISH`, so old saves stay valid.
-- The moon phase and milestones are derived from saved data (`day`, `discovered`), so the state shape doesn't change and **`SAVE_VERSION` stays 5**.
-- Pre-expansion saves (v1–v5) load unchanged.
+- The moon phase is derived from `day`. Claimed milestones are the only new state (`milestonesClaimed`, **`SAVE_VERSION` 6**). `deserialize()` keeps only known ids that the save has actually reached.
+- Older saves (v1–v5) load with nothing claimed, so reached milestones wait to be claimed.
 
 ## Open questions
 
-- **Economy:** odd catches add roughly 10–20% more income per hour at unlocked spots. Tune the `weight` values after play-testing.
-- **Moon length:** a 6-day moon cycle (72 real minutes between full moons) may feel long. Four days is the alternative.
-- **Milestone style:** milestone rewards apply automatically, with no claim button. A "claim" moment with a jingle at the notice board could feel more rewarding.
+- **Moon length:** a 6-day moon cycle (72 real minutes between full moons) may feel long. Four days is the alternative. It stays at 6 for now.
+- **Odd-catch weights:** revisit after play-testing.

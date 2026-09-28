@@ -743,3 +743,9 @@ body.at-title .hud, body.at-title .hud-buttons, body.at-title .action-btn, body.
 .milestone.done { border-color: #e2b84a; background: linear-gradient(#fffaf0, #fff1c8); }
 .milestone .ms-count { font-weight: 800; font-variant-numeric: tabular-nums; }
 .milestone.done .ms-count { color: var(--leaf-dark); }
+.milestone.ready { border-color: #e2b84a; background: #fff6d8; }
+.ms-claim { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border: 2px solid #a8711a; border-radius: 999px; background: linear-gradient(#ffe38a, #f2b632); color: #5a3a0a; font: inherit; font-weight: 800; font-size: 12px; cursor: pointer; animation: claimpulse 1.4s ease-in-out infinite; }
+.ms-claim .ico { width: 16px; height: 16px; }
+@keyframes claimpulse { 0%, 100% { box-shadow: 0 0 0 0 rgb(242 182 50 / 0.6); } 50% { box-shadow: 0 0 0 6px rgb(242 182 50 / 0); } }
+.claim-badge { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: #fff1c8; border: 2px solid #e2b84a; font-size: 13px; color: #8a5a10; vertical-align: middle; }
+.claim-badge .ico { width: 14px; height: 14px; }

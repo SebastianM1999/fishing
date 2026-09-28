@@ -9,7 +9,7 @@ import * as economy from "./game/economy.js";
 import * as skills from "./game/skills.js";
 import * as orders from "./game/orders.js";
 import * as weather from "./game/weather.js";
-import { doneMilestones, milestoneEffects } from "./game/collection.js";
+import { doneMilestones, milestoneEffects, claimable, claimMilestone } from "./game/collection.js";
 import { createInput } from "./input/input.js";
 import { createUI } from "./ui/ui.js";
 import { createRenderer } from "./render/scene.js";
@@ -80,6 +80,15 @@ const ui = createUI({
   },
   buyBag() {
     if (economy.buyBag(state)) { ui.toast(`${content.BAGS[state.bag].name}: ${economy.bagCapacity(state)} slots`); audio.play("buy"); afterChange(); }
+  },
+  claimMilestone(id) {
+    if (!claimMilestone(state, id)) { audio.play("denied"); return; }
+    const m = content.MILESTONES.find(x => x.id === id);
+    ui.toast(`${m.name} claimed! ${m.reward}`);
+    audio.play("levelup");
+    renderer.setMilestones(milestoneEffects(state));
+    saveNow();
+    afterChange();
   },
   mountTrophy(uid, slot) {
     const fish = state.inventory.find(f => f.uid === uid);
@@ -159,7 +168,7 @@ function checkMilestones() {
   const done = doneMilestones(state).map(m => m.id);
   if (game.milestoneKey !== undefined) {
     for (const m of doneMilestones(state)) if (!game.milestonesDone.includes(m.id)) {
-      setTimeout(() => { ui.toast(`Milestone: ${m.name}! ${m.reward}`); audio.play("record"); }, 1200);
+      setTimeout(() => { ui.toast(`Milestone reached: ${m.name}! Claim it at the collection board at home.`); audio.play("record"); }, 1200);
     }
   }
   game.milestoneKey = state.discovered.length;
@@ -307,6 +316,7 @@ function actionLabelFor(it) {
     return { label: `${content.REGIONS[it.region].name} — clear the ${content.REGIONS[content.REGIONS[it.region].requires].name.toLowerCase()} first`, locked: true };
   }
   if (it.type === "barrier") return { label: `${content.REGIONS[it.region].name} — clear for ${content.REGIONS[it.region].price} coins`, locked: state.coins < content.REGIONS[it.region].price };
+  if ((it.type === "board" || it.type === "enter") && claimable(state).length) return { label: `${it.label} · rewards to claim`, locked: false };
   if (it.type === "fish" && !fishing.locationOpen(state, it.location)) return { label: `${it.label} — needs a ${content.GEAR.line[content.LOCATION_GATES[it.location].gear.line].name}`, locked: true };
   return { label: it.label, locked: false };
 }
