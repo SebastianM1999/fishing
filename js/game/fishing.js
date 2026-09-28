@@ -28,7 +28,7 @@ export function getStats(state, bucket, weather = "clear") {
     tensionGrowthMult: fx.tensionGrowthMult,
     hookWindowMs: HOOK.windowMs + fx.hookWindowBonusMs,
     perfectMs: HOOK.perfectMs + fx.perfectBonusMs,
-    perfectProgressBonus: HOOK.perfectProgressBonus + fx.perfectProgressBonus,
+    perfectProgressBonus: HOOK.perfectProgressBonus,
     progressLossMult: 1,
     zoneEaseMult: 1,
     burstMult: wx.burstMult,

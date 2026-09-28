@@ -14,7 +14,7 @@ function playFight(state, location, speciesId, rarity, rng, skill = 1) {
   const sp = FISH.find(f => f.id === speciesId);
   const session = { phase: "bite", t: 0, mode: "rod", location, bucket: "day", perfectMs: stats.perfectMs, hookQuality: null,
     encounter: { speciesId, rarity, sizeCm: sp.sizeCm[0], value: 1 } };
-  session.t = rng.range(250, 450); // a human hooks in ~250-450 ms: sometimes perfect
+  session.t = rng.range(120, 450); // a human hooks in ~120-450 ms: sometimes perfect
   fishing.pressAction(session, rng, stats);
   const history = [];
   const REACT = 220 / skill, JITTER = 0.03 / skill;
@@ -30,6 +30,7 @@ function playFight(state, location, speciesId, rarity, rng, skill = 1) {
     held = !danger && tf < 0.8 && (aim > f.zonePos + 0.01 || (held && aim > f.zonePos - 0.01));
     if (tf > 0.92) held = false;
     fishing.updateFishing(session, DT, { reelHeld: held }, rng, stats);
+    if (session.fight && !Number.isFinite(session.fight.progress + session.fight.tension)) throw new Error(`NaN in the fight (${location}, ${speciesId})`);
     t += DT / 1000;
   }
   return { won: session.outcome === "caught", broke: session.outcome === "broke", time: t };

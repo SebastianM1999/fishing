@@ -14,11 +14,11 @@ export const LOCATION_GATES = { trench: { gear: { rod: 3, reel: 3, line: 3 }, hi
 // swells shove the zone aside now and then. Better gear and Angler skills are what make the later places doable.
 // (Legends and myths keep their own boss tuning on top of fishSpeed and the hook window.)
 export const LOCATION_FIGHT = {
-  lake: { fishSpeed: 1, progressGain: 1, burstMult: 1, tensionGrowthMult: 1, zoneWidthMult: 1, hookMult: 1, nibbles: [0, 1] },
-  river: { fishSpeed: 1.03, progressGain: 0.94, burstMult: 1.1, tensionGrowthMult: 1.06, zoneWidthMult: 0.95, hookMult: 0.9, nibbles: [0, 2] },
-  sea: { fishSpeed: 1.28, progressGain: 0.82, burstMult: 1.18, tensionGrowthMult: 1.12, zoneWidthMult: 0.9, hookMult: 0.82, nibbles: [1, 2], swell: { every: [6, 9], time: 0.7, push: 0.18 } },
-  offshore: { fishSpeed: 1.38, progressGain: 0.75, burstMult: 1.26, tensionGrowthMult: 1.18, zoneWidthMult: 0.86, hookMult: 0.75, nibbles: [1, 3], swell: { every: [4, 7], time: 0.8, push: 0.24 } },
-  trench: { fishSpeed: 1.56, progressGain: 0.66, burstMult: 1.34, tensionGrowthMult: 1.24, zoneWidthMult: 0.82, hookMult: 0.68, nibbles: [1, 3], swell: { every: [3, 5], time: 0.9, push: 0.3 } },
+  lake: { fishSpeed: 0.85, progressGain: 1.1, burstMult: 1, tensionGrowthMult: 1, zoneWidthMult: 1, hookMult: 1, nibbles: [0, 1] },
+  river: { fishSpeed: 1.0, progressGain: 1.05, burstMult: 1.05, tensionGrowthMult: 1.06, zoneWidthMult: 0.95, hookMult: 0.9, nibbles: [0, 2] },
+  sea: { fishSpeed: 1.42, progressGain: 0.9, burstMult: 1.18, tensionGrowthMult: 1.12, zoneWidthMult: 0.9, hookMult: 0.82, nibbles: [1, 2], swell: { every: [6, 9], time: 0.7, push: 0.18 } },
+  offshore: { fishSpeed: 1.58, progressGain: 0.85, burstMult: 1.26, tensionGrowthMult: 1.18, zoneWidthMult: 0.86, hookMult: 0.75, nibbles: [1, 3], swell: { every: [4, 7], time: 0.8, push: 0.24 } },
+  trench: { fishSpeed: 1.72, progressGain: 0.8, burstMult: 1.34, tensionGrowthMult: 1.24, zoneWidthMult: 0.82, hookMult: 0.68, nibbles: [1, 3], swell: { every: [3, 5], time: 0.9, push: 0.3 } },
 };
 // A nibble: the bobber twitches but nothing is hooked. Pressing within `spookMs` of one scares the fish away.
 export const NIBBLE = { ms: 260, spookMs: 450 };
@@ -31,25 +31,25 @@ export const STREAK = { perFish: 0.02, maxFish: 5 };
 export const ORDERS = { perDay: 3, rewardMult: 1.6, xpBase: 10, xpPerCoin: 0.25 };
 // Moon phase from the day counter: phase = day % cycle; full and new moons are what some mythics wait for.
 export const MOON = { cycle: 6, full: 3, new: 0, names: ["New moon", "Waxing crescent", "First quarter", "Full moon", "Last quarter", "Waning crescent"] };
-export const BOAT_PRICE = 9000;
+export const BOAT_PRICE = 13500;
 // Late game: the storm-proof trawler sails to the Deep Trench; the harpoon (sold by Captain Olsen too) is needed for giants.
-export const TRAWLER = { name: "Ironhull Trawler", price: 45000 };
-export const HARPOON = { name: "Whaler's Harpoon", price: 65000 };
+export const TRAWLER = { name: "Ironhull Trawler", price: 95000 };
+export const HARPOON = { name: "Whaler's Harpoon", price: 150000 };
 // Harpoon minigame: an aim swings along the lane, a thrown harpoon lands where the aim was after `flight` s and hits
 // if the creature is surfaced there. Each species sets hits needed, how fast it swims and how big a target it is.
 export const HARPOON_GAME = { spare: 4, flight: 0.45, aimSpeed: 0.75, surface: [2.4, 3.4], dive: [1.0, 1.6], hitDive: 1.5, retarget: [0.9, 1.8], speedUp: 0.1, spareBonus: 0.025 };
 
 // Construction barriers: areas that must be cleared with coins before they can be entered.
 export const REGIONS = {
-  river: { id: "river", name: "River bank", price: 200, sign: "River bank closed for repairs" },
-  sea: { id: "sea", name: "Beach & docks", price: 2000, sign: "Beach & docks under construction", requires: "river" },
+  river: { id: "river", name: "River bank", price: 300, sign: "River bank closed for repairs" },
+  sea: { id: "sea", name: "Beach & docks", price: 3000, sign: "Beach & docks under construction", requires: "river" },
 };
 
 // Fish bag tiers: how many sellable fish you can carry.
 export const BAGS = [
   { id: "bag_pouch", name: "Canvas Pouch", price: 0, slots: 8 },
-  { id: "bag_basket", name: "Fishing Basket", price: 400, slots: 14 },
-  { id: "bag_creel", name: "Big Creel", price: 2000, slots: 20 },
+  { id: "bag_basket", name: "Fishing Basket", price: 900, slots: 14 },
+  { id: "bag_creel", name: "Big Creel", price: 5000, slots: 20 },
 ];
 
 // Weather: rolled per time-of-day slot (deterministic per save, see weather.js). It shifts the fishing odds
@@ -288,10 +288,10 @@ export const HOOK = { windowMs: 700, perfectMs: 200, perfectProgressBonus: 0.10,
 export const BITE_WAIT_MS = [2000, 5000];
 
 export const MINIGAME = {
-  startProgress: 0.2,
+  startProgress: 0.3,
   startTensionFrac: 0.2, // of tension limit
-  progressGain: 0.15, // per second while fish inside zone
-  progressLoss: 0.14, // per second while outside
+  progressGain: 0.26, // per second while fish inside zone
+  progressLoss: 0.1, // per second while outside
   tensionGrowth: 38, // per second while holding
   tensionRecovery: 30, // per second while released
   zoneRise: 0.5, // target lane units/s while holding
@@ -303,24 +303,24 @@ export const MINIGAME = {
 export const GEAR = {
   rod: [
     { id: "rod_starter", name: "Starter Rod", price: 0, zoneWidth: 0.14 },
-    { id: "rod_fiberglass", name: "Fiberglass Rod", price: 80, zoneWidth: 0.165 },
-    { id: "rod_carbon", name: "Carbon Rod", price: 400, zoneWidth: 0.19 },
-    { id: "rod_master", name: "Master Rod", price: 2000, zoneWidth: 0.215 },
-    { id: "rod_leviathan", name: "Leviathan Rod", price: 17000, zoneWidth: 0.24 },
+    { id: "rod_fiberglass", name: "Fiberglass Rod", price: 160, zoneWidth: 0.165 },
+    { id: "rod_carbon", name: "Carbon Rod", price: 1000, zoneWidth: 0.19 },
+    { id: "rod_master", name: "Master Rod", price: 6000, zoneWidth: 0.215 },
+    { id: "rod_leviathan", name: "Leviathan Rod", price: 54000, zoneWidth: 0.24 },
   ],
   reel: [
     { id: "reel_starter", name: "Starter Reel", price: 0, speed: 1.0, recovery: 1.0 },
-    { id: "reel_smooth", name: "Smooth Reel", price: 70, speed: 1.12, recovery: 1.10 },
-    { id: "reel_quick", name: "Quick Reel", price: 350, speed: 1.25, recovery: 1.20 },
-    { id: "reel_pro", name: "Pro Reel", price: 1700, speed: 1.4, recovery: 1.32 },
-    { id: "reel_abyss", name: "Abyss Reel", price: 16000, speed: 1.56, recovery: 1.45 },
+    { id: "reel_smooth", name: "Smooth Reel", price: 145, speed: 1.12, recovery: 1.10 },
+    { id: "reel_quick", name: "Quick Reel", price: 900, speed: 1.25, recovery: 1.20 },
+    { id: "reel_pro", name: "Pro Reel", price: 5500, speed: 1.4, recovery: 1.32 },
+    { id: "reel_abyss", name: "Abyss Reel", price: 52000, speed: 1.56, recovery: 1.45 },
   ],
   line: [
     { id: "line_starter", name: "Starter Line", price: 0, tensionLimit: 100 },
-    { id: "line_strong", name: "Strong Line", price: 70, tensionLimit: 115 },
-    { id: "line_braided", name: "Braided Line", price: 350, tensionLimit: 132 },
-    { id: "line_heavy", name: "Heavy Line", price: 1700, tensionLimit: 150 },
-    { id: "line_titan", name: "Titan Line", price: 16000, tensionLimit: 170 },
+    { id: "line_strong", name: "Strong Line", price: 145, tensionLimit: 115 },
+    { id: "line_braided", name: "Braided Line", price: 900, tensionLimit: 132 },
+    { id: "line_heavy", name: "Heavy Line", price: 5500, tensionLimit: 150 },
+    { id: "line_titan", name: "Titan Line", price: 50000, tensionLimit: 170 },
   ],
 };
 
@@ -341,7 +341,7 @@ export function gearEffectText(slot, item) {
 // One skill point per level gained. XP per catch depends on the place, not the price, so it grows gently.
 export const LEVEL_CAP = 25;
 export const LEVEL_XP = { base: 150, perLevel: 80, perLevelSq: 6 };
-export const LOCATION_XP = { lake: 8, river: 14, sea: 22, offshore: 32, trench: 45 };
+export const LOCATION_XP = { lake: 5, river: 8, sea: 12, offshore: 18, trench: 25 };
 export const RARITY_XP = { common: 1, rare: 2.5, legendary: 6 };
 // Extra XP factor for odd catches, giants, legends and myths (on top of their place's XP).
 export const KIND_XP = { fish: 1, odd: 3, giant: 5, legend: 12, mythic: 20 };
