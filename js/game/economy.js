@@ -81,7 +81,7 @@ export function placeNewSpecies(state, encounter, choice) {
 export function priceOf(state, fish) {
   const fx = skillEffects(state);
   let mult = 1 + fx.sellBonus + (fish.streakBonus ?? 0);
-  if (fx.trophyHunter) mult += fish.rarity === "legendary" ? 0.5 : fish.rarity === "rare" ? 0.25 : 0;
+  if (fx.trophyHunter) mult += fish.rarity === "legendary" ? 0.75 : fish.rarity === "rare" ? 0.35 : 0;
   return Math.max(1, Math.round(fish.value * mult));
 }
 export const inventoryWorth = state => state.inventory.reduce((sum, f) => sum + priceOf(state, f), 0);

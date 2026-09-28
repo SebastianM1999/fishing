@@ -71,7 +71,7 @@ export function skillEffects(state, bucket) {
     rareWeightMult: 1 + r("keen_eye") * 0.15 + (tw ? 0.3 : 0),
     xpMult: tw ? 1.3 : 1,
     huntChanceMult: r("legend_seeker") ? 2 : 1,
-    sellBonus: r("haggler") * 0.08,
+    sellBonus: r("haggler") * 0.12,
     bagBonus: r("extra_pockets") * 3,
     fishCourier: r("fish_courier") > 0,
     orderMult: 1 + r("good_neighbour") * 0.25,

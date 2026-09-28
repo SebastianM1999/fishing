@@ -1,15 +1,27 @@
 # Balance
 
-The game should take several hours: roughly 7–10 hours to open every place and buy all gear, more for the full collection. Every number lives in `js/game/content.js`.
+**Pacing goal:** each place takes a little longer than the one before.
+
+| Place | Fishing time for the next place | Upgrades bought here (fishing time) |
+|---|---|---|
+| Lake | ~5 min → river gate | — |
+| River | ~15 min → sea gate | tier-1 set (~3 min) |
+| Sea | ~30 min → boat | tier-2 set + basket (~10 min) |
+| Offshore | ~60 min → trawler | tier-3 set + Big Creel (~20 min) |
+| Trench | — | tier-4 set (~1 h) and harpoon (~45 min) |
+
+The gear bought at a place makes that place comfortable and gets the player through the next one. That comes to about 4 hours of fishing to open everything, and 5–6 hours of real play with walking, selling and exploring. The full collection takes longer.
+
+Every number lives in `js/game/content.js`.
 
 ## Tools
 
-- `node tools/balance-sim.mjs [fights]` plays the real catch minigame with a human-like bot (220 ms reaction delay, slight aim noise, lets go near the tension limit). It prints win rates per place and gear tier, for odd catches, and with a few Angler skills. Before this pass, the bot won 99–100% everywhere except the trench, which matched the player's experience.
-- `node tools/progression-sim.mjs` simulates a sensible player. It fishes the best place it can handle, sells when the bag is full, buys upgrades in order and spends skill points. It prints a timeline (hours, level, purchases).
+- `node tools/balance-sim.mjs [fights]` plays the real catch minigame with a human-like bot (220 ms reaction delay, slight aim noise, lets go near the tension limit). It prints win rates per place and gear tier, for odd catches, and with a few Angler skills. Before the balance pass, the bot won 99–100% everywhere except the trench, which matched the player's experience.
+- `node tools/progression-sim.mjs` simulates a sensible player. It fishes the best place it can handle, sells when the bag is full, buys upgrades in order and spends skill points. It prints a timeline.
 
-  It is an idealized pace: no exploring, no lost time on the collection. Expect real players to need about 1.5 times as long. Current result: river at ~0.4 h, sea ~1.6 h, boat ~2.3 h, trawler ~4.9 h, everything at ~6.7 h (level 19).
+  Current result: river at 0.12 h, sea 0.42 h, boat 0.93 h, trawler 2.3 h, everything at 3.6 h (level 19). It runs faster than the table above because it spends skill points. Expect real players to need about 1.5 times as long.
 
-Run both after changing fish values, prices, `LOCATION_FIGHT`, `MINIGAME`, gear stats or the skills.
+Run both after changing fish values, prices, `LOCATION_FIGHT`, `MINIGAME`, gear stats or the skills. Prices were derived as *target minutes × coins per minute* at the gear the player has then.
 
 ## Difficulty per place (`LOCATION_FIGHT`)
 
@@ -26,53 +38,45 @@ Every place fights harder than the one before:
 
 Legends and myths keep their boss tuning but move at the place's `fishSpeed`.
 
-Target win rates for the bot:
+Bot win rates:
 
-| Place | Gear tier | Bot win rate |
-|---|---|---|
-| Lake | Starter gear | ~95% |
-| Any later place | Its matching tier (river 1, sea 2, offshore 3, trench 4) | ~85–90% |
-| Any later place | One tier lower | ~20–45% |
+| Place | Gear the player arrives with | Win rate | After the place's upgrade | Win rate |
+|---|---|---|---|---|
+| Lake | tier 0 | ~96% | — | — |
+| River | tier 0 | ~70% | tier 1 | ~96% |
+| Sea | tier 1 | ~70% | tier 2 | ~97% |
+| Offshore | tier 2 | ~72% | tier 3 | ~94% |
+| Trench | tier 3 | ~65% | tier 4 | ~93% |
 
-A few Angler points (Steady Hands 2, Iron Grip 1, Strong Arm 2) bring the matching tier to ~100%. That is the intended "skill points matter" effect.
+Two tiers too low is close to hopeless. Angler skills (Steady Hands, Iron Grip, Strong Arm) raise every row noticeably.
 
 ## Money
 
-Fish pay far more the farther out you go. Average regular fish values:
+Average coins per landed fish, including rarity and odd catches, and the bot's income:
 
-| Place | Average value |
-|---|---|
-| Lake | ~9 |
-| River | ~30 |
-| Sea | ~45 |
-| Offshore | ~190 |
-| Trench | ~340 |
+| Place | Coins per fish | Coins/min with arriving gear | Coins/min after the upgrade |
+|---|---|---|---|
+| Lake | ~13 | ~38 | — |
+| River | ~45 | ~69 | ~142 |
+| Sea | ~105 | ~150 | ~294 |
+| Offshore | ~307 | ~369 | ~732 |
+| Trench | ~550 | ~818 | ~1,494 |
 
 Odd catches are worth about 5 times their place's regular fish. Legends and myths have set prices from 700 (Old Whiskers) to 25,000 (Moby Dick).
-
-The bot's income is roughly:
-
-| Place | Coins per minute |
-|---|---|
-| Lake | 40 |
-| River | 80 |
-| Sea | 260 |
-| Offshore | 470–540 |
-| Trench | 1,000–1,300 |
 
 Prices:
 
 | Item | Price |
 |---|---|
-| River | 500 |
-| Sea | 2,500 |
-| Boat | 8,000 |
-| Trawler | 50,000 (needs the boat) |
-| Harpoon | 25,000 (needs the trawler) |
-| Bags | 900 (14 slots), 8,000 (20 slots) |
-| Rods, tier 1–4 | 300 · 2,000 · 12,000 · 42,000 |
-| Reels, tier 1–4 | 250 · 1,800 · 11,000 · 38,000 |
-| Lines, tier 1–4 | 280 · 1,900 · 10,000 · 35,000 |
+| River gate | 200 |
+| Sea gate | 2,000 |
+| Boat | 9,000 |
+| Trawler | 45,000 (needs the boat) |
+| Harpoon | 65,000 (needs the trawler) |
+| Bags | 400 (14 slots), 2,000 (20 slots) |
+| Rods, tier 1–4 | 80 · 400 · 2,000 · 17,000 |
+| Reels, tier 1–4 | 70 · 350 · 1,700 · 16,000 |
+| Lines, tier 1–4 | 70 · 350 · 1,700 · 16,000 |
 
 The trench gate is tier 3 in every slot. The Kraken, Moby Dick, the Giant Squid and the Starfin Shark want tier 4.
 
@@ -80,13 +84,19 @@ Village orders are about the two best reachable places, so their rewards grow wi
 
 ## XP and levels
 
-- **XP per catch:** `LOCATION_XP` (lake 6 … trench 25) × rarity × `KIND_XP` (odd ×3, giant ×5, legend ×12, myth ×20) × up to +50% for size.
+- **XP per catch:** `LOCATION_XP` (lake 8, river 14, sea 22, offshore 32, trench 45) × rarity × `KIND_XP` (odd ×3, giant ×5, legend ×12, myth ×20) × up to +50% for size.
 - **Bonuses:** a first catch adds 40, a perfect hook 3.
-- **Level curve:** `xpToNext(L) = 150 + 80(L−1) + 6(L−1)²`, cap 25. That gives about level 5 at 0.7 h, level 10 at 2.3 h, level 15 at 4.8 h, and level ~19 when everything is bought.
+- **Level curve:** `xpToNext(L) = 150 + 80(L−1) + 6(L−1)²`, cap 25. In the simulation that gives level 5 at the sea gate, level 10 at about an hour, and level ~19 when everything is bought; levels 20–25 come from the collection.
 
 ## Skills
 
 There are 15 skills: 5 per branch, 1–3 ranks each, and 29 ranks in total for 24 points, so the player has to choose. Tiers open at 0 / 3 / 6 points in a branch.
+
+The money skills are strong on purpose:
+
+- **Haggler:** +12% sell price per rank.
+- **Trophy Hunter:** Rare +35%, Legendary +75%.
+- **Good Neighbour:** village orders +25% per rank.
 
 Removed as too small or too fiddly: Float Touch, Perfect Strike (merged into Quick Reflexes), Fishing Journal, Tire Them Out, Fish Whisperer and Tall Tales.
 

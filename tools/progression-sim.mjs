@@ -46,8 +46,9 @@ function perCast(loc) {
 
 // Purchases in the order a sensible player makes them (skipping what's already owned).
 const PLAN = [
-  ["gear", "rod"], ["region", "river"], ["gear", "reel"], ["gear", "line"], ["bag"], ["gear", "rod"], ["gear", "reel"],
-  ["gear", "line"], ["region", "sea"], ["boat"], ["gear", "rod"], ["gear", "reel"], ["gear", "line"], ["bag"], ["trawler"],
+  ["region", "river"], ["gear", "rod"], ["gear", "reel"], ["gear", "line"], ["region", "sea"],
+  ["gear", "rod"], ["gear", "reel"], ["gear", "line"], ["bag"], ["boat"],
+  ["gear", "rod"], ["gear", "reel"], ["gear", "line"], ["bag"], ["trawler"],
   ["gear", "rod"], ["gear", "reel"], ["gear", "line"], ["harpoon"],
 ];
 const SKILL_ORDER = ["steady_hands", "strong_arm", "haggler", "iron_grip", "extra_pockets", "steady_hands", "strong_arm", "fish_courier", "haggler",
@@ -82,8 +83,8 @@ while (step < PLAN.length && t < 40 * 3600) {
     log(`bought ${label} (${price})`);
     step++; continue;
   }
-  // Fish at the place with the best coins per second (among places the player wins at least 55% of fights).
-  const opts = C.LOCATIONS.filter(reachable).map(loc => ({ loc, ...perCast(loc) })).filter(o => o.land / HOOK_RATE[o.loc] >= 0.55 || o.loc === "lake");
+  // Fish at the place with the best coins per second (among places the player wins at least half its fights).
+  const opts = C.LOCATIONS.filter(reachable).map(loc => ({ loc, ...perCast(loc) })).filter(o => o.land / HOOK_RATE[o.loc] >= 0.5 || o.loc === "lake");
   const best = opts.sort((a, b) => b.value / b.secs - a.value / a.secs)[0];
   if (best.loc !== state.where) { state.where = best.loc; log(`fishing at ${best.loc} (${(best.value / best.secs * 60).toFixed(0)} coins/min, ${(best.land * 100).toFixed(0)}% landed)`); }
   // One minute of fishing.
