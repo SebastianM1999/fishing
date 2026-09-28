@@ -42,7 +42,8 @@ Don't "fix" these back to the spec.
 
 ## Rules that are easy to miss
 
-- **Service worker:** when you add a file, add it to `PRECACHE` in `sw.js`. On **every** change to a precached file, bump the `CACHE` version in `sw.js`.
+- **Service worker:** when you add a file, add it to `PRECACHE` in `sw.js` (`node tools/check-precache.mjs` verifies this, and CI runs it). On **every** change to a precached file, bump the `CACHE` version in `sw.js` (deploys also stamp a per-commit cache name).
+- **Relative URLs only** (`js/main.js`, `assets/music/…`, never `/js/main.js`): the game is deployed to GitHub Pages under a sub-path (`/fishing/`). Every push to `main` deploys via `.github/workflows/deploy.yml`.
 - **Saves:** they are versioned (`SAVE_VERSION` in `js/game/state.js`). When the state shape changes, bump the version, migrate older saves in `deserialize()`, and keep it defensive: it must never throw and must drop invalid data.
 - **Code placement:**
   - Game rules and content stay in `js/game/` as plain data with no DOM or Three.js. Content (fish, gear, prices, tuning) lives in `js/game/content.js`.

@@ -1,0 +1,55 @@
+# Checks the game and deploys every push to main to GitHub Pages.
+# One-time setup: repo Settings -> Pages -> Source: "GitHub Actions".
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Check JavaScript syntax
+        run: for f in sw.js tools/*.mjs $(find js -name '*.js'); do node --check "$f"; done
+
+      - name: Check the offline file list
+        run: node tools/check-precache.mjs
+
+      - name: Assemble the site
+        run: |
+          mkdir _site
+          cp -r index.html style.css sw.js manifest.webmanifest icons js vendor assets _site/
+          # A new cache name per deploy, so installed copies pick up every commit.
+          sed -i -E "s/const CACHE = \"driftwood-cove-[^\"]*\"/const CACHE = \"driftwood-cove-${GITHUB_SHA::10}\"/" _site/sw.js
+          grep -q "driftwood-cove-${GITHUB_SHA::10}" _site/sw.js
+
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

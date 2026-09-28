@@ -6,12 +6,12 @@
   <title>Driftwood Cove — a cozy fishing game</title>
   <meta name="description" content="A small, cozy 2.5D fishing game. Explore, fish, collect and upgrade.">
   <meta name="theme-color" content="#3f6e8c">
-  <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="icon" href="/icons/icon-192.png" type="image/png">
-  <link rel="apple-touch-icon" href="/icons/icon-192.png">
-  <link rel="stylesheet" href="/style.css">
-  <script type="importmap">{ "imports": { "three": "/vendor/three/three.module.js" } }</script>
-  <script type="module" src="/js/main.js"></script>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">{ "imports": { "three": "./vendor/three/three.module.js" } }</script>
+  <script type="module" src="js/main.js"></script>
 </head>
 <body>
   <canvas id="world" aria-label="Game world"></canvas>
@@ -206,7 +206,7 @@
   </dialog>
 
   <script>
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
   </script>
 </body>
 </html>

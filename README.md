@@ -62,3 +62,7 @@ tools/serve.mjs zero-dependency static dev server
 The web app manifest (`manifest.webmanifest`) is Baseline **limited** and is included as a progressive enhancement: browsers that ignore it still run the game normally.
 
 Production hosting must use HTTPS (service workers require a secure context; `localhost` is exempt).
+
+## Deploy (GitHub Pages)
+
+Every push to `main` runs `.github/workflows/deploy.yml`: it checks the JavaScript syntax and the offline file list (`node tools/check-precache.mjs`), copies the game into `_site`, gives `sw.js` a fresh `CACHE` name per commit (so installed copies update), and publishes to GitHub Pages at `https://<user>.github.io/<repo>/`. All URLs in the game are relative, so it runs under that sub-path as well as at a domain root. One-time setup: repo Settings → Pages → Source: **GitHub Actions** (Pages on a private repo needs a paid GitHub plan).

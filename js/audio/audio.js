@@ -8,7 +8,7 @@ const DEFAULT_PREFS = { music: 0.45, sfx: 0.8, ambience: 0.5, muted: false };
 const midi = n => 440 * Math.pow(2, (n - 69) / 12);
 
 // Music playlists; a time of day alternates between its tracks. "menu" loops on the title screen.
-const MUSIC_DIR = "/assets/music/";
+const MUSIC_DIR = "assets/music/"; // relative to the page, so it works under any sub-path
 export const PLAYLISTS = {
   menu: ["cozy-farming-village.mp3"],
   dawn: ["sunlit-turnip-path-2.mp3", "sunlit-turnip-path.mp3"],
