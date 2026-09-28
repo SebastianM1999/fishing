@@ -56,7 +56,12 @@ function buyBoat() {
 // --- UI handlers ------------------------------------------------------------
 const ui = createUI({
   onAction: () => input.queueInteract(),
-  onDialogClosed: () => canvas.focus?.(),
+  // A closed dialog hands focus back to the button that opened it. The canvas is not
+  // focusable, so drop that focus unless the player got there by tabbing (keyboard a11y).
+  onDialogClosed: () => {
+    const a = document.activeElement;
+    if (a instanceof HTMLElement && a !== document.body && !a.closest("dialog[open]") && !a.matches(":focus-visible")) a.blur();
+  },
   sellOne(uid) {
     const v = economy.sellOne(state, uid);
     if (v) { ui.toast(`Sold for ${v} coins`); audio.play("coin"); afterChange(); }

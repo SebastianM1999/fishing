@@ -16,19 +16,44 @@ export function createInput({ canvas, joystick, knob, reelPad }) {
   const stick = { id: null, x: 0, y: 0 };
 
   const isTyping = e => e.target instanceof HTMLElement && e.target.closest("input, textarea, select");
+  // Inside an open dialog, Space/Enter belong to its buttons and form controls.
+  const inDialog = e => !!document.querySelector("dialog[open]") ||
+    (e.target instanceof Element && !!e.target.closest("dialog[open]"));
+  // A HUD / catch-card button that kept focus after a mouse click must not eat gameplay keys.
+  // Enter still clicks a button the player reached by tabbing (keyboard accessibility).
+  const keyboardFocusedButton = e => e.target instanceof HTMLButtonElement && e.target.matches(":focus-visible");
 
   addEventListener("keydown", e => {
     if (isTyping(e)) return;
-    if (MOVE_KEYS[e.code] || e.code === "Space") e.preventDefault();
+    const dialog = inDialog(e);
+    if (MOVE_KEYS[e.code]) e.preventDefault();
+    // Outside dialogs Space is always the hook/reel key: never scroll or activate a focused button.
+    if (e.code === "Space" && !dialog) e.preventDefault();
+    if (e.code === "Enter" && !dialog && e.target instanceof HTMLButtonElement && !keyboardFocusedButton(e)) e.preventDefault();
     if (!e.repeat && INTERACT_KEYS.has(e.code)) {
-      // Enter/Space on a focused button should click that button, not act in the world.
-      if (!(e.code === "Enter" && e.target instanceof HTMLButtonElement)) interactQueued = true;
+      // Enter on a focused button (in a dialog, or tabbed to) clicks that button, not the world.
+      const clicksButton = e.code === "Enter" && e.target instanceof HTMLButtonElement && (dialog || keyboardFocusedButton(e));
+      if (!clicksButton) interactQueued = true;
     }
-    if (!e.repeat && e.code === "Space" && !(e.target instanceof HTMLButtonElement)) hookQueued = true;
+    if (!e.repeat && e.code === "Space" && !dialog) hookQueued = true;
     keys.add(e.code);
   });
-  addEventListener("keyup", e => keys.delete(e.code));
-  addEventListener("blur", () => { keys.clear(); pointerReel = false; stick.id = null; stick.x = stick.y = 0; });
+  // Buttons activate on Space keyup (Firefox) — block that outside dialogs too.
+  addEventListener("keyup", e => {
+    keys.delete(e.code);
+    if (e.code === "Space" && !isTyping(e) && !inDialog(e)) e.preventDefault();
+  });
+  // Missed keyups/pointerups (alt-tab, tab switch, focus stolen) must not leave anything held.
+  const releaseAll = () => {
+    keys.clear();
+    pointerReel = false;
+    hookQueued = interactQueued = false;
+    taps = [];
+    stick.id = null; stick.x = stick.y = 0;
+    knob.style.transform = "";
+  };
+  addEventListener("blur", releaseAll);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) releaseAll(); });
 
   // World canvas: tap/click = move target, hook or reel.
   canvas.addEventListener("pointerdown", e => {
