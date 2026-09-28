@@ -19,7 +19,7 @@ Open http://localhost:8080/. Append `?debug` to expose a `window.cozy` test hook
 | Hook on a bite | `Space` or mouse click | Tap |
 | Reel (minigame) | Hold `Space` or hold the mouse button | Press & hold |
 | Bag / Skills / close | `I` / `K` / `Esc` | Buttons (top right) |
-| Cheat: +1000 coins | `X` `X` `X` (three quick presses) | — |
+| Cheat: +10000 coins | `X` `X` `X` (three quick presses) | — |
 
 ## Progression
 

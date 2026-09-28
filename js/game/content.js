@@ -14,7 +14,7 @@ export const LOCATION_GATES = { trench: { gear: { rod: 2, reel: 2, line: 3 }, hi
 export const LOCATION_FIGHT = { trench: { progressGain: 0.78, burstMult: 1.25, tensionGrowthMult: 1.15, zoneWidthMult: 0.88, swell: { every: [3, 5], time: 0.9, push: 0.3 } } };
 
 export const STARTING_COINS = 0;
-export const CHEAT_COINS = 1000; // press X three times quickly
+export const CHEAT_COINS = 10000; // press X three times quickly
 // Catch streak: each fish landed in a row adds sell value to the fish caught during the streak.
 export const STREAK = { perFish: 0.02, maxFish: 5 };
 // Notice-board orders: new ones every in-game dawn; rewards beat the market price.
