@@ -1,5 +1,5 @@
 // Hand-written service worker: precache the app shell, cache-first for precached same-origin GETs.
-const CACHE = "driftwood-cove-v21";
+const CACHE = "driftwood-cove-v22";
 const PRECACHE = [
   "/",
   "/index.html",
@@ -62,12 +62,12 @@ self.addEventListener("fetch", event => {
   const range = request.headers.get("range");
   event.respondWith(caches.match(url.pathname).then(cached => {
     if (!cached) return fetch(request);
-    return range ? partial(cached, range) : cached;
+    return range ? partial(cached, range, url.pathname) : cached;
   }));
 });
 
 // Media elements ask for byte ranges (music); answer them from the cached file with a 206.
-async function partial(response, range) {
+async function partial(response, range, path) {
   const buf = await response.arrayBuffer();
   const [, from, to] = /bytes=(\d*)-(\d*)/.exec(range) ?? [];
   const start = from ? Number(from) : Math.max(0, buf.byteLength - Number(to));
@@ -76,7 +76,7 @@ async function partial(response, range) {
   return new Response(buf.slice(start, end + 1), {
     status: 206,
     headers: {
-      "Content-Type": response.headers.get("Content-Type") ?? "audio/mpeg",
+      "Content-Type": path.endsWith(".mp3") ? "audio/mpeg" : response.headers.get("Content-Type") ?? "application/octet-stream",
       "Content-Range": `bytes ${start}-${end}/${buf.byteLength}`,
       "Content-Length": String(end - start + 1),
       "Accept-Ranges": "bytes",

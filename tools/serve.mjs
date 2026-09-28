@@ -19,7 +19,18 @@ createServer(async (req, res) => {
     let file = join(root, path);
     if ((await stat(file).catch(() => null))?.isDirectory()) file = join(file, "index.html");
     const body = await readFile(file);
-    res.writeHead(200, { "Content-Type": TYPES[extname(file)] ?? "application/octet-stream", "Cache-Control": "no-cache" });
+    const headers = { "Content-Type": TYPES[extname(file)] ?? "application/octet-stream", "Cache-Control": "no-cache", "Accept-Ranges": "bytes" };
+    // Byte ranges: Safari only plays audio from servers that answer them with 206.
+    const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range ?? "");
+    if (range) {
+      const start = range[1] ? Number(range[1]) : Math.max(0, body.length - Number(range[2]));
+      const end = range[1] && range[2] ? Math.min(Number(range[2]), body.length - 1) : body.length - 1;
+      if (start > end) { res.writeHead(416, { "Content-Range": `bytes */${body.length}` }); res.end(); return; }
+      res.writeHead(206, { ...headers, "Content-Range": `bytes ${start}-${end}/${body.length}`, "Content-Length": end - start + 1 });
+      res.end(body.subarray(start, end + 1));
+      return;
+    }
+    res.writeHead(200, headers);
     res.end(body);
   } catch {
     res.writeHead(404, { "Content-Type": "text/plain" });
