@@ -2,7 +2,7 @@
 import { FISH, FISH_BY_ID, LOCATIONS, LOCATION_GATES, LOCATION_LABELS, RARITIES, RARITY_LABELS, RARITY_RANK, TIME_BUCKETS, TIME_LABELS, ORDERS } from "./content.js";
 import { createRng } from "./rng.js";
 import { priceOf } from "./economy.js";
-import { addXp } from "./skills.js";
+import { addXp, skillEffects } from "./skills.js";
 
 const avg = list => list.reduce((a, b) => a + b, 0) / list.length;
 
@@ -12,6 +12,9 @@ export function reachableLocations(state) {
     || (l === "sea" && state.unlocked.includes("sea")) || (l === "offshore" && state.boatOwned)
     || (l === "trench" && state.trawlerOwned && Object.entries(LOCATION_GATES.trench.gear).every(([slot, tier]) => state.gear[slot] >= tier)));
 }
+
+/** The places the village asks about: the two best ones the player can reach (nobody wants to go back to the lake). */
+export const orderLocations = state => reachableLocations(state).slice(-2);
 
 // Order templates only ask for regular fish (weather-only fish, odd catches, giants and legends are too random to request).
 const orderFish = loc => FISH.filter(f => f.location === loc && !f.legendary && !f.weather && !f.special && !f.giant);
@@ -38,7 +41,7 @@ const TEMPLATES = {
   },
   timed(rng, locs) {
     const bucket = rng.pick(TIME_BUCKETS), count = 2 + Math.floor(rng.next() * 2);
-    return { kind: "catch", need: { bucket }, count, base: 14 * count };
+    return { kind: "catch", need: { bucket }, count, base: avg(orderFish(locs[locs.length - 1]).map(f => f.baseValue)) * 0.8 * count };
   },
   spot(rng, locs) {
     const loc = rng.pick(locs), count = 3;
@@ -46,10 +49,12 @@ const TEMPLATES = {
   },
 };
 
-/** The day's 3 orders, deterministic for (save seed, day, reachable places). */
+const reachKey = state => orderLocations(state).join();
+
+/** The day's 3 orders, deterministic for (save seed, day, reachable places), about the best places reached. */
 export function generateOrders(state) {
   const rng = createRng((state.rngSeed ^ Math.imul(state.day + 1, 0x9e3779b1)) >>> 0);
-  const locs = reachableLocations(state);
+  const locs = orderLocations(state);
   const kinds = Object.keys(TEMPLATES);
   const picked = [];
   while (picked.length < ORDERS.perDay) {
@@ -62,14 +67,27 @@ export function generateOrders(state) {
     const coins = Math.max(10, Math.round((o.base * ORDERS.rewardMult) / 5) * 5);
     return { id: `d${state.day}-${i}`, kind: o.kind, need: o.need, count: o.count, coins, xp: Math.round(ORDERS.xpBase + coins * ORDERS.xpPerCoin), progress: 0, done: false };
   });
-  return { day: state.day, list };
+  return { day: state.day, reach: reachKey(state), list };
 }
 
-/** Regenerate when a new day has dawned. Returns true if the orders changed. */
+/**
+ * Regenerate when a new day has dawned, or when a new place opened up today (orders already done or started
+ * stay). Returns true if the orders changed.
+ */
 export function ensureOrders(state) {
-  if (state.orders && state.orders.day === state.day) return false;
-  state.orders = generateOrders(state);
+  if (state.orders && state.orders.day === state.day && state.orders.reach === reachKey(state)) return false;
+  const fresh = generateOrders(state);
+  if (state.orders && state.orders.day === state.day) {
+    fresh.list = fresh.list.map((o, i) => { const old = state.orders.list[i]; return old && (old.done || old.progress > 0) ? old : o; });
+  }
+  state.orders = fresh;
   return true;
+}
+
+/** What an order pays today (Good Neighbour raises coins and XP). */
+export function orderReward(state, order) {
+  const m = skillEffects(state).orderMult;
+  return { coins: Math.round(order.coins * m), xp: Math.round(order.xp * m) };
 }
 
 export function fishMatches(order, fish) {
@@ -106,7 +124,7 @@ export function recordCatch(state, encounter, location, bucket) {
 export function handIn(state, id) {
   const o = state.orders?.list.find(x => x.id === id);
   if (!o || !canHandIn(state, o)) return null;
-  let coins = o.coins;
+  let { coins, xp } = orderReward(state, o);
   if (o.kind === "deliver") {
     const fish = matchingFish(state, o);
     coins = Math.max(coins, Math.round(fish.reduce((a, f) => a + priceOf(state, f), 0) * 1.5));
@@ -119,8 +137,8 @@ export function handIn(state, id) {
   }
   o.done = true;
   state.coins += coins;
-  const levels = addXp(state, o.xp);
-  return { coins, xp: o.xp, levels };
+  const levels = addXp(state, xp);
+  return { coins, xp, levels };
 }
 
 /** Short request text, e.g. "Bring 2 Bluegill" or "Catch 3 fish at Dawn". */
@@ -142,5 +160,5 @@ export function sanitizeOrders(raw, day) {
     && (!o.need.bucket || TIME_BUCKETS.includes(o.need.bucket)) && (o.need.minSize === undefined || int(o.need.minSize, 1, 1000))
     && (o.need.speciesId || o.need.location || o.need.bucket))
     .map(o => ({ id: o.id, kind: o.kind, need: { ...o.need }, count: o.count, coins: o.coins, xp: o.xp, progress: o.progress, done: o.done === true }));
-  return list.length === ORDERS.perDay ? { day, list } : null;
+  return list.length === ORDERS.perDay ? { day, reach: typeof raw.reach === "string" ? raw.reach : "", list } : null;
 }

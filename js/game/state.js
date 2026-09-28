@@ -8,7 +8,8 @@ import { milestoneDone } from "./collection.js";
 // v2: construction-barrier unlocks + per-species best-catch records. v3: bag tier. v4: xp + skills; hook & tackle removed.
 // v5: home interior (area "home"), trophy shelf, catch streak, day counter + notice-board orders. v6: weather seed.
 // v7: claimed collection milestones. v8: Ironhull Trawler, harpoon and the Deep Trench as its own area.
-export const SAVE_VERSION = 8;
+// v9: the balance pass: a new skill tree (all points refunded), five gear tiers.
+export const SAVE_VERSION = 9;
 export const TROPHY_SLOTS = 3;
 // Coins refunded for pre-v4 purchases that no longer exist (cumulative hook tier prices, tackle prices).
 const LEGACY_HOOK_REFUND = [0, 120, 420];
@@ -137,7 +138,7 @@ export function deserialize(data) {
   if ((num(data.version, 1)) < 4) migrateToV4(s, data);
   else {
     s.xp = Math.max(0, Math.floor(num(data.xp, 0)));
-    s.skills = sanitizeSkills(data.skills, s.xp);
+    s.skills = data.version >= 9 ? sanitizeSkills(data.skills, s.xp) : {}; // pre-v9: the tree changed, refund every point
   }
   s.timeMs = ((num(data.timeMs, s.timeMs) % DAY_LENGTH_MS) + DAY_LENGTH_MS) % DAY_LENGTH_MS;
   s.rngSeed = Math.floor(num(data.rngSeed, s.rngSeed)) >>> 0;

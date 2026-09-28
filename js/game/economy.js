@@ -1,6 +1,6 @@
 // Inventory, collection, selling, shop and boat rules on plain state.
-import { GEAR, BOAT_PRICE, TRAWLER, HARPOON, REGIONS, RARITY_RANK, BAGS, FISH_BY_ID, STREAK } from "./content.js";
-import { skillEffects, normalizedSize } from "./skills.js";
+import { GEAR, BOAT_PRICE, TRAWLER, HARPOON, REGIONS, RARITY_RANK, BAGS, STREAK } from "./content.js";
+import { skillEffects } from "./skills.js";
 
 export const bagCapacity = state => BAGS[state.bag].slots + skillEffects(state).bagBonus;
 export const bagFull = state => state.inventory.length >= bagCapacity(state);
@@ -9,7 +9,7 @@ export const streakBonus = streak => Math.min(streak, STREAK.maxFish) * STREAK.p
 
 /**
  * Catch streak bookkeeping for a finished session. A landed fish extends the streak and carries its bonus;
- * a snapped line, escape or missed hook resets it (reeling in early doesn't count). Returns the streak lost, if any.
+ * a snapped line, escape, missed hook or spooked fish resets it (reeling in an empty line doesn't count). Returns the streak lost, if any.
  */
 export function updateStreak(state, outcome, encounter) {
   if (outcome === "caught") {
@@ -17,7 +17,7 @@ export function updateStreak(state, outcome, encounter) {
     encounter.streakBonus = streakBonus(state.streak);
     return 0;
   }
-  if (outcome === "broke" || outcome === "escaped" || outcome === "missed") {
+  if (outcome === "broke" || outcome === "escaped" || outcome === "missed" || outcome === "spooked") {
     const lost = state.streak;
     state.streak = 0;
     return lost;
@@ -77,12 +77,11 @@ export function placeNewSpecies(state, encounter, choice) {
   return { discovered: false, fish, released: false };
 }
 
-/** Sell price today: fish.value (base) plus Haggler, Tall Tales and Trophy Hunter bonuses. */
+/** Sell price today: fish.value (base) plus the catch streak, Haggler and Trophy Hunter bonuses. */
 export function priceOf(state, fish) {
   const fx = skillEffects(state);
-  const species = FISH_BY_ID[fish.speciesId];
-  let mult = 1 + fx.sellBonus + fx.tallTales * normalizedSize(species, fish.sizeCm) + (fish.streakBonus ?? 0);
-  if (fx.trophyHunter) mult += state.discovered.length * 0.01 + (fish.rarity === "legendary" ? 0.5 : 0);
+  let mult = 1 + fx.sellBonus + (fish.streakBonus ?? 0);
+  if (fx.trophyHunter) mult += fish.rarity === "legendary" ? 0.5 : fish.rarity === "rare" ? 0.25 : 0;
   return Math.max(1, Math.round(fish.value * mult));
 }
 export const inventoryWorth = state => state.inventory.reduce((sum, f) => sum + priceOf(state, f), 0);

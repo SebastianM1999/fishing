@@ -4,7 +4,7 @@ The trench used to be a second spot on the offshore boat. It is now its own late
 
 ## Getting there
 - **Ironhull Trawler, 6000 coins.** It lies run aground at the **old pier** on the far (west) side of the beach: a crooked, patched, half-broken pier with salvage crates, driftwood and a lamp, so that side of the beach isn't empty and the sea dock stays uncluttered. Once you own the small boat, pay for the repairs at the pier's end; the trawler then floats upright, and pressing `E` there sails to the trench. The deck is at `WORLD.trench` (far out, like the offshore deck and the house), and the wheelhouse at the stern is solid.
-- **Tackle gate.** Fishing the trench needs at least a **Carbon Rod, a Quick Reel and a Heavy Line** (`LOCATION_GATES.trench`). The spot label lists what is still missing.
+- **Tackle gate.** Fishing the trench needs at least a **Master Rod, a Pro Reel and a Heavy Line** (since the balance pass, see `docs/balance.md`) (`LOCATION_GATES.trench`). The spot label lists what is still missing.
 - **Whaler's Harpoon, 3500 coins.** It is sold from the harpoon rack on the old pier, to trawler owners only. It unlocks the **bow spot**.
 
 The full late-game bill is 9500 coins for the trawler and harpoon, plus about 2000 coins of tackle from scratch for the minimum (gear tiers are bought in order), or about 3500 for the best tackle that Moby Dick and the Kraken ask for.

@@ -1,7 +1,7 @@
 // Three.js view of the game state. Holds no gameplay rules; reads plain state each frame.
 import * as THREE from "three";
 import { WORLD, CAST_DISTANCE, NPCS, INTERACTIONS } from "../game/world.js";
-import { FISH_BY_ID, BOAT_PRICE, TRAWLER } from "../game/content.js";
+import { FISH_BY_ID, BOAT_PRICE, TRAWLER, NIBBLE } from "../game/content.js";
 import { dayFraction, bucketProgress } from "../game/time.js";
 import { createMaterials, TIME, WAVE_GAIN, TRENCH_GAIN, TRENCH_WAVES, G, Kit, Batch, GroupSink, waveHeight } from "./kit.js";
 import { buildTrench } from "./trench.js";
@@ -793,6 +793,7 @@ export function createRenderer(canvas) {
       let by = waterY + Math.sin(elapsed * 2.5) * 0.04, ox = 0, oz = 0;
       if (active.phase === "cast") by = waterY + Math.sin(castT * Math.PI) * 2.5;
       if (active.phase === "bite") by = waterY - 0.16 + Math.sin(elapsed * 30) * 0.07;
+      else if (active.phase === "wait" && active.nibbleAt >= 0 && active.t - active.nibbleAt < NIBBLE.ms) by = waterY - 0.06 + Math.sin(elapsed * 40) * 0.035; // a nibble: just a twitch
       if (active.phase === "fight") {
         const lane = active.fight.fishPos - 0.5;
         ox = Math.cos(spot.facing) * lane * 2.4;

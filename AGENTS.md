@@ -25,6 +25,7 @@ Project skills live in `.claude/skills/`:
 - a title screen with its own menu music; recorded MP3 music per time of day.
 - the fish expansion (`docs/fish-expansion.md`): 71 species incl. odd catches and mythics, the Deep Trench, five extra fight rules, a moon phase from the day counter and collection milestones. `tools/portraits.html` renders every portrait (add `?sil`) for art checks.
 - the Deep Trench update (`docs/deep-trench.md`): the trench is its own storm-swept area (`area: "trench"`, far out at `WORLD.trench`) reached on the Ironhull Trawler, with harder fights (`LOCATION_FIGHT`), a harpoon bow spot (`mode: "harpoon"`) for giants with a harpoon round before the reel fight, and Moby Dick. 76 species. The player rides a moving boat deck through `standOnDeck` in `scene.js`.
+- the balance pass (`docs/balance.md`): much higher prices, five gear tiers, harder fights and fish values rising with each place (`LOCATION_FIGHT`, nibbles), a slimmer skill tree, a 24-minute day and a bed at home to sleep until any time of day. Check changes with `node tools/balance-sim.mjs` and `node tools/progression-sim.mjs`.
 
 Don't "fix" these back to the spec.
 

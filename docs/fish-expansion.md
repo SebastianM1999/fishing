@@ -1,5 +1,7 @@
 # Fish expansion: design
 
+> Prices, gear requirements and difficulty in this design doc are the originals; the balance pass changed them (`docs/balance.md`, `js/game/content.js` is the source of truth).
+
 > **Update:** the Deep Trench is now its own late-game area with a trawler, harpoon, giants and Moby Dick; see `docs/deep-trench.md` (76 species).
 
 Goal: many more catchable creatures, so that 100% collection becomes a long-term goal. The tone stays cozy and whimsical: sharks and the Kraken feel epic but friendly, and nothing is ever gory.

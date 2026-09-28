@@ -511,8 +511,6 @@ dialog.panel.small { width: min(420px, calc(100vw - 24px)); }
 .finder-fish svg { width: 48px; height: auto; }
 .finder-fish.found { color: var(--ink); }
 body.touch .finder { left: auto; right: 16px; bottom: 120px; transform: none; }
-.whisper { display: inline-flex; align-items: center; gap: 2px; margin-left: 6px; animation: pop 0.25s ease-out; }
-.whisper svg:first-child { width: 56px; height: auto; }
 
 /* Skill tree ----------------------------------------------------------------- */
 #skills-dialog { width: min(960px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); }
@@ -638,6 +636,15 @@ body.touch .finder { left: auto; right: 16px; bottom: 120px; transform: none; }
 .order-glyph { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--paper-2); color: var(--wood-dark); }
 .order-glyph .ico { width: 30px; height: 30px; }
 .order-glyph .time-icon { width: 26px; height: 26px; }
+
+/* Bed: pick the time of day to wake up at. */
+.sleep-options { display: grid; grid-template-columns: repeat(2, minmax(190px, 1fr)); gap: 10px; }
+.sleep-option { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; border: 2px solid var(--line, #d8c7a6); background: #fbf5e8; color: var(--ink); font: inherit; cursor: pointer; text-align: left; }
+.sleep-option:hover, .sleep-option:focus-visible { border-color: #c9962a; background: #fff7e2; }
+.sleep-option .time-icon { width: 30px; height: 30px; flex: none; }
+.sleep-option b { display: block; font-size: 17px; }
+.sleep-option small { color: var(--ink-soft); font-weight: 700; }
+.sleep-option .key { margin-left: auto; }
 .order-main { display: grid; gap: 4px; min-width: 0; }
 .order-main strong { font-size: 16px; }
 .order-main .meta { font-size: 13px; color: var(--ink-soft); }

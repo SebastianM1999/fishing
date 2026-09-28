@@ -1,13 +1,14 @@
 // HTML/CSS UI: HUD, fishing panel, catch card, shop, bag, wallboard, skills. Reads state; calls handlers for actions.
 import {
-  FISH, FISH_BY_ID, TIME_LABELS, WEATHER, LOCATION_LABELS, RARITY_LABELS, GEAR, GEAR_SLOTS, GEAR_LABELS,
+  FISH, FISH_BY_ID, TIME_LABELS, DAY_LENGTH_MS, WEATHER, LOCATION_LABELS, RARITY_LABELS, GEAR, GEAR_SLOTS, GEAR_LABELS,
   BAGS, SKILLS, SKILLS_BY_ID, SKILL_BRANCHES, TIER_POINTS, STREAK, LEGENDARIES,
   LOCATIONS, COLLECTION, KINDS, KIND_LABELS, kindOf, MOON, MILESTONES,
 } from "../game/content.js";
 import { priceOf, inventoryWorth, bagCapacity, bagFull, streakBonus } from "../game/economy.js";
-import { orderText, matchingFish, canHandIn } from "../game/orders.js";
+import { orderText, matchingFish, canHandIn, orderReward } from "../game/orders.js";
 import { milestoneProgress, claimable } from "../game/collection.js";
 import { huntChecks, moonPhase } from "../game/fishing.js";
+import { sleepMs } from "../game/time.js";
 import { levelInfo, pointsFree, pointsSpent, rankOf, tierOpen, canLearn, respecCost, skillEffects, branchOf } from "../game/skills.js";
 import { fishSvg, rarityIcon } from "./fishArt.js";
 import { ICONS } from "./icons.js";
@@ -15,7 +16,7 @@ import { ICONS } from "./icons.js";
 const pct = v => `${Math.round(v * 100)}%`;
 const mult = v => `${+v.toFixed(2)}×`;
 const STAT_DEFS = {
-  rod: [{ icon: "width", label: "Catch zone width", get: i => pct(i.zoneWidth) }],
+  rod: [{ icon: "width", label: "Catch zone width", get: i => `${+(i.zoneWidth * 100).toFixed(1)}%` }],
   reel: [{ icon: "speed", label: "Reel speed", get: i => mult(i.speed) }, { icon: "recovery", label: "Tension recovery", get: i => mult(i.recovery) }],
   line: [{ icon: "tension", label: "Tension limit", get: i => String(i.tensionLimit) }],
 };
@@ -72,7 +73,7 @@ export function createUI(handlers) {
     unlock: $("unlock-dialog"), unlockTitle: $("unlock-title"), unlockText: $("unlock-text"), unlockPrice: $("unlock-price"), unlockHave: $("unlock-have"), unlockPay: $("unlock-pay"),
     catchExtra: $("catch-extra"), catchXp: $("catch-xp"),
     settings: $("settings-dialog"),
-    level: $("hud-level"), levelChip: $("hud-level-chip"), xpBar: $("hud-xp-bar"), skillPoints: $("skill-points"), finder: $("finder"), whisper: $("fishing-whisper"),
+    level: $("hud-level"), levelChip: $("hud-level-chip"), xpBar: $("hud-xp-bar"), skillPoints: $("skill-points"), finder: $("finder"),
     skills: $("skills-dialog"), skillsBody: $("skills-body"), skillsLevel: $("skills-level"), skillsXpFill: $("skills-xp-fill"), skillsXpText: $("skills-xp-text"),
     skillsPoints: $("skills-points"), skillsDetail: $("skills-detail"),
     trophy: $("trophy-dialog"), trophyBody: $("trophy-body"),
@@ -81,6 +82,7 @@ export function createUI(handlers) {
     hpGame: $("harpoon-game"), hpTarget: $("hp-target"), hpAim: $("hp-aim"), hpMark: $("hp-mark"), hpHits: $("hp-hits"), hpLeft: $("hp-left"),
     hpResult: $("hp-result"), hpName: $("hp-name"), hpTitle: $("hp-title"),
     streak: $("hud-streak"), streakText: $("hud-streak-text"), catchStreak: $("catch-streak"),
+    sleep: $("sleep-dialog"), sleepBody: $("sleep-body"),
   };
   let trophyPick = null; // shelf slot whose bag-fish picker is open
   let purchase = null;
@@ -88,7 +90,7 @@ export function createUI(handlers) {
   let state = null;
 
   // --- Dialog wiring ------------------------------------------------------
-  for (const d of [el.shop, el.bag, el.board, el.unlock, el.settings, el.skills, el.trophy, el.orders]) {
+  for (const d of [el.shop, el.bag, el.board, el.unlock, el.settings, el.skills, el.trophy, el.orders, el.sleep]) {
     d.addEventListener("click", e => {
       if (e.target === d || e.target.closest("[data-close]")) d.close();
     });
@@ -214,6 +216,11 @@ export function createUI(handlers) {
     if (b.dataset.unmount !== undefined) handlers.unmountTrophy(Number(b.dataset.unmount));
   });
   $("btn-skills").addEventListener("click", () => openSkills());
+  el.sleepBody.addEventListener("click", e => { const b = e.target.closest("[data-sleep]"); if (b) { el.sleep.close(); handlers.sleep(b.dataset.sleep); } });
+  el.sleep.addEventListener("keydown", e => {
+    const i = ["Digit1", "Digit2", "Digit3", "Digit4"].indexOf(e.code);
+    if (i >= 0) { e.preventDefault(); el.sleepBody.querySelectorAll("[data-sleep]")[i]?.click(); }
+  });
 
   // Skill tree: click learns a rank; hover / focus explains the node.
   const SKILL_HINT = "Hover or focus a skill to see what it does · click to learn a rank (1 point)";
@@ -410,7 +417,7 @@ export function createUI(handlers) {
         <div class="order-main"><strong>${orderText(o)}</strong>
           ${o.kind === "catch" ? `<div class="order-progress"><i style="width:${Math.min(100, (o.progress / o.count) * 100)}%"></i></div>` : ""}
           <span class="meta">${hint}</span></div>
-        <div class="order-reward">${coinHtml(o.coins)}<span class="order-xp">+${o.xp} XP</span></div>
+        <div class="order-reward">${coinHtml(orderReward(state, o).coins)}<span class="order-xp">+${orderReward(state, o).xp} XP</span></div>
         ${status}</article>`;
     }).join("")}</div>${rumorsHtml()}`;
   }
@@ -496,6 +503,18 @@ export function createUI(handlers) {
   function openOrders() { renderOrders(); showModal(el.orders); }
   function openTrophies() { trophyPick = null; renderTrophies(); showModal(el.trophy); }
   function openSkills() { renderSkills(); el.skillsDetail.textContent = SKILL_HINT; showModal(el.skills); }
+  /** The bed: wake up at the start of any time of day (later today or tomorrow). */
+  function openSleep(s) {
+    state = s;
+    el.sleepBody.innerHTML = Object.keys(TIME_LABELS).map((b, i) => {
+      const ms = sleepMs(s.timeMs, b), tomorrow = s.timeMs + ms >= DAY_LENGTH_MS;
+      const hours = Math.max(1, Math.round((ms / DAY_LENGTH_MS) * 24));
+      return `<button type="button" class="sleep-option time-chip" data-bucket="${b}" data-sleep="${b}"><span class="time-icon"></span>
+        <span><b>${TIME_LABELS[b]}</b><small>${tomorrow ? "Tomorrow" : "Today"} · ~${hours} h</small></span><span class="key">${i + 1}</span></button>`;
+    }).join("");
+    showModal(el.sleep);
+  }
+
   /** Generic confirm-purchase dialog: construction barriers, the boat at the dock. */
   function openPurchase(s, { title, art, text, price, confirmLabel, onConfirm, blocked }) {
     state = s;
@@ -525,8 +544,8 @@ export function createUI(handlers) {
 
   return {
     bind(s) { state = s; },
-    anyDialogOpen: () => el.shop.open || el.bag.open || el.board.open || el.unlock.open || el.settings.open || el.skills.open || el.trophy.open || el.orders.open,
-    openShop, openBag, openBoard, openSkills, openTrophies, openOrders, openPurchase, openSettings, toast, refreshOpenPanels,
+    anyDialogOpen: () => el.shop.open || el.bag.open || el.board.open || el.unlock.open || el.settings.open || el.skills.open || el.trophy.open || el.orders.open || el.sleep.open,
+    openShop, openBag, openBoard, openSkills, openTrophies, openOrders, openPurchase, openSettings, openSleep, toast, refreshOpenPanels,
 
     updateHud(s, bucket, bucketProgress, region) {
       state = s;
@@ -612,12 +631,6 @@ export function createUI(handlers) {
       if (last.fishPhaseUi !== phase) {
         last.fishPhaseUi = phase;
         el.fishing.dataset.phase = phase;
-        el.whisper.hidden = !(phase === "bite" && session.whisper);
-        if (phase === "bite" && session.whisper) {
-          const enc = session.encounter;
-          el.whisper.innerHTML = `${fishSvg(FISH_BY_ID[enc.speciesId], { silhouette: true, size: 64 })}${rarityHtml(enc.rarity, 22)}`;
-          el.whisper.title = RARITY_LABELS[enc.rarity];
-        }
         const bow = session.mode === "harpoon";
         const [ico, text] = bow
           ? (phase === "cast" || phase === "wait" ? ["eye", "Watching the waves for a spout…"] : phase === "bite" ? ["alert", "Thar she blows! Click or press Space!"] : phase === "harpoon" ? ["harpoon", "Harpoon it!"] : ["check", "Harpooned! Reel it in!"])
@@ -681,6 +694,7 @@ export function createUI(handlers) {
         caught: null,
         missed: ["It got away…", "You missed the hook window."],
         early: ["Reeled in", "Nothing on the line yet."],
+        spooked: ["Too soon! It swam off", "That was only a nibble. Wait for the real bite."],
         broke: ["Snap! The line broke", "Too much tension — the fish escaped."],
         escaped: ["The fish escaped", "It slipped off the hook."],
       };
@@ -735,7 +749,7 @@ export function createUI(handlers) {
     bagChoiceAvailable: () => !el.catchBag.disabled,
     /** E inside a dialog: confirm a purchase (after a short guard), otherwise close the dialog. */
     dialogPrimary() {
-      const open = [el.unlock, el.shop, el.bag, el.board, el.settings, el.skills, el.trophy, el.orders].find(d => d.open);
+      const open = [el.unlock, el.shop, el.bag, el.board, el.settings, el.skills, el.trophy, el.orders, el.sleep].find(d => d.open);
       if (!open) return;
       if (performance.now() - (last.dialogOpenedAt ?? 0) < 350) return;
       if (open === el.unlock && !el.unlockPay.disabled) el.unlockPay.click();

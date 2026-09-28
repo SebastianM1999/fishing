@@ -1,10 +1,10 @@
 // Leveling (XP -> level -> skill points) and the skill tree, on plain state. No DOM.
 import {
-  LEVEL_CAP, RARITY_XP, XP_FIRST_CATCH, LEGEND_XP_VALUE_CAP, XP_PERFECT_HOOK, RESPEC_FEE_PER_LEVEL, TIER_POINTS,
-  SKILLS, SKILLS_BY_ID, SKILL_BRANCHES,
+  LEVEL_CAP, LEVEL_XP, LOCATION_XP, KIND_XP, RARITY_XP, XP_FIRST_CATCH, XP_PERFECT_HOOK, RESPEC_FEE_PER_LEVEL, TIER_POINTS,
+  SKILLS, SKILLS_BY_ID, SKILL_BRANCHES, kindOf,
 } from "./content.js";
 
-export const xpToNext = level => 40 + 25 * (level - 1);
+export const xpToNext = level => LEVEL_XP.base + LEVEL_XP.perLevel * (level - 1) + LEVEL_XP.perLevelSq * (level - 1) ** 2;
 
 /** Level progress for a total XP amount: { level, into, needed, maxed }. */
 export function levelInfo(xp) {
@@ -60,32 +60,33 @@ export function skillEffects(state, bucket) {
   const tw = r("twilight_angler") > 0 && twilight(bucket);
   return {
     zoneWidthBonus: r("steady_hands") * 0.015,
+    tensionGrowthMult: 1 - r("iron_grip") * 0.1,
+    tensionRecoveryMult: 1 + r("iron_grip") * 0.1,
     hookWindowBonusMs: r("quick_reflexes") * 150,
-    tensionGrowthMult: 1 - r("iron_grip") * 0.08,
-    tensionRecoveryMult: 1 + r("iron_grip") * 0.08,
-    zoneEaseMult: 1 + r("float_touch") * 0.12,
-    perfectBonusMs: r("perfect_strike") * 75,
-    perfectProgressBonus: r("perfect_strike") * 0.05,
+    perfectBonusMs: r("quick_reflexes") * 60,
+    progressMult: 1 + r("strong_arm") * 0.08,
     secondWind: r("second_wind") > 0,
     fishFinder: r("fish_finder") > 0,
-    biteWaitMult: 1 - r("patience") * 0.1,
-    xpMult: 1 + r("fishing_journal") * 0.1 + (tw ? 0.25 : 0),
-    rareWeightMult: 1 + r("keen_eye") * 0.1 + (tw ? 0.15 : 0),
-    burstMult: 1 - r("tire_them_out") * 0.08,
-    fishWhisperer: r("fish_whisperer") > 0,
-    sellBonus: r("haggler") * 0.05,
-    bagBonus: r("extra_pockets") * 2,
-    tallTales: r("tall_tales") * 0.15,
+    biteWaitMult: 1 - r("patience") * 0.2,
+    rareWeightMult: 1 + r("keen_eye") * 0.15 + (tw ? 0.3 : 0),
+    xpMult: tw ? 1.3 : 1,
+    huntChanceMult: r("legend_seeker") ? 2 : 1,
+    sellBonus: r("haggler") * 0.08,
+    bagBonus: r("extra_pockets") * 3,
     fishCourier: r("fish_courier") > 0,
+    orderMult: 1 + r("good_neighbour") * 0.25,
     trophyHunter: r("trophy_hunter") > 0,
   };
 }
 
-/** XP for one catch (before skill multipliers when mult is omitted). */
+/**
+ * XP for one catch (before skill multipliers when mult is omitted): the place's XP, times rarity, kind
+ * (odd catches, giants, legends, myths) and up to +50% for size. Legends count as Common: their kind pays.
+ */
 export function catchXp(species, rarity, sizeCm, { first = false, perfect = false, mult = 1 } = {}) {
-  // Named legendaries already have a huge baseValue, so they use the rare multiplier.
-  const value = species.legendary ? Math.min(species.baseValue, LEGEND_XP_VALUE_CAP) : species.baseValue;
-  const base = Math.round((6 + value * 0.25) * (species.legendary ? RARITY_XP.rare : RARITY_XP[rarity]) * (1 + normalizedSize(species, sizeCm) * 0.5));
+  const kind = kindOf(species);
+  const rarityXp = species.legendary ? 1 : RARITY_XP[rarity];
+  const base = Math.round(LOCATION_XP[species.location] * KIND_XP[kind] * rarityXp * (1 + normalizedSize(species, sizeCm) * 0.5));
   return Math.round((base + (first ? XP_FIRST_CATCH : 0) + (perfect ? XP_PERFECT_HOOK : 0)) * mult);
 }
 

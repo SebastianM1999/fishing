@@ -235,6 +235,7 @@ export function createAudio() {
     },
     cast() { const t = ctx.currentTime; noise(S(), { t, peak: 0.12, freq: 500, sweep: 2600, q: 1.2, attack: 0.08, decay: 0.3 }); },
     plop() { const t = ctx.currentTime; tone(S(), { freq: 700, glide: 170, t, peak: 0.16, decay: 0.12 }); noise(S(), { t, peak: 0.06, type: "lowpass", freq: 900, decay: 0.2 }); },
+    nibble() { const t = ctx.currentTime; tone(S(), { freq: 980, glide: 620, t, peak: 0.05, decay: 0.05 }); },
     bite() { const t = ctx.currentTime; for (let i = 0; i < 3; i++) tone(S(), { freq: 520 - i * 60, glide: 220, t: t + i * 0.09, peak: 0.14, decay: 0.08 }); tone(S(), { freq: 1320, t, peak: 0.05, decay: 0.12, type: "square" }); },
     hook(perfect) { const t = ctx.currentTime; noise(S(), { t, peak: 0.1, type: "highpass", freq: 2500, sweep: 6000, decay: 0.1 }); tone(S(), { freq: perfect ? 988 : 740, t: t + 0.05, peak: 0.08, decay: 0.15, type: "triangle" }); },
     reelTick() { noise(S(), { peak: 0.035, type: "highpass", freq: 4200, decay: 0.012 }); },

@@ -2,7 +2,7 @@
 import {
   FISH, FISH_BY_ID, RARITY_WEIGHTS, RARITY_MULTIPLIER, RARITY_FIGHT, BEHAVIORS, EXHAUSTED,
   HOOK, BITE_WAIT_MS, MINIGAME, GEAR, LEGENDARIES, BOSS_FIGHT, WEATHER, LOCATION_GATES, MECHANICS, SPECIAL_FIGHT, SPECIAL_MAX_RARITY, RARITY_RANK, MOON, LOCATION_LABELS, SKILLS_BY_ID, regularAt,
-  LOCATION_FIGHT, HARPOON, HARPOON_GAME
+  LOCATION_FIGHT, HARPOON, HARPOON_GAME, NIBBLE
 } from "./content.js";
 import { skillEffects, rankOf, levelOf } from "./skills.js";
 import { currentWeather } from "./weather.js";
@@ -26,18 +26,19 @@ export function getStats(state, bucket, weather = "clear") {
     reelRecovery: reel.recovery * fx.tensionRecoveryMult,
     tensionLimit: line.tensionLimit,
     tensionGrowthMult: fx.tensionGrowthMult,
-    hookWindowMs: 900 + fx.hookWindowBonusMs,
+    hookWindowMs: HOOK.windowMs + fx.hookWindowBonusMs,
     perfectMs: HOOK.perfectMs + fx.perfectBonusMs,
     perfectProgressBonus: HOOK.perfectProgressBonus + fx.perfectProgressBonus,
     progressLossMult: 1,
-    zoneEaseMult: fx.zoneEaseMult,
-    burstMult: fx.burstMult * wx.burstMult,
+    zoneEaseMult: 1,
+    burstMult: wx.burstMult,
     zoneSpeedMult: 1,
     rareWeightMult: fx.rareWeightMult * wx.rareWeightMult,
     biteWaitMult: fx.biteWaitMult * wx.biteWaitMult,
+    progressMult: fx.progressMult,
+    huntChanceMult: fx.huntChanceMult,
     weather,
     secondWind: fx.secondWind,
-    fishWhisperer: fx.fishWhisperer,
     xpMult: fx.xpMult,
     gear: { ...state.gear },
   };
@@ -125,7 +126,7 @@ export function salePrice(species, rarity, sizeCm) {
 }
 
 export function rollEncounter(rng, location, bucket, stats, hunt = null, mode = "rod") {
-  const legend = hunt && rng.next() < hunt.hunt.chance;
+  const legend = hunt && rng.next() < Math.min(0.9, hunt.hunt.chance * (stats.huntChanceMult ?? 1));
   const species = legend ? hunt : pickSpecies(rng, fishTable(location, bucket, stats.weather, stats.gear, mode));
   let rarity = legend ? "legendary" : rollRarity(rng, location, stats.rareWeightMult);
   // Odd catches and giants cap at SPECIAL_MAX_RARITY (so the Fish Whisperer preview already shows the capped rarity).
@@ -137,6 +138,11 @@ export function rollEncounter(rng, location, bucket, stats, hunt = null, mode = 
 /** Start a cast. The fish table is chosen from location + current time bucket at cast time; hunt = huntAt(...). */
 export function startCast(rng, location, bucket, stats, hunt = null, mode = "rod") {
   const waitMs = rng.range(BITE_WAIT_MS[0] * stats.biteWaitMult, BITE_WAIT_MS[1] * stats.biteWaitMult) * (mode === "harpoon" ? 1.6 : 1);
+  const loc = LOCATION_FIGHT[location] ?? LOCATION_FIGHT.lake;
+  // Fake nibbles while waiting: spread over the wait, never right before the real bite.
+  const [n0, n1] = mode === "harpoon" ? [0, 0] : loc.nibbles;
+  const count = n0 + Math.floor(rng.next() * (n1 - n0 + 1));
+  const nibbles = Array.from({ length: count }, () => CAST_MS + rng.range(0.1, 0.8) * waitMs).sort((a, b) => a - b);
   return {
     phase: "cast",
     mode, // "rod" | "harpoon" (the trawler's bow: giants only)
@@ -145,14 +151,15 @@ export function startCast(rng, location, bucket, stats, hunt = null, mode = "rod
     t: 0,
     castMs: CAST_MS,
     biteAtMs: CAST_MS + waitMs,
-    hookWindowMs: stats.hookWindowMs,
-    perfectMs: stats.perfectMs,
-    whisper: stats.fishWhisperer,
+    hookWindowMs: stats.hookWindowMs * loc.hookMult,
+    perfectMs: stats.perfectMs * loc.hookMult,
+    nibbles, // ms times of fake nibbles during the wait
+    nibbleAt: -1, // session.t of the latest nibble (for the bobber twitch and spooking)
     encounter: rollEncounter(rng, location, bucket, stats, hunt, mode),
     hookQuality: null,
     harpoon: null, // harpoon round (giants): see createHarpoon
     fight: null,
-    outcome: null, // "caught" | "missed" | "early" | "broke" | "escaped"
+    outcome: null, // "caught" | "missed" | "early" | "spooked" | "broke" | "escaped"
   };
 }
 
@@ -160,8 +167,9 @@ export function startCast(rng, location, bucket, stats, hunt = null, mode = "rod
 export function pressAction(session, rng, stats) {
   if (session.phase === "cast" || session.phase === "wait") {
     session.phase = "done";
-    session.outcome = "early";
-    return "early";
+    // Striking at a nibble scares the fish off; otherwise it's just reeling in an empty line.
+    session.outcome = session.nibbleAt >= 0 && session.t - session.nibbleAt <= NIBBLE.spookMs ? "spooked" : "early";
+    return session.outcome;
   }
   if (session.phase === "bite") {
     session.hookQuality = session.t <= session.perfectMs ? "perfect" : "good";
@@ -259,7 +267,8 @@ function updateHarpoon(session, dt, rng, stats) {
 function createFight(session, rng, stats, spareHarpoons = 0) {
   const perfect = session.hookQuality === "perfect" && !session.harpoon; // a harpoon round already used the good sighting
   const species = FISH_BY_ID[session.encounter.speciesId];
-  const loc = species.legendary ? null : LOCATION_FIGHT[session.location] ?? null;
+  const place = LOCATION_FIGHT[session.location] ?? LOCATION_FIGHT.lake;
+  const loc = species.legendary ? { fishSpeed: place.fishSpeed } : place; // bosses keep their own tuning besides speed
   const bonus = (perfect ? stats.perfectProgressBonus : 0) + spareHarpoons * HARPOON_GAME.spareBonus;
   const fight = {
     behavior: species.behavior,
@@ -375,6 +384,7 @@ export function updateFishing(session, dtMs, input, rng, stats) {
       return null;
     case "wait":
       if (session.t >= session.biteAtMs) { session.phase = "bite"; session.t = 0; return "bite"; }
+      if (session.nibbles?.length && session.t >= session.nibbles[0]) { session.nibbles.shift(); session.nibbleAt = session.t; return "nibble"; }
       return null;
     case "bite":
       if (session.t > session.hookWindowMs) { session.phase = "done"; session.outcome = "missed"; return "missed"; }
@@ -392,7 +402,7 @@ function updateFight(session, dt, held, rng, stats) {
   const f = session.fight;
   const b = BEHAVIORS[f.behavior];
   const r = RARITY_FIGHT[f.rarity];
-  const loc = f.loc ?? { progressGain: 1, burstMult: 1, tensionGrowthMult: 1 };
+  const loc = { progressGain: 1, burstMult: 1, tensionGrowthMult: 1, fishSpeed: 1, ...f.loc };
   f.elapsed += dt;
 
   // normal -> burst -> exhausted -> normal ...
@@ -416,7 +426,7 @@ function updateFight(session, dt, held, rng, stats) {
     event = "rage";
   }
   const rageK = f.enraged ? BOSS_FIGHT.rageSpeed : 1;
-  let speed = (burst || f.enraged ? b.burstSpeed * r.burstStrength * stats.burstMult * loc.burstMult : b.speed) * rageK;
+  let speed = (burst || f.enraged ? b.burstSpeed * r.burstStrength * stats.burstMult * loc.burstMult : b.speed) * rageK * loc.fishSpeed;
   if (exhausted) speed *= EXHAUSTED.speedMult;
   if (f.jolt === "charge") speed = 0; // the eel holds still while it charges
   const delta = f.fishTarget - f.fishPos;
@@ -442,7 +452,7 @@ function updateFight(session, dt, held, rng, stats) {
   // Catch progress.
   f.inside = Math.abs(f.fishPos - f.zonePos) <= half;
   if (f.inside) {
-    f.progress += MINIGAME.progressGain * stats.reelSpeed * r.progressGain * (f.boss ? BOSS_FIGHT.progressGain : f.special ? SPECIAL_FIGHT.progressGain : 1) * (exhausted ? EXHAUSTED.progressGainMult : 1) * loc.progressGain * dt;
+    f.progress += MINIGAME.progressGain * stats.reelSpeed * (stats.progressMult ?? 1) * r.progressGain * (f.boss ? BOSS_FIGHT.progressGain : f.special ? SPECIAL_FIGHT.progressGain : 1) * (exhausted ? EXHAUSTED.progressGainMult : 1) * loc.progressGain * dt;
   } else {
     f.progress -= MINIGAME.progressLoss * stats.progressLossMult * dt;
   }

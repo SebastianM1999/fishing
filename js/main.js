@@ -2,7 +2,7 @@
 import * as content from "./game/content.js";
 import { createRng } from "./game/rng.js";
 import { createState, serialize, deserialize } from "./game/state.js";
-import { advanceTime, timeBucket, bucketProgress } from "./game/time.js";
+import { advanceTime, timeBucket, bucketProgress, sleepUntil } from "./game/time.js";
 import { PLAYER_SPEED, isWalkable, nearestInteraction, regionName, surfaceAt, TRAVEL } from "./game/world.js";
 import * as fishing from "./game/fishing.js";
 import * as economy from "./game/economy.js";
@@ -136,6 +136,7 @@ const ui = createUI({
   getPrefs: () => audio.prefs,
   setPref: (name, value) => audio.setPref(name, value),
   onDialogOpened: () => audio.play("open"),
+  sleep: goToSleep,
   onCatchContinue: closeCatchCard,
   onCatchChoice: chooseFirstCatch,
 });
@@ -166,6 +167,23 @@ function closeCatchCard() {
   ui.hideCatchResult();
   game.session = null;
   audio.play("ui");
+}
+
+/** The bed: fade out, skip ahead to the chosen time of day, fade back in. */
+function goToSleep(bucket) {
+  game.travelling = true;
+  audio.play("door");
+  ui.fade(true);
+  setTimeout(() => {
+    const newDay = sleepUntil(state, bucket);
+    orders.ensureOrders(state);
+    saveNow();
+    setTimeout(() => {
+      ui.fade(false);
+      game.travelling = false;
+      ui.toast(`${newDay ? `Good morning! Day ${state.day + 1} · new village orders` : "What a nap"} · it's ${content.TIME_LABELS[bucket]} now`);
+    }, 700);
+  }, 600);
 }
 
 function unlockRegion(id) {
@@ -318,6 +336,7 @@ function interact(it) {
     case "shop": ui.openShop(state); break;
     case "board": ui.openBoard(); break;
     case "trophies": ui.openTrophies(); break;
+    case "bed": ui.openSleep(state); break;
     case "quests": orders.ensureOrders(state); ui.openOrders(); break;
     case "enter": travel(TRAVEL.toHome); break;
     case "exit": travel(TRAVEL.fromHome); break;
@@ -440,18 +459,20 @@ function updateSession(actions, dtMs) {
   const stats = fishing.getStats(state, s.bucket, s.weather);
   if (ui.catchVisible()) return; // closed only by its Continue button or Esc
   const reelIn = actions.interact && (s.phase === "cast" || s.phase === "wait");
-  const hook = actions.hook && (s.phase === "bite" || s.phase === "harpoon");
+  // Striking while waiting reels in an empty line, or spooks the fish if it was only nibbling.
+  const hook = actions.hook && (s.phase === "bite" || s.phase === "harpoon" || (s.phase === "wait" && s.mode !== "harpoon"));
   if (reelIn || hook) {
     const ev = fishing.pressAction(s, rng, stats);
     if (ev === "hooked") audio.play("hook", s.hookQuality === "perfect");
     if (ev === "aim") audio.play("spout");
     if (ev === "throw") audio.play("throw");
-    if (ev === "early") { finishSession(); return; }
+    if (ev === "early" || ev === "spooked") { finishSession(); return; }
   }
   s.reelHeld = actions.reel && s.phase === "fight";
   const before = s.phase;
   const ev = fishing.updateFishing(s, dtMs, { reelHeld: s.reelHeld }, rng, stats);
   if (before === "cast" && s.phase === "wait") audio.play("plop");
+  if (ev === "nibble") audio.play("nibble");
   if (ev === "secondwind") { audio.play("secondwind"); ui.toast("Second wind! The line holds."); }
   if (ev === "rage") audio.play("rage");
   if (["ink", "grab", "glow", "charge", "jolt"].includes(ev)) audio.play(ev);

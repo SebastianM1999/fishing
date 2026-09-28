@@ -94,6 +94,7 @@ export const INTERACTIONS = [
   { id: "exit_home", type: "exit", area: "home", x: -150, z: -146.1, r: 1.3, label: "Go outside" },
   { id: "board", type: "board", area: "home", x: -152.6, z: -153.2, r: 1.9, label: "View the collection" },
   { id: "trophies", type: "trophies", area: "home", x: -146.8, z: -153.2, r: 1.9, label: "Trophy shelf" },
+  { id: "bed", type: "bed", area: "home", x: -147.3, z: -147.4, r: 1.3, label: "Go to bed" },
   { id: "dock", type: "dock", area: "land", x: 3.8, z: 22.4, r: 1.7, label: "Sail offshore" },
   { id: "trawler", type: "trawler", area: "land", x: -27, z: 24.8, r: 1.1, label: "Sail to the Deep Trench" },
   { id: "harpoon_rack", type: "harpoon", area: "land", x: -27.45, z: 20, r: 1.05, label: "Harpoon rack" },

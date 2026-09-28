@@ -63,7 +63,7 @@
 
   <section id="fishing" class="fishing-panel" hidden aria-live="polite">
     <div class="legend-banner" id="legend-banner" hidden>✦ Legendary! ✦</div>
-    <div class="fishing-status" id="fishing-status"><span class="status-ico" id="fishing-status-ico"></span><span id="fishing-status-text">Casting…</span><span class="whisper" id="fishing-whisper" hidden></span></div>
+    <div class="fishing-status" id="fishing-status"><span class="status-ico" id="fishing-status-ico"></span><span id="fishing-status-text">Casting…</span></div>
     <div id="minigame" class="minigame" hidden>
       <div class="mg-head">
         <span class="mg-behavior"><span class="mg-behavior-ico" id="mg-behavior-ico"></span><span id="mg-behavior">Fish on!</span></span>
@@ -204,6 +204,16 @@
         <button type="button" class="secondary" data-close>Not now</button>
         <button type="button" class="primary" id="unlock-pay">Pay the builders</button>
       </div>
+    </div>
+  </dialog>
+
+  <dialog id="sleep-dialog" class="panel small" aria-labelledby="sleep-title">
+    <header class="panel-head">
+      <h2 id="sleep-title">Sleep until…</h2>
+      <button type="button" class="close" data-close aria-label="Close">✕</button>
+    </header>
+    <div class="panel-body">
+      <div id="sleep-body" class="sleep-options"></div>
     </div>
   </dialog>
 
