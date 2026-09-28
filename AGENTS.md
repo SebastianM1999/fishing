@@ -21,14 +21,16 @@ Project skills live in `.claude/skills/`:
 - leveling + skill tree (coins buy gear, XP buys technique), no hooks or tackle;
 - an enterable house with the collection board and a 3-spot trophy shelf;
 - daily village orders, catch streaks and 4 named legendary fish;
-- weather (clear/rain/fog/storm per time of day, `js/game/weather.js`) with 5 weather-only species (collection 29).
+- weather (clear/rain/fog/storm per time of day, `js/game/weather.js`) with 5 weather-only species (collection 29);
+- a title screen with its own menu music; recorded MP3 music per time of day.
 
 Don't "fix" these back to the spec.
 
 ## Run & test
 
 - Dev server: `node tools/serve.mjs 8080` (also in `.claude/launch.json`), then open http://localhost:8080/.
-- `?debug` exposes `window.cozy`: state, game, rng, content, fishing, economy, `saveNow`, `setTime`, `teleport`, `setWeather(id | null)`, audio, `renderInfo`. `?debug&reset` deletes the save.
+- The game starts on a title screen (music needs a user gesture); `?debug` skips it, `?debug&title` shows it.
+- `?debug` exposes `window.cozy`: state, game, rng, content, fishing, economy, `saveNow`, `setTime`, `teleport`, `setWeather(id | null)`, audio (`audio.track` = playing music file, `audio.level()` = output level), `renderInfo`. `?debug&reset` deletes the save.
 - **Test in an isolated browser (Playwright).** Never reset, teleport or edit state in the user's own browser tab; it holds their real save.
 - The service worker is cache-first, so dev edits can be served stale. Before testing: unregister the worker and clear caches (for example from an off-app URL like `/icons/icon-192.png`), then reload.
 - Before calling work done, check for:
@@ -46,7 +48,7 @@ Don't "fix" these back to the spec.
   - Rendering (`js/render/`) only reads state.
   - UI (`js/ui/`) calls handlers wired in `js/main.js`.
 - **Art:**
-  - All art is procedural: low-poly meshes (`js/render/models.js`, `kit.js`), SVG fish portraits (`js/ui/fishArt.js`), SVG icons (`js/ui/icons.js`) and Web Audio sound (`js/audio/audio.js`). There are no asset files, with one exception: the music is composed MIDI in `assets/music/*.mid`, converted by `tools/midi2js.mjs` into `js/audio/tracks.js` (checked-in note data played by the Web Audio synth). After changing a `.mid` file, re-run `node tools/midi2js.mjs` and bump `CACHE` in `sw.js`.
+  - All art is procedural: low-poly meshes (`js/render/models.js`, `kit.js`), SVG fish portraits (`js/ui/fishArt.js`), SVG icons (`js/ui/icons.js`) and Web Audio sound (`js/audio/audio.js`). There are no asset files except the music: recorded MP3s in `assets/music/`, one playlist per time of day plus the title-screen loop (`PLAYLISTS` in `js/audio/audio.js`). They are precached in `sw.js`, which answers the media element's byte-range requests from the cache (206) so music works offline; a new or renamed track must go in `PLAYLISTS` and `PRECACHE`, then bump `CACHE`.
   - Static scenery is batched by material.
   - Custom shaders need a unique `customProgramCacheKey`.
 - **Controls the user asked for:**

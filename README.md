@@ -8,7 +8,7 @@ A small single-player 2.5D fishing game for the browser/PWA. Plain JavaScript ES
 node tools/serve.mjs 8080
 ```
 
-Open http://localhost:8080/. Append `?debug` to expose a `window.cozy` test hook (state, clock, teleport, `setWeather("rain")` / `setWeather(null)`) — used for automated browser verification only.
+Open http://localhost:8080/. Append `?debug` to expose a `window.cozy` test hook (skips the title screen unless `&title`; state, clock, teleport, `setWeather("rain")` / `setWeather(null)`) — used for automated browser verification only.
 
 ## Controls
 
@@ -38,7 +38,7 @@ The bag holds 8 sellable fish (upgrades: 15 for 200, 30 for 600); when it's full
 
 ## Audio
 
-All sound is generated at runtime with the Web Audio API — no audio files, except the four composed MIDI tracks in `assets/music/` that supply the note data (converted by `tools/midi2js.mjs` into `js/audio/tracks.js`; re-run it after editing a `.mid`, then bump `CACHE` in `sw.js`). Music plays a different track per time of day and crossfades on the transition; nature ambience (birds, crickets, owls, gulls, river, wind, surf) follows where the player is; footsteps change with the ground surface. Audio starts on the first tap/key press (browser autoplay rules). Volumes for music, sounds and nature, plus mute, are in the settings (gear button, top right) and stored in `localStorage`.
+The game opens on a **title screen** (the world waits behind it, time frozen): the first click or key press starts the menu music (`cozy-farming-village`; browsers only allow sound after a user gesture) and shows **Start fishing / Continue** and **Settings**. Music is recorded MP3 in `assets/music/` (playlists in `js/audio/audio.js`): Dawn and Day alternate the two *Sunlit Turnip Path* tracks, Dusk the two *Cedar Hearth Loop* tracks, Night the two *Glowspore Cavern* tracks; tracks crossfade into the next one and when the time of day changes, and pause while the tab is hidden. Everything else is generated with the Web Audio API: nature ambience (birds, crickets, owls, gulls, river, wind, surf) follows where the player is; footsteps change with the ground surface. Audio starts on the first tap/key press (browser autoplay rules). Volumes for music, sounds and nature, plus mute, are in the settings (gear button, top right) and stored in `localStorage`.
 
 ## Layout
 
@@ -48,7 +48,7 @@ js/render/      Three.js scene built from world data; reads state each frame
 js/input/       keyboard, pointer and joystick -> game actions
 js/ui/          HUD, fishing panel, shop/bag/wallboard dialogs, procedural fish SVGs
 js/persistence/ IndexedDB save slot
-js/audio/       composed MIDI music (tracks.js, generated from assets/music/*.mid), ambience and sound effects
+js/audio/       music player (assets/music/*.mp3 playlists), procedural ambience and sound effects
 sw.js           hand-written service worker (versioned precache, cache-first)
 tools/serve.mjs zero-dependency static dev server
 ```

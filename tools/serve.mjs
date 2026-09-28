@@ -9,7 +9,7 @@ const port = Number(process.argv[2] ?? process.env.PORT ?? 8080);
 const TYPES = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8", ".json": "application/json", ".webmanifest": "application/manifest+json",
-  ".png": "image/png", ".svg": "image/svg+xml", ".ico": "image/x-icon", ".glb": "model/gltf-binary",
+  ".png": "image/png", ".svg": "image/svg+xml", ".ico": "image/x-icon", ".glb": "model/gltf-binary", ".mp3": "audio/mpeg",
 };
 
 createServer(async (req, res) => {

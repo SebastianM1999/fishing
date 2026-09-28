@@ -410,7 +410,7 @@ export function createUI(handlers) {
   return {
     bind(s) { state = s; },
     anyDialogOpen: () => el.shop.open || el.bag.open || el.board.open || el.unlock.open || el.settings.open || el.skills.open || el.trophy.open || el.orders.open,
-    openShop, openBag, openBoard, openSkills, openTrophies, openOrders, openPurchase, toast, refreshOpenPanels,
+    openShop, openBag, openBoard, openSkills, openTrophies, openOrders, openPurchase, openSettings, toast, refreshOpenPanels,
 
     updateHud(s, bucket, bucketProgress, region) {
       state = s;

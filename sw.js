@@ -1,5 +1,5 @@
 // Hand-written service worker: precache the app shell, cache-first for precached same-origin GETs.
-const CACHE = "driftwood-cove-v16";
+const CACHE = "driftwood-cove-v17";
 const PRECACHE = [
   "/",
   "/index.html",
@@ -26,7 +26,13 @@ const PRECACHE = [
   "/js/ui/fishArt.js",
   "/js/ui/icons.js",
   "/js/audio/audio.js",
-  "/js/audio/tracks.js",
+  "/assets/music/cozy-farming-village.mp3",
+  "/assets/music/sunlit-turnip-path.mp3",
+  "/assets/music/sunlit-turnip-path-2.mp3",
+  "/assets/music/cedar-hearth-loop.mp3",
+  "/assets/music/cedar-hearth-loop-2.mp3",
+  "/assets/music/glowspore-cavern.mp3",
+  "/assets/music/glowspore-cavern-2.mp3",
   "/js/render/scene.js",
   "/js/render/kit.js",
   "/js/render/models.js",
@@ -52,5 +58,27 @@ self.addEventListener("fetch", event => {
     return;
   }
   if (!PRECACHE.includes(url.pathname)) return;
-  event.respondWith(caches.match(url.pathname).then(cached => cached ?? fetch(request)));
+  const range = request.headers.get("range");
+  event.respondWith(caches.match(url.pathname).then(cached => {
+    if (!cached) return fetch(request);
+    return range ? partial(cached, range) : cached;
+  }));
 });
+
+// Media elements ask for byte ranges (music); answer them from the cached file with a 206.
+async function partial(response, range) {
+  const buf = await response.arrayBuffer();
+  const [, from, to] = /bytes=(\d*)-(\d*)/.exec(range) ?? [];
+  const start = from ? Number(from) : Math.max(0, buf.byteLength - Number(to));
+  const end = from && to ? Math.min(Number(to), buf.byteLength - 1) : buf.byteLength - 1;
+  if (!(start <= end)) return new Response(null, { status: 416, headers: { "Content-Range": `bytes */${buf.byteLength}` } });
+  return new Response(buf.slice(start, end + 1), {
+    status: 206,
+    headers: {
+      "Content-Type": response.headers.get("Content-Type") ?? "audio/mpeg",
+      "Content-Range": `bytes ${start}-${end}/${buf.byteLength}`,
+      "Content-Length": String(end - start + 1),
+      "Accept-Ranges": "bytes",
+    },
+  });
+}

@@ -1,20 +1,26 @@
-// Procedural audio (Web Audio API only, no files): the music is composed MIDI (assets/music/*.mid, converted
-// by tools/midi2js.mjs into js/audio/tracks.js note data) played back with synthesized instrument voices; nature
-// ambience follows the player's surroundings and the time of day, and sound effects round out the mix. Volumes
-// are tiny preferences in localStorage.
-import { TRACKS } from "./tracks.js";
+// Web Audio: recorded music (assets/music/*.mp3, one playlist per time of day plus the title-screen loop),
+// procedural nature ambience that follows the player's surroundings and the time of day, and synthesized sound
+// effects. Volumes are tiny preferences in localStorage.
 
 const PREFS_KEY = "driftwood-cove-audio";
 const DEFAULT_PREFS = { music: 0.45, sfx: 0.8, ambience: 0.5, muted: false };
 
 const midi = n => 440 * Math.pow(2, (n - 69) / 12);
+
+// Music playlists; a time of day alternates between its tracks. "menu" loops on the title screen.
+const MUSIC_DIR = "/assets/music/";
+export const PLAYLISTS = {
+  menu: ["cozy-farming-village.mp3"],
+  dawn: ["sunlit-turnip-path-2.mp3", "sunlit-turnip-path.mp3"],
+  day: ["sunlit-turnip-path.mp3", "sunlit-turnip-path-2.mp3"],
+  dusk: ["cedar-hearth-loop.mp3", "cedar-hearth-loop-2.mp3"],
+  night: ["glowspore-cavern.mp3", "glowspore-cavern-2.mp3"],
+};
+const CROSSFADE = 2.5; // seconds between tracks (time-of-day change, next track, leaving the title screen)
+const TRACK_GAIN = 0.75; // level of the recorded music within the music bus
 const rand = (a, b) => a + Math.random() * (b - a);
 const clamp01 = v => Math.min(1, Math.max(0, v));
 
-// Warmth (lowpass cutoff, Hz) applied to the whole music mix, per time of day.
-const MUSIC_CUTOFF = { dawn: 7000, day: 9000, dusk: 5500, night: 4200 };
-const CROSSFADE = 2.5; // seconds to fade between tracks when the time of day changes
-const TRACK_GAIN = 0.5; // relative level of the composed-track mix within the music bus
 
 function loadPrefs() {
   try { return { ...DEFAULT_PREFS, ...JSON.parse(localStorage.getItem(PREFS_KEY) ?? "{}") }; }
@@ -28,10 +34,10 @@ export function createAudio() {
   const prefs = loadPrefs();
   let ctx = null;
   const bus = {};
-  let white, brown, reverb, musicFilter;
+  let white, brown, reverb;
   const amb = {};
   let meterNode = null;
-  const music = { bucket: null, layers: [] };
+  const music = { key: null, deck: null, next: {} }; // next: playlist position per key
   const timers = { crackle: 0, bird: 0, cricket: 0, gull: 0, owl: 0, tick: 0, creak: 0 };
 
   // --- Graph ------------------------------------------------------------------------------
@@ -81,13 +87,12 @@ export function createAudio() {
     reverb = ctx.createConvolver();
     reverb.buffer = impulse(2.6);
     reverb.connect(gain(0.5, master));
-    for (const [name, send] of [["music", 0.4], ["sfx", 0.12], ["ambience", 0.22]]) {
+    for (const [name, send] of [["music", 0], ["sfx", 0.12], ["ambience", 0.22]]) {
       bus[name] = gain(0, master);
-      bus[name].connect(gain(send, reverb));
+      if (send) bus[name].connect(gain(send, reverb)); // recorded music already has its own room
     }
     white = noiseBuffer(2, false);
     brown = noiseBuffer(4, true);
-    musicFilter = filter("lowpass", 6500, 0.5, gain(1, bus.music));
 
     // Ambience beds: surf (swell + wash), river, wind.
     amb.wave = gain(0, bus.ambience);
@@ -102,6 +107,11 @@ export function createAudio() {
     amb.rain = gain(0, bus.ambience);
     loop(white, filter("bandpass", 2600, 0.45, filter("lowpass", 7000, 0.5, amb.rain)));
     applyVolumes();
+    // Hidden tab: pause everything (music would otherwise keep playing in the background).
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) ctx.suspend();
+      else ctx.resume();
+    });
   }
 
   function applyVolumes() {
@@ -139,97 +149,38 @@ export function createAudio() {
   }
 
   // --- Music ---------------------------------------------------------------------------------------
-  // Each composed track (see js/audio/tracks.js) is a set of parts; every part carries a General MIDI
-  // program number that we map to a synthesized instrument voice.
-  function voiceFor(program, note) {
-    if (program === -1) return "shaker";
-    if (program === 73) return "flute";
-    if (program === 46) return "harp";
-    if (program === 12) return "marimba";
-    if (program === 8) return "celesta";
-    if (program === 71) return "clarinet";
-    if (program === 48) return "strings";
-    if (program === 88) return "pad";
-    return note < 48 ? "bass" : "keys"; // low piano notes double as the bassline
+  /** Fade a deck out, then release its element and nodes. */
+  function retire(deck, fade = CROSSFADE) {
+    deck.retired = true;
+    deck.gain.gain.cancelScheduledValues(ctx.currentTime);
+    deck.gain.gain.setTargetAtTime(0, ctx.currentTime, fade / 3);
+    setTimeout(() => { deck.el.pause(); deck.el.removeAttribute("src"); deck.el.load(); deck.node.disconnect(); deck.gain.disconnect(); }, fade * 1000 + 500);
   }
-  function playNote(to, kind, freq, dur, vel, t, pan) {
-    switch (kind) {
-      case "flute":
-        tone(to, { freq, type: "sine", t, peak: 0.05 * vel, attack: 0.06, decay: Math.max(dur, 0.25), pan });
-        noise(to, { t, peak: 0.008 * vel, type: "highpass", freq: 3000, decay: 0.05, pan }); // breath
-        break;
-      case "harp":
-        tone(to, { freq, type: "triangle", t, peak: 0.09 * vel, attack: 0.004, decay: Math.min(dur + 0.3, 1.6), pan });
-        tone(to, { freq: freq * 2, type: "sine", t, peak: 0.02 * vel, attack: 0.003, decay: 0.35, pan }); // pluck shimmer
-        break;
-      case "marimba":
-        tone(to, { freq, type: "sine", t, peak: 0.1 * vel, attack: 0.003, decay: Math.min(dur + 0.15, 0.6), pan });
-        tone(to, { freq: freq * 3.9, type: "sine", t, peak: 0.02 * vel, attack: 0.002, decay: 0.05, pan }); // mallet click
-        break;
-      case "celesta":
-        tone(to, { freq, type: "sine", t, peak: 0.07 * vel, attack: 0.008, decay: Math.min(dur + 0.6, 1.8), pan });
-        tone(to, { freq: freq * 3, type: "sine", t, peak: 0.018 * vel, attack: 0.004, decay: 0.7, pan });
-        break;
-      case "clarinet":
-        tone(to, { freq, type: "square", t, peak: 0.045 * vel, attack: 0.05, decay: Math.max(dur * 0.9, 0.2), pan });
-        break;
-      case "strings":
-        tone(to, { freq, type: "sawtooth", t, peak: 0.045 * vel, attack: 0.22, decay: Math.max(dur, 0.4), detune: -6, pan });
-        tone(to, { freq, type: "sawtooth", t, peak: 0.045 * vel, attack: 0.22, decay: Math.max(dur, 0.4), detune: 6, pan });
-        break;
-      case "pad":
-        tone(to, { freq, type: "triangle", t, peak: 0.03 * vel, attack: 0.5, decay: Math.max(dur + 0.6, 1.2), detune: -8, pan });
-        tone(to, { freq, type: "triangle", t, peak: 0.03 * vel, attack: 0.5, decay: Math.max(dur + 0.6, 1.2), detune: 8, pan });
-        break;
-      case "bass":
-        tone(to, { freq: freq / 2, type: "sine", t, peak: 0.11 * vel, attack: 0.01, decay: Math.max(dur + 0.15, 0.35) });
-        break;
-      case "shaker":
-        noise(to, { t, peak: 0.03 * vel, type: "bandpass", freq: 5200, q: 1.4, attack: 0.002, decay: 0.06, pan });
-        break;
-      default: // keys / piano
-        tone(to, { freq, type: "triangle", t, peak: 0.075 * vel, attack: 0.006, decay: Math.max(dur, 0.7), pan });
-    }
+
+  /** Start the next track of a playlist, crossfading from whatever plays now. */
+  function startTrack(key) {
+    const list = PLAYLISTS[key], i = music.next[key] ?? 0;
+    music.next[key] = (i + 1) % list.length;
+    if (music.deck) retire(music.deck);
+    const el = new Audio(MUSIC_DIR + list[i]);
+    el.loop = list.length === 1;
+    el.preload = "auto";
+    const deck = { key, el, gain: gain(0, bus.music), node: ctx.createMediaElementSource(el), retired: false };
+    deck.node.connect(deck.gain);
+    deck.gain.gain.setTargetAtTime(TRACK_GAIN, ctx.currentTime + 0.05, CROSSFADE / 3);
+    // Roll into the playlist's next track shortly before this one ends.
+    el.addEventListener("timeupdate", () => {
+      if (!deck.retired && !el.loop && el.duration - el.currentTime < CROSSFADE && music.deck === deck) startTrack(key);
+    });
+    el.addEventListener("ended", () => { if (!deck.retired && music.deck === deck) startTrack(key); });
+    el.play().catch(err => console.warn("music could not start:", err.message));
+    music.deck = deck;
   }
-  function makeLayer(bucket, now) {
-    const tr = TRACKS[bucket];
-    if (!tr) return null;
-    const events = [];
-    for (const part of tr.parts) {
-      const notes = part.notes;
-      for (let i = 0; i < notes.length; i += 4) {
-        events.push({ t: notes[i], note: notes[i + 1], dur: notes[i + 2], vel: notes[i + 3] / 127, kind: voiceFor(part.program, notes[i + 1]) });
-      }
-    }
-    events.sort((a, b) => a.t - b.t);
-    if (!events.length) return null;
-    const g = gain(0, musicFilter);
-    g.gain.setTargetAtTime(TRACK_GAIN, now, CROSSFADE / 3);
-    return { bucket, events, len: tr.length, idx: 0, cycleStart: now + 0.05, gain: g, retireAt: 0 };
-  }
-  function scheduleLayer(layer, now, lookahead) {
-    while (layer.cycleStart + layer.events[layer.idx].t < now + lookahead) {
-      const ev = layer.events[layer.idx], t = layer.cycleStart + ev.t;
-      // Skip (don't sound) any notes that fall in the past, e.g. right after resuming from a pause.
-      if (t >= now - 0.02) {
-        const pan = (((ev.note * 37) % 100) / 100 - 0.5) * 0.7; // stable per-note stereo spread
-        playNote(layer.gain, ev.kind, midi(ev.note), ev.dur, ev.vel, t, pan);
-      }
-      layer.idx++;
-      if (layer.idx >= layer.events.length) { layer.idx = 0; layer.cycleStart += layer.len; }
-    }
-  }
-  function scheduleMusic(bucket) {
-    const now = ctx.currentTime;
-    musicFilter.frequency.setTargetAtTime(MUSIC_CUTOFF[bucket] ?? 6500, now, 2);
-    if (music.bucket !== bucket) {
-      music.bucket = bucket;
-      for (const old of music.layers) { old.gain.gain.setTargetAtTime(0, now, CROSSFADE / 3); old.retireAt = now + CROSSFADE + 1; }
-      const layer = makeLayer(bucket, now);
-      if (layer) music.layers.push(layer);
-    }
-    music.layers = music.layers.filter(l => !l.retireAt || now < l.retireAt);
-    for (const layer of music.layers) scheduleLayer(layer, now, 0.35);
+
+  function updateMusic(key) {
+    if (music.key === key) return;
+    music.key = key;
+    startTrack(key);
   }
 
   // --- Nature ---------------------------------------------------------------------------------------
@@ -318,18 +269,20 @@ export function createAudio() {
       return Math.sqrt(d.reduce((a, v) => a + v * v, 0) / d.length);
     },
     get prefs() { return { ...prefs }; },
+    /** Currently playing music file (for automated checks). */
+    get track() { return music.deck ? music.deck.el.src.split("/").pop() : null; },
     setPref(name, value) { prefs[name] = value; savePrefs(prefs); applyVolumes(); },
     play(name, ...args) {
       if (!ctx || ctx.state !== "running" || prefs.muted || !prefs.sfx) return;
       try { SFX[name]?.(...args); } catch (err) { console.warn("sfx failed", name, err); }
     },
     /**
-     * Per-frame update. env: { bucket, area, x, z, fightHeld, tension (0..1), paused }
+     * Per-frame update. env: { menu, bucket, weather, area, x, z, fightHeld, tension (0..1) }
      */
     update(env) {
       if (!ctx || ctx.state !== "running") return;
       const now = ctx.currentTime;
-      if (!prefs.muted && prefs.music > 0) scheduleMusic(env.bucket);
+      updateMusic(env.menu ? "menu" : env.bucket);
       // Ambience mix from surroundings
       const offshore = env.area === "offshore", indoors = env.area === "home";
       const seaNear = offshore ? 1 : indoors ? 0 : clamp01((env.z - 3) / 13);

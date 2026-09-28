@@ -680,3 +680,32 @@ body.boss-fight .vignette { opacity: 1; animation: vignettepulse 1.8s ease-in-ou
 .rumor-gear .ico { width: 14px; height: 14px; }
 .section-title .ico { width: 18px; height: 18px; color: #6a3fc8; }
 #orders-body { max-height: calc(100dvh - 190px); }
+
+/* Title screen ------------------------------------------------------------------------------------ */
+body.at-title .hud, body.at-title .hud-buttons, body.at-title .action-btn, body.at-title .joystick, body.at-title .toasts { visibility: hidden; }
+.title-screen {
+  position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 16px;
+  background: radial-gradient(ellipse at 50% 45%, rgb(40 28 18 / 0.05), rgb(40 28 18 / 0.45));
+  transition: opacity 0.6s ease;
+}
+.title-screen.leaving { opacity: 0; pointer-events: none; }
+.title-card {
+  display: grid; justify-items: center; gap: 6px; width: min(460px, 100%); padding: 28px 28px 26px;
+  background: linear-gradient(#fbf5e8, #f3e8d2); border: 3px solid #c9a274; border-radius: 28px;
+  box-shadow: 0 6px 0 #a8784e, 0 18px 50px rgb(40 28 18 / 0.35); text-align: center; animation: pop 0.4s ease-out;
+}
+.title-kicker { margin: 0; font-size: 14px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--wood); }
+.title-card h1 { margin: 0; font-size: clamp(38px, 8vw, 56px); line-height: 1.05; color: var(--sea); text-shadow: 0 3px 0 #d8c7a4; }
+.title-waves {
+  width: 70%; height: 14px; margin: 4px 0 10px; opacity: 0.8;
+  background: radial-gradient(circle at 10px -4px, transparent 10px, var(--sea) 11px, var(--sea) 13px, transparent 14px) 0 0 / 20px 14px repeat-x;
+  animation: titlewaves 3s linear infinite;
+}
+@keyframes titlewaves { to { background-position: 20px 0; } }
+.title-press { margin: 6px 0 0; font-weight: 800; color: var(--ink-soft); animation: titlepulse 1.8s ease-in-out infinite; }
+@keyframes titlepulse { 50% { opacity: 0.45; } }
+.title-menu { display: grid; gap: 10px; width: min(260px, 100%); margin-top: 8px; }
+.title-menu[hidden] { display: none; }
+.title-play { min-height: 54px; font-size: 20px; }
+.title-settings { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; }
+.title-ico .ico { width: 20px; height: 20px; vertical-align: middle; }

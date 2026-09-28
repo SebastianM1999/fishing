@@ -14,6 +14,7 @@ import { createUI } from "./ui/ui.js";
 import { createRenderer } from "./render/scene.js";
 import { loadSave, writeSave, deleteSave } from "./persistence/save.js";
 import { createAudio } from "./audio/audio.js";
+import { ICONS } from "./ui/icons.js";
 
 const canvas = document.getElementById("world");
 const params = new URLSearchParams(location.search);
@@ -165,6 +166,42 @@ addEventListener("resize", () => renderer.resize());
 const markTouch = () => document.body.classList.add("touch");
 if (matchMedia("(pointer: coarse)").matches || params.has("touch")) markTouch();
 addEventListener("touchstart", markTouch, { once: true, passive: true });
+
+// --- Title screen: the world waits behind it; its music starts with the first key/click (autoplay rules).
+const title = {
+  el: document.getElementById("title-screen"),
+  press: document.getElementById("title-press"),
+  menu: document.getElementById("title-menu"),
+  play: document.getElementById("title-play"),
+  shownAt: 0,
+};
+title.el.querySelectorAll("[data-icon]").forEach(n => { n.innerHTML = ICONS[n.dataset.icon]; });
+game.menu = !params.has("debug") || params.has("title"); // automated tests start in the world unless ?title
+function showTitleMenu() {
+  if (!title.menu.hidden) return;
+  title.press.hidden = true;
+  title.menu.hidden = false;
+  title.shownAt = performance.now();
+  audio.play("open");
+}
+function startGame() {
+  if (!game.menu || performance.now() - title.shownAt < 350) return; // the revealing click can't also press Play
+  game.menu = false;
+  input.cancelInteract();
+  document.body.classList.remove("at-title");
+  title.el.classList.add("leaving");
+  setTimeout(() => { title.el.hidden = true; }, 650);
+  canvas.focus?.();
+}
+title.el.addEventListener("pointerdown", () => { if (!ui.anyDialogOpen()) showTitleMenu(); });
+title.play.addEventListener("click", startGame);
+document.getElementById("title-settings").addEventListener("click", () => ui.openSettings());
+addEventListener("keydown", e => {
+  if (!game.menu || ui.anyDialogOpen()) return; // the settings dialog handles its own keys
+  e.stopImmediatePropagation();
+  if (title.menu.hidden) { e.preventDefault(); showTitleMenu(); return; }
+  if (["KeyE", "Enter", "Space"].includes(e.code) && !e.repeat && document.activeElement?.id !== "title-settings") { e.preventDefault(); startGame(); }
+}, { capture: true });
 
 addEventListener("keydown", e => {
   const consume = () => { e.stopImmediatePropagation(); e.preventDefault(); input.cancelInteract(); };
@@ -376,8 +413,8 @@ function frame(now) {
   game.elapsed += dt;
 
   const actions = input.poll();
-  const dialogOpen = ui.anyDialogOpen();
-  advanceTime(state, dt * 1000);
+  const dialogOpen = ui.anyDialogOpen() || game.menu;
+  if (!game.menu) advanceTime(state, dt * 1000); // time waits on the title screen
   if (orders.ensureOrders(state)) { ui.refreshOpenPanels(); if (game.ordersSeen) ui.toast("New orders on the village notice board"); saveSoon(); }
   game.ordersSeen = true;
 
@@ -421,7 +458,7 @@ function frame(now) {
   if (view.lightning) audio.play("thunder");
   if (view.footstep) audio.play("step", surfaceAt(state.player.x, state.player.z, state.player.area));
   const fight = game.session?.phase === "fight" ? game.session.fight : null;
-  audio.update({ bucket, weather: wx, area: state.player.area, x: state.player.x, z: state.player.z, fightHeld: !!(fight && game.session.reelHeld), tension: fight ? fight.tension / fight.tensionLimit : 0 });
+  audio.update({ menu: game.menu, bucket, weather: wx, area: state.player.area, x: state.player.x, z: state.player.z, fightHeld: !!(fight && game.session.reelHeld), tension: fight ? fight.tension / fight.tensionLimit : 0 });
 
   game.saveTimer += dt;
   if (game.saveTimer > 15) { game.saveTimer = 0; saveSoon(); } // position/time checkpoint
@@ -435,6 +472,7 @@ async function boot() {
     if (params.has("debug") && params.has("reset")) await deleteSave(); // test hook: start a fresh game
     const data = await loadSave();
     if (data) {
+      game.hadSave = true;
       state = deserialize(data);
       rng = createRng(state.rngSeed);
     }
@@ -442,6 +480,11 @@ async function boot() {
     console.warn("Could not load save, starting fresh:", err);
   }
   ui.bind(state);
+  if (game.menu) {
+    document.body.classList.add("at-title");
+    title.el.hidden = false;
+    title.play.firstChild.textContent = game.hadSave ? "Continue " : "Start fishing ";
+  }
   renderer.setWallboard(state.discovered);
   renderer.setTrophies(state.trophies);
   renderer.setUnlocked(state.unlocked);

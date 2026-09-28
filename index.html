@@ -16,6 +16,19 @@
 <body>
   <canvas id="world" aria-label="Game world"></canvas>
 
+  <section id="title-screen" class="title-screen" aria-labelledby="title-name" hidden>
+    <div class="title-card">
+      <p class="title-kicker">a cozy fishing game</p>
+      <h1 id="title-name">Driftwood Cove</h1>
+      <div class="title-waves" aria-hidden="true"></div>
+      <p id="title-press" class="title-press">Click or press any key</p>
+      <div id="title-menu" class="title-menu" hidden>
+        <button type="button" id="title-play" class="primary title-play">Play <span class="key">E</span></button>
+        <button type="button" id="title-settings" class="secondary title-settings"><span class="title-ico" data-icon="gear"></span>Settings</button>
+      </div>
+    </div>
+  </section>
+
   <header class="hud" id="hud">
     <div class="hud-card">
       <span class="level-chip" id="hud-level-chip" title="Level">
