@@ -302,6 +302,46 @@ export function walkway(k, M, w, withRails) {
   k.pop();
 }
 
+/**
+ * The old storm pier: the same planks as a walkway, but weathered, crooked and patched, with split and missing
+ * planks along the edges, leaning posts (one snapped off), a sagging rope rail and a broken-off end.
+ */
+export function brokenPier(k, M, w) {
+  const len = w.maxZ - w.minZ, width = w.maxX - w.minX;
+  const cx = (w.minX + w.maxX) / 2, cz = (w.minZ + w.maxZ) / 2;
+  k.push(cx, 0, cz, 0);
+  const n = Math.round(len / 0.42);
+  for (let j = 0; j < n; j++) {
+    const z = -len / 2 + 0.21 + j * (len / n), h = (j * 37) % 11;
+    const tilt = ((j * 5) % 3 - 1) * 0.05, dip = ((j * 7) % 4) * 0.015;
+    if (h === 3) { // split plank: only half of it is left
+      k.part(G.box(width * 0.55, 0.1, 0.36), M.plankDark, [-width * 0.22, 0.12 - dip, z], [0.04, tilt, 0.03]);
+      continue;
+    }
+    if (h === 7) { // a patch nailed over a gap, crosswise
+      k.part(G.box(width * 0.9, 0.08, 0.3), M.woodLight, [0.05, 0.12, z], [0, 0.18, 0]);
+      continue;
+    }
+    k.part(G.box(width - (h === 5 ? 0.5 : 0), 0.1, 0.36), j % 3 ? M.plank : M.plankDark, [(h === 5 ? 0.25 : ((j * 7) % 3 - 1) * 0.04), 0.13 - dip, z], [0, tilt, ((j * 3) % 3 - 1) * 0.025]);
+  }
+  for (const s of [-1, 1]) k.part(G.box(0.1, 0.16, len), M.woodDark, [s * (width / 2 - 0.06), 0.03, 0], [0, 0, s * 0.03]);
+  const posts = Math.round(len / 2) + 1;
+  for (let j = 0; j < posts; j++) for (const s of [-1, 1]) {
+    const z = -len / 2 + 0.15 + (j * (len - 0.3)) / (posts - 1), lean = ((j * 13 + (s > 0 ? 5 : 0)) % 5 - 2) * 0.07;
+    const snapped = j === 3 && s > 0;
+    k.part(G.cyl(0.13, 0.16, snapped ? 1.2 : 2.1, 6), M.woodDark, [s * (width / 2 + 0.06), snapped ? -0.3 : 0, z], [lean, 0, s * lean]);
+    if (!snapped && j < posts - 1 && !(j === 2 && s > 0)) {
+      const seg = (len - 0.3) / (posts - 1);
+      k.part(G.cyl(0.025, 0.025, seg, 4), M.rope, [s * (width / 2 + 0.06), 0.8 - (j % 2) * 0.1, z + seg / 2], [PI / 2 + 0.05, 0, 0]);
+    }
+  }
+  // Broken-off end: two jagged planks and a post sticking out of the water.
+  k.part(G.box(0.8, 0.08, 0.36), M.plankDark, [0.6, 0.02, len / 2 + 0.3], [0.2, 0.3, -0.25]);
+  k.part(G.box(0.6, 0.08, 0.3), M.plank, [-0.5, -0.05, len / 2 + 0.55], [-0.15, -0.4, 0.2]);
+  k.part(G.cyl(0.12, 0.14, 1.6, 6), M.woodDark, [0.3, -0.5, len / 2 + 1.3], [0.3, 0, -0.2]);
+  k.pop();
+}
+
 export function fenceLine(k, M, [x1, z1], [x2, z2]) {
   const len = Math.hypot(x2 - x1, z2 - z1), n = Math.ceil(len / 2);
   const ry = -Math.atan2(z2 - z1, x2 - x1);
