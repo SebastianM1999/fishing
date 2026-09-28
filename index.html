@@ -81,6 +81,21 @@
       </div>
       <p class="mg-hint"><span class="hint-keys"><span class="key">Space</span><span class="hint-or">or</span><span class="mg-mouse" data-icon="mouse"></span></span> hold to reel <b>→</b> · release to ease the line</p>
     </div>
+    <div id="harpoon-game" class="minigame harpoon-game" hidden>
+      <div class="mg-head">
+        <span class="mg-behavior"><span class="mg-behavior-ico" data-icon="harpoon"></span><span id="hp-title">Harpoon it!</span></span>
+        <span id="hp-result" class="mg-phase" hidden></span>
+        <span id="hp-name" class="mg-boss" hidden></span>
+      </div>
+      <div class="lane hp-lane" id="hp-lane">
+        <div class="lane-waves" aria-hidden="true"></div>
+        <div class="hp-target" id="hp-target" aria-hidden="true"><span class="hp-back" data-icon="whale"></span></div>
+        <div class="hp-mark" id="hp-mark" aria-hidden="true"></div>
+        <div class="hp-aim" id="hp-aim" aria-hidden="true"></div>
+      </div>
+      <div class="hp-count"><span class="hp-row" id="hp-hits" title="Hits needed"></span><span class="hp-row spare" id="hp-left" title="Harpoons left"></span></div>
+      <p class="mg-hint"><span class="hint-keys"><span class="key">Space</span><span class="hint-or">or</span><span class="mg-mouse" data-icon="mouse"></span></span> throw when the aim is on the giant · lead it a little, the harpoon takes a moment to land</p>
+    </div>
   </section>
 
   <section id="catch-card" class="catch-card" hidden aria-live="assertive">

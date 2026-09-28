@@ -28,13 +28,14 @@ export function claimMilestone(state, id) {
   return true;
 }
 
-/** Cosmetics from the claimed milestones: golden bobber, hat band, weathervane and the pennants at home. */
+/** Cosmetics from the claimed milestones: golden bobber, hat band, weathervane, carved whale and the pennants at home. */
 export function milestoneEffects(state) {
-  const fx = { goldenBobber: false, goldenBand: false, weathervane: false, pennants: [] };
+  const fx = { goldenBobber: false, goldenBand: false, weathervane: false, carvedWhale: false, pennants: [] };
   for (const m of MILESTONES.filter(x => state.milestonesClaimed.includes(x.id))) {
     fx.goldenBobber ||= !!m.goldenBobber;
     fx.goldenBand ||= !!m.goldenBand;
     fx.weathervane ||= !!m.weathervane;
+    fx.carvedWhale ||= !!m.carvedWhale;
     if (m.pennant) fx.pennants.push(m.pennant);
   }
   return fx;

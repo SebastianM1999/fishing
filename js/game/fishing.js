@@ -2,8 +2,10 @@
 import {
   FISH, FISH_BY_ID, RARITY_WEIGHTS, RARITY_MULTIPLIER, RARITY_FIGHT, BEHAVIORS, EXHAUSTED,
   HOOK, BITE_WAIT_MS, MINIGAME, GEAR, LEGENDARIES, BOSS_FIGHT, WEATHER, LOCATION_GATES, MECHANICS, SPECIAL_FIGHT, SPECIAL_MAX_RARITY, RARITY_RANK, MOON, LOCATION_LABELS, SKILLS_BY_ID, regularAt,
+  LOCATION_FIGHT, HARPOON, HARPOON_GAME
 } from "./content.js";
 import { skillEffects, rankOf, levelOf } from "./skills.js";
+import { currentWeather } from "./weather.js";
 
 /** Moon phase index for a day (0 = new moon, MOON.full = full moon). */
 export const moonPhase = day => ((day % MOON.cycle) + MOON.cycle) % MOON.cycle;
@@ -45,15 +47,20 @@ const meetsGear = (need, gear) => !need || Object.entries(need).every(([slot, ti
 
 /**
  * Species that can bite at a location now: weather-only species join while their weather lasts, and odd catches
- * with a minimum gear tier only join when gear is given and meets it.
+ * with a minimum gear tier only join when gear is given and meets it. mode "harpoon" (the trawler's bow) has only
+ * the giants; every other spot never has them.
  */
-export function fishTable(location, bucket, weather = "clear", gear = null) {
-  return FISH.filter(f => f.location === location && f.times.includes(bucket) && !f.legendary
+export function fishTable(location, bucket, weather = "clear", gear = null, mode = "rod") {
+  return FISH.filter(f => f.location === location && f.times.includes(bucket) && !f.legendary && !!f.harpoon === (mode === "harpoon")
     && (!f.weather || f.weather.includes(weather)) && (!f.gear || meetsGear(f.gear, gear)));
 }
 
-/** Can the player fish this location at all with their gear? (The trench needs a long, strong line.) */
+/** Can the player fish this location at all with their gear? (The trench tears weak tackle apart.) */
 export const locationOpen = (state, location) => meetsGear(LOCATION_GATES[location]?.gear, state.gear);
+
+/** Tackle the gate still asks for: [{ slot, item }] of the missing tiers. */
+export const missingGear = (state, location) => Object.entries(LOCATION_GATES[location]?.gear ?? {})
+  .filter(([slot, tier]) => state.gear[slot] < tier).map(([slot, tier]) => ({ slot, item: GEAR[slot][tier] }));
 
 /** Weighted pick: regular fish weigh 1, odd catches much less (species.weight). */
 function pickSpecies(rng, table) {
@@ -71,9 +78,12 @@ export const gearReady = (state, species) => Object.values(huntGear(state, speci
 export const inHuntWindow = (species, bucket, progress) => species.hunt.bucket === bucket && progress >= species.hunt.window[0] && progress <= species.hunt.window[1];
 
 /** Every condition of a hunt besides the time window, each with { icon, label, ok } (shown as ✓ / ✗ in the Rumours). */
-export function huntChecks(state, species) {
+export function huntChecks(state, species, weather = currentWeather(state)) {
   const h = species.hunt, checks = [];
   for (const [slot, [need, has]] of Object.entries(huntGear(state, species))) checks.push({ icon: slot, label: GEAR[slot][need].name, ok: has >= need });
+  if (species.harpoon) checks.push({ icon: "harpoon", label: HARPOON.name, ok: !!state.harpoonOwned });
+  if (h.weather) checks.push({ icon: `wx_${h.weather}`, label: `${WEATHER[h.weather].label} weather`, ok: weather === h.weather });
+  if (h.giants) checks.push({ icon: "harpoon", label: "Every giant found", ok: FISH.filter(f => f.giant).every(f => state.discovered.includes(f.id)) });
   if (h.moon) checks.push({ icon: "moon", label: MOON.names[MOON[h.moon]], ok: moonPhase(state.day) === MOON[h.moon] });
   if (h.complete) checks.push({ icon: "fish", label: `Every ${LOCATION_LABELS[h.complete]} fish found`, ok: regularAt(h.complete).every(f => state.discovered.includes(f.id)) });
   if (h.minSpecies) checks.push({ icon: "board", label: `${h.minSpecies} species found`, ok: state.discovered.length >= h.minSpecies });
@@ -81,11 +91,16 @@ export function huntChecks(state, species) {
   if (h.level) checks.push({ icon: "star", label: `Level ${h.level}`, ok: levelOf(state.xp) >= h.level });
   return checks;
 }
-export const huntReady = (state, species) => huntChecks(state, species).every(c => c.ok);
+export const huntReady = (state, species, weather) => huntChecks(state, species, weather).every(c => c.ok);
 
-/** The legend or myth that can bite here right now (time window + every condition), or null. */
-export function huntAt(state, location, bucket, progress) {
-  return LEGENDARIES.find(f => f.location === location && inHuntWindow(f, bucket, progress) && huntReady(state, f)) ?? null;
+/**
+ * The legend or myth that can bite here right now (time window + every condition), or null. Harpoon hunts only bite
+ * at the bow. When two are ready at once (the Kraken and Moby Dick), a not-yet-found one wins, then the harder one.
+ */
+export function huntAt(state, location, bucket, progress, weather, mode = "rod") {
+  const ready = LEGENDARIES.filter(f => f.location === location && !!f.harpoon === (mode === "harpoon") && inHuntWindow(f, bucket, progress) && huntReady(state, f, weather));
+  const rank = f => (state.discovered.includes(f.id) ? 0 : 100) + huntChecks(state, f, weather).length;
+  return ready.sort((a, b) => rank(b) - rank(a))[0] ?? null;
 }
 
 export function rarityWeights(location, rareWeightMult = 1) {
@@ -109,21 +124,22 @@ export function salePrice(species, rarity, sizeCm) {
   return Math.max(1, Math.round(species.baseValue * (species.legendary ? 1 : RARITY_MULTIPLIER[rarity]) * sizeMultiplier));
 }
 
-export function rollEncounter(rng, location, bucket, stats, hunt = null) {
+export function rollEncounter(rng, location, bucket, stats, hunt = null, mode = "rod") {
   const legend = hunt && rng.next() < hunt.hunt.chance;
-  const species = legend ? hunt : pickSpecies(rng, fishTable(location, bucket, stats.weather, stats.gear));
+  const species = legend ? hunt : pickSpecies(rng, fishTable(location, bucket, stats.weather, stats.gear, mode));
   let rarity = legend ? "legendary" : rollRarity(rng, location, stats.rareWeightMult);
-  // Odd catches cap at SPECIAL_MAX_RARITY (so the Fish Whisperer preview already shows the capped rarity).
-  if (species.special && RARITY_RANK[rarity] > RARITY_RANK[SPECIAL_MAX_RARITY]) rarity = SPECIAL_MAX_RARITY;
+  // Odd catches and giants cap at SPECIAL_MAX_RARITY (so the Fish Whisperer preview already shows the capped rarity).
+  if ((species.special || species.giant) && RARITY_RANK[rarity] > RARITY_RANK[SPECIAL_MAX_RARITY]) rarity = SPECIAL_MAX_RARITY;
   const sizeCm = Math.round(rng.range(species.sizeCm[0], species.sizeCm[1]) * 10) / 10;
   return { speciesId: species.id, rarity, sizeCm, value: salePrice(species, rarity, sizeCm) };
 }
 
 /** Start a cast. The fish table is chosen from location + current time bucket at cast time; hunt = huntAt(...). */
-export function startCast(rng, location, bucket, stats, hunt = null) {
-  const waitMs = rng.range(BITE_WAIT_MS[0] * stats.biteWaitMult, BITE_WAIT_MS[1] * stats.biteWaitMult);
+export function startCast(rng, location, bucket, stats, hunt = null, mode = "rod") {
+  const waitMs = rng.range(BITE_WAIT_MS[0] * stats.biteWaitMult, BITE_WAIT_MS[1] * stats.biteWaitMult) * (mode === "harpoon" ? 1.6 : 1);
   return {
     phase: "cast",
+    mode, // "rod" | "harpoon" (the trawler's bow: giants only)
     location,
     bucket,
     t: 0,
@@ -132,8 +148,9 @@ export function startCast(rng, location, bucket, stats, hunt = null) {
     hookWindowMs: stats.hookWindowMs,
     perfectMs: stats.perfectMs,
     whisper: stats.fishWhisperer,
-    encounter: rollEncounter(rng, location, bucket, stats, hunt),
+    encounter: rollEncounter(rng, location, bucket, stats, hunt, mode),
     hookQuality: null,
+    harpoon: null, // harpoon round (giants): see createHarpoon
     fight: null,
     outcome: null, // "caught" | "missed" | "early" | "broke" | "escaped"
   };
@@ -148,16 +165,102 @@ export function pressAction(session, rng, stats) {
   }
   if (session.phase === "bite") {
     session.hookQuality = session.t <= session.perfectMs ? "perfect" : "good";
+    if (FISH_BY_ID[session.encounter.speciesId].harpoon) {
+      session.phase = "harpoon";
+      session.harpoon = createHarpoon(session, rng);
+      return "aim";
+    }
     session.phase = "fight";
     session.fight = createFight(session, rng, stats);
     return "hooked";
   }
+  if (session.phase === "harpoon") return throwHarpoon(session.harpoon);
   return null;
 }
 
-function createFight(session, rng, stats) {
+// --- Harpoon round ------------------------------------------------------------------------------------------
+// The giant surfaces and swims along the lane, then dives and comes up somewhere else. The aim swings on its own;
+// a throw lands where the aim was HARPOON_GAME.flight s later. Enough hits and the reel fight starts; out of
+// harpoons and it swims off.
+function createHarpoon(session, rng) {
+  const h = FISH_BY_ID[session.encounter.speciesId].harpoon;
   const perfect = session.hookQuality === "perfect";
+  return {
+    need: h.hits,
+    hits: 0,
+    left: h.hits + HARPOON_GAME.spare + (perfect ? 1 : 0), // a perfect sighting earns one spare harpoon
+    width: h.width,
+    speed: h.speed,
+    pos: rng.range(0.25, 0.75),
+    target: 0.5,
+    retargetIn: 0,
+    surfaced: true,
+    phaseLeft: rng.range(...HARPOON_GAME.surface),
+    aim: 0.08,
+    aimDir: 1,
+    flight: null, // { left, at } while a harpoon is in the air
+    result: null, // "hit" | "miss" (last throw), for the UI
+    resultAt: -1,
+    resultPos: 0.5, // where the last harpoon landed
+    t: 0,
+  };
+}
+
+function throwHarpoon(h) {
+  if (h.flight || h.left <= 0) return null;
+  h.left -= 1;
+  h.flight = { left: HARPOON_GAME.flight, at: h.aim };
+  return "throw";
+}
+
+function updateHarpoon(session, dt, rng, stats) {
+  const h = session.harpoon, G = HARPOON_GAME;
+  h.t += dt;
+  // Aim swings end to end.
+  h.aim += h.aimDir * G.aimSpeed * dt;
+  if (h.aim > 0.96 || h.aim < 0.04) { h.aimDir *= -1; h.aim = clamp(h.aim, 0.04, 0.96); }
+  // Surfaced: swim toward shifting targets. Dived: resurface somewhere new.
+  h.phaseLeft -= dt;
+  if (h.phaseLeft <= 0) {
+    h.surfaced = !h.surfaced;
+    h.phaseLeft = h.surfaced ? rng.range(...G.surface) : rng.range(...G.dive);
+    if (h.surfaced) { h.pos = rng.range(0.12, 0.88); h.retargetIn = 0; }
+  }
+  if (h.surfaced) {
+    h.retargetIn -= dt;
+    if (h.retargetIn <= 0 || Math.abs(h.target - h.pos) < 0.01) { h.target = rng.range(0.08, 0.92); h.retargetIn = rng.range(...G.retarget); }
+    const speed = h.speed * (1 + G.speedUp * h.hits);
+    const d = h.target - h.pos;
+    h.pos += Math.sign(d) * Math.min(Math.abs(d), speed * dt);
+  }
+  let event = null;
+  if (h.flight && (h.flight.left -= dt) <= 0) {
+    const at = h.flight.at, hit = h.surfaced && Math.abs(at - h.pos) <= h.width / 2;
+    h.flight = null;
+    h.result = hit ? "hit" : "miss";
+    h.resultAt = h.t;
+    h.resultPos = at;
+    if (hit) {
+      h.hits += 1;
+      event = "hit";
+      if (h.hits >= h.need) {
+        session.phase = "fight";
+        session.fight = createFight(session, rng, stats, h.left);
+        return "harpooned";
+      }
+      h.surfaced = false; // it dives with the harpoon line
+      h.phaseLeft = G.hitDive;
+    } else event = "miss";
+  }
+  if (!h.flight && h.left <= 0 && h.hits < h.need) { session.phase = "done"; session.outcome = "escaped"; return "escaped"; }
+  return event;
+}
+
+function createFight(session, rng, stats, spareHarpoons = 0) {
+  const perfect = session.hookQuality === "perfect" && !session.harpoon; // a harpoon round already used the good sighting
   const species = FISH_BY_ID[session.encounter.speciesId];
+  const loc = species.legendary ? null : LOCATION_FIGHT[session.location] ?? null;
+  const bonus = (perfect ? stats.perfectProgressBonus : 0) + spareHarpoons * HARPOON_GAME.spareBonus;
   const fight = {
     behavior: species.behavior,
     rarity: session.encounter.rarity,
@@ -169,18 +272,20 @@ function createFight(session, rng, stats) {
     retargetIn: 0,
     zonePos: 0.35,
     zoneTarget: 0.35,
-    zoneWidth: stats.zoneWidth,
+    zoneWidth: stats.zoneWidth * (loc?.zoneWidthMult ?? 1),
+    loc, // location difficulty (the trench): LOCATION_FIGHT
+    swellIn: loc?.swell ? rng.range(...loc.swell.every) : 0, swellLeft: 0, swellDir: 0, // big swells shoving the zone
     // Boss fights start lower, so even a perfect hook begins in round 1 (below the first rage threshold).
     progress: species.legendary
-      ? Math.min(BOSS_FIGHT.rageAt[0] - 0.03, BOSS_FIGHT.startProgress + (perfect ? stats.perfectProgressBonus : 0))
-      : MINIGAME.startProgress + (perfect ? stats.perfectProgressBonus : 0),
+      ? Math.min(BOSS_FIGHT.rageAt[0] - 0.03, BOSS_FIGHT.startProgress + bonus)
+      : MINIGAME.startProgress + bonus,
     tensionLimit: stats.tensionLimit,
     tension: stats.tensionLimit * (MINIGAME.startTensionFrac - (perfect ? HOOK.perfectTensionReduction : 0)),
     inside: false,
     elapsed: 0,
     secondWind: stats.secondWind, // unused Second Wind charge for this fight
     boss: !!species.legendary,
-    special: !!species.special,
+    special: !!species.special || !!species.giant, // odd catches and giants fight a little longer
     rage: 0, // enraged bursts triggered so far (boss fights)
     mech: BEHAVIORS[species.behavior].mech ?? null, // extra rule (ink / sting / tentacle / jolt / kraken)
     inkLeft: 0, // s the fish marker stays hidden
@@ -274,6 +379,8 @@ export function updateFishing(session, dtMs, input, rng, stats) {
     case "bite":
       if (session.t > session.hookWindowMs) { session.phase = "done"; session.outcome = "missed"; return "missed"; }
       return null;
+    case "harpoon":
+      return updateHarpoon(session, dtMs / 1000, rng, stats);
     case "fight":
       return updateFight(session, dtMs / 1000, input.reelHeld, rng, stats);
     default:
@@ -285,6 +392,7 @@ function updateFight(session, dt, held, rng, stats) {
   const f = session.fight;
   const b = BEHAVIORS[f.behavior];
   const r = RARITY_FIGHT[f.rarity];
+  const loc = f.loc ?? { progressGain: 1, burstMult: 1, tensionGrowthMult: 1 };
   f.elapsed += dt;
 
   // normal -> burst -> exhausted -> normal ...
@@ -308,7 +416,7 @@ function updateFight(session, dt, held, rng, stats) {
     event = "rage";
   }
   const rageK = f.enraged ? BOSS_FIGHT.rageSpeed : 1;
-  let speed = (burst || f.enraged ? b.burstSpeed * r.burstStrength * stats.burstMult : b.speed) * rageK;
+  let speed = (burst || f.enraged ? b.burstSpeed * r.burstStrength * stats.burstMult * loc.burstMult : b.speed) * rageK;
   if (exhausted) speed *= EXHAUSTED.speedMult;
   if (f.jolt === "charge") speed = 0; // the eel holds still while it charges
   const delta = f.fishTarget - f.fishPos;
@@ -317,22 +425,32 @@ function updateFight(session, dt, held, rng, stats) {
   // Player zone: control moves an eased target; the zone never snaps.
   const half = f.zoneWidth / 2;
   const zoneSpeed = (held ? MINIGAME.zoneRise : -MINIGAME.zoneFall) * stats.zoneSpeedMult;
-  f.zoneTarget = clamp(f.zoneTarget + (zoneSpeed + (f.grabLeft > 0 ? f.grabDir * MECHANICS.tentacle.pull : 0)) * dt, half, 1 - half);
+  if (loc.swell) {
+    if (f.swellLeft > 0) f.swellLeft -= dt;
+    else if ((f.swellIn -= dt) <= 0) {
+      f.swellLeft = loc.swell.time;
+      f.swellDir = rng.next() < 0.5 ? -1 : 1;
+      f.swellIn = rng.range(...loc.swell.every);
+      event = event ?? "swell";
+    }
+  }
+  const swellPush = f.swellLeft > 0 ? f.swellDir * loc.swell.push : 0;
+  f.zoneTarget = clamp(f.zoneTarget + (zoneSpeed + swellPush + (f.grabLeft > 0 ? f.grabDir * MECHANICS.tentacle.pull : 0)) * dt, half, 1 - half);
   const ease = 1 - Math.exp(-MINIGAME.zoneEase * stats.zoneEaseMult * dt);
   f.zonePos += (f.zoneTarget - f.zonePos) * ease;
 
   // Catch progress.
   f.inside = Math.abs(f.fishPos - f.zonePos) <= half;
   if (f.inside) {
-    f.progress += MINIGAME.progressGain * stats.reelSpeed * r.progressGain * (f.boss ? BOSS_FIGHT.progressGain : f.special ? SPECIAL_FIGHT.progressGain : 1) * (exhausted ? EXHAUSTED.progressGainMult : 1) * dt;
+    f.progress += MINIGAME.progressGain * stats.reelSpeed * r.progressGain * (f.boss ? BOSS_FIGHT.progressGain : f.special ? SPECIAL_FIGHT.progressGain : 1) * (exhausted ? EXHAUSTED.progressGainMult : 1) * loc.progressGain * dt;
   } else {
     f.progress -= MINIGAME.progressLoss * stats.progressLossMult * dt;
   }
 
   // Line tension.
   if (held) {
-    const spike = (burst || f.enraged ? b.tensionSpike * r.burstStrength * stats.burstMult : 1) * (f.enraged ? BOSS_FIGHT.rageTension : 1);
-    f.tension += MINIGAME.tensionGrowth * stats.tensionGrowthMult * spike * (exhausted ? EXHAUSTED.tensionGrowthMult : 1) * dt;
+    const spike = (burst || f.enraged ? b.tensionSpike * r.burstStrength * stats.burstMult * loc.burstMult : 1) * (f.enraged ? BOSS_FIGHT.rageTension : 1);
+    f.tension += MINIGAME.tensionGrowth * stats.tensionGrowthMult * loc.tensionGrowthMult * spike * (exhausted ? EXHAUSTED.tensionGrowthMult : 1) * dt;
   } else {
     f.tension = Math.max(0, f.tension - MINIGAME.tensionRecovery * stats.reelRecovery * dt);
   }

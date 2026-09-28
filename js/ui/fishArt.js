@@ -553,6 +553,34 @@ const CREATURES = {
     }
     return out;
   },
+  whale(a) {
+    // Side-on cartoon whale, head right. boxHead = sperm whale (and Moby Dick), tusk = narwhal, orca patches, humpback flippers.
+    const box = !!a.boxHead, short = !!a.tusk;
+    const hx = short ? 180 : 198, tx = short ? 52 : 40;
+    const body = box
+      ? `M${tx} 58 C70 50 96 34 132 30 L186 28 C196 28 ${hx} 36 ${hx} 50 L${hx} 70 C${hx} 80 190 86 176 86 L120 88 C92 88 64 76 ${tx} 64 Z`
+      : `M${tx} 58 C70 50 100 28 140 30 C170 31 ${hx} 42 ${hx} 58 C${hx} 72 184 86 160 88 L120 88 C92 88 64 76 ${tx} 64 Z`;
+    const behind = [`M${tx + 4} 60 C${tx - 10} 52 ${tx - 22} 38 ${tx - 34} 34 C${tx - 26} 46 ${tx - 24} 56 ${tx - 18} 61 C${tx - 24} 66 ${tx - 26} 76 ${tx - 34} 86 C${tx - 22} 82 ${tx - 10} 70 ${tx + 4} 63 Z`];
+    const tall = a.dorsal === "tall";
+    behind.push(tall ? `M86 44 C90 30 94 12 100 2 C106 18 110 34 116 40 Z` : `M84 46 C90 38 96 34 104 34 C102 38 104 42 108 44 Z`);
+    const front = [];
+    const flip = a.flippers ? 58 : 26;
+    front.push(`M146 76 C140 ${80 + flip * 0.4} ${130 - flip * 0.5} ${86 + flip * 0.55} ${122 - flip * 0.8} ${86 + flip * 0.5} C${126 - flip * 0.4} ${82 + flip * 0.3} 132 80 138 74 Z`);
+    const lines = [], out = { behind, limbs: [], body: [body], front, lines, lineWidth: 1.4, eyes: [[box ? 152 : 170, box ? 62 : 58, a.eyeR ?? 3.4]], extras: "", silExtras: "", marks: "", grad: "vertical" };
+    out.mouth = box ? `<path d="M${hx - 4} 78 L142 81" stroke="OUTLINE" stroke-width="1.5" fill="none" stroke-linecap="round"/>`
+      : `<path d="M${hx - 2} 66 q-14 8 -36 7" stroke="OUTLINE" stroke-width="1.5" fill="none" stroke-linecap="round"/>`;
+    if (a.grooves) for (let i = 0; i < 5; i++) out.front.push(`M${184 - i * 2} ${76 + i * 2.2} Q150 ${84 + i * 1.6} 118 ${84 + i * 1.2} L118 ${84.8 + i * 1.2} Q150 ${85 + i * 1.6} ${184 - i * 2} ${77 + i * 2.2} Z`);
+    if (a.tusk) {
+      const tusk = `M${hx - 2} 55 L222 44 L${hx - 2} 59 Z`;
+      out.extras += `<path d="${tusk}" fill="#f2ead2" stroke="#b8ab88" stroke-width="1"/>` + [0, 1, 2, 3].map(i => `<path d="M${hx + 6 + i * 9} ${55.5 - i * 2.4} l2 3" stroke="#b8ab88" stroke-width="0.9"/>`).join("");
+      out.silExtras += `<path d="${tusk}" fill="SILFILL" stroke="SILSTROKE" stroke-width="1"/>`;
+    }
+    if (a.orca) out.orcaPatches = true;
+    // A happy little spout above the blowhole.
+    const bx = box ? 180 : 156;
+    out.extras += `<path d="M${bx} 30 C${bx - 2} 22 ${bx - 10} 16 ${bx - 16} 16 M${bx} 30 C${bx + 2} 22 ${bx + 10} 16 ${bx + 16} 16 M${bx} 30 L${bx} 14" stroke="#9fd0ee" stroke-width="2.4" fill="none" stroke-linecap="round" opacity="0.9"/>`;
+    return out;
+  },
 };
 CREATURES.serpent = CREATURES.eel;
 CREATURES.kraken = CREATURES.octopus;
@@ -587,8 +615,10 @@ function creatureSvg(species, silhouette, size) {
       case "rings": for (const [x, y] of [[98, 34], [112, 29], [126, 34], [112, 42]]) marks += `<path d="M${x - 5} ${y + 2} a5 4.2 0 1 1 10 0" stroke="${pc}" stroke-width="2.6" fill="none" opacity="0.85"/>`; break;
       case "bands": for (let i = 0; i < 16; i++) marks += `<path d="M${14 + i * 13} 0 l-8 120" stroke="${pc}" stroke-width="3" opacity="0.4"/>`; break;
       case "plates": for (const [x, y, r] of [[80, 46, 11], [106, 38, 12], [132, 42, 11], [154, 56, 8], [60, 58, 8], [94, 60, 9], [120, 60, 9]]) marks += `<path d="M${x - r} ${y} L${x - r / 2} ${y - r * 0.8} L${x + r / 2} ${y - r * 0.8} L${x + r} ${y} L${x + r / 2} ${y + r * 0.8} L${x - r / 2} ${y + r * 0.8} Z" fill="none" stroke="${pc}" stroke-width="1.8" opacity="0.75"/>`; break;
+      case "scars": for (let i = 0; i < 9; i++) { const x = 60 + rnd() * 120, y = 40 + rnd() * 34; marks += `<path d="M${f1(x)} ${f1(y)} q${f1(8 + rnd() * 8)} ${f1(-3 + rnd() * 6)} ${f1(16 + rnd() * 10)} ${f1(-1 + rnd() * 4)}" stroke="${pc}" stroke-width="1.3" fill="none" opacity="0.7"/>`; } break;
       case "patches": marks += `<ellipse cx="146" cy="36" rx="12" ry="7" fill="${pc}" opacity="0.8" transform="rotate(-25 146 36)"/><ellipse cx="146" cy="84" rx="12" ry="7" fill="${pc}" opacity="0.8" transform="rotate(25 146 84)"/>`; break;
     }
+    if (C.orcaPatches) marks += `<ellipse cx="160" cy="50" rx="13" ry="6" fill="${a.belly}" transform="rotate(-8 160 50)"/><path d="M40 70 C80 78 120 84 150 86 L200 70 L200 120 L40 120 Z" fill="${a.belly}"/><ellipse cx="112" cy="40" rx="14" ry="5" fill="#8a9098" opacity="0.8"/>`;
     if (C.islandTop) marks += `<path d="M40 40 C70 14 150 10 176 40 L176 30 L40 30 Z" fill="#e6cf92"/><path d="M52 36 C80 18 146 16 168 36" stroke="#8ab35a" stroke-width="6" fill="none" stroke-linecap="round"/>`;
     // Soft highlight + optional sheen, as on the fish.
     marks += `<ellipse cx="112" cy="36" rx="70" ry="10" fill="#fff" opacity="${a.shine ? 0.3 : 0.12}"/>`;

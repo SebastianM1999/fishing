@@ -37,8 +37,9 @@ const LANE_ICONS = {
   crab: `<ellipse cx="32" cy="17" rx="15" ry="9" fill="currentColor"/><path d="M18 16l-8-3M17 21l-9 5M46 16l8-3M47 21l9 5M22 24l-4 6M42 24l4 6" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="7" cy="11" r="4.5" fill="currentColor"/><circle cx="57" cy="11" r="4.5" fill="currentColor"/><circle cx="27" cy="12" r="1.8" fill="#fff" opacity="0.9"/><circle cx="37" cy="12" r="1.8" fill="#fff" opacity="0.9"/>`,
   ray: `<path d="M4 16c8-4 16-14 26-14-2 6 4 11 12 13l20-1-20 3c-8 2-14 7-12 13-10 0-18-10-26-14Z" fill="currentColor"/><circle cx="13" cy="13" r="1.8" fill="#fff" opacity="0.9"/><circle cx="13" cy="19" r="1.8" fill="#fff" opacity="0.9"/>`,
   turtle: `<path d="M16 21c0-10 8-16 18-16s16 6 16 16Z" fill="currentColor"/><ellipse cx="9" cy="18" rx="7" ry="5" fill="currentColor"/><path d="M20 22l-4 7M44 22l4 7M50 20l6 2" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/><circle cx="7" cy="16.5" r="1.8" fill="#fff" opacity="0.9"/>`,
+  whale: `<path d="M3 17c0-6 8-10 20-10 14 0 24 4 28 9 3-2 6-5 9-6-1 4-3 7-5 9 2 2 4 5 5 9-3-1-6-3-9-6-4 3-12 5-28 5C11 27 3 23 3 17Z" fill="currentColor"/><path d="M8 21c6 2 16 3 26 2" stroke="#fff" stroke-width="1.6" opacity="0.5" fill="none" stroke-linecap="round"/><circle cx="11" cy="15" r="2" fill="#fff" opacity="0.9"/>`,
 };
-const LANE_KIND = { eel: "eel", serpent: "eel", squid: "squid", octopus: "octopus", kraken: "octopus", jelly: "jelly", crab: "crab", lobster: "crab", ray: "ray", turtle: "turtle" };
+const LANE_KIND = { whale: "whale", eel: "eel", serpent: "eel", squid: "squid", octopus: "octopus", kraken: "octopus", jelly: "jelly", crab: "crab", lobster: "crab", ray: "ray", turtle: "turtle" };
 const laneFishHtml = kind => `<svg viewBox="0 0 64 32" aria-hidden="true">${LANE_ICONS[kind]}</svg><span class="fish-zzz">z</span><span class="fish-crown" aria-hidden="true">${rarityIcon("legendary", 18)}</span>`;
 
 /** Moon icon for a phase (0 = new, MOON.full = full): the lit part grows from the right, then shrinks to the left. */
@@ -77,6 +78,8 @@ export function createUI(handlers) {
     trophy: $("trophy-dialog"), trophyBody: $("trophy-body"),
     orders: $("orders-dialog"), ordersBody: $("orders-body"), ordersDay: $("orders-day"),
     legendBanner: $("legend-banner"), mgBoss: $("mg-boss"),
+    hpGame: $("harpoon-game"), hpTarget: $("hp-target"), hpAim: $("hp-aim"), hpMark: $("hp-mark"), hpHits: $("hp-hits"), hpLeft: $("hp-left"),
+    hpResult: $("hp-result"), hpName: $("hp-name"), hpTitle: $("hp-title"),
     streak: $("hud-streak"), streakText: $("hud-streak-text"), catchStreak: $("catch-streak"),
   };
   let trophyPick = null; // shelf slot whose bag-fish picker is open
@@ -134,6 +137,7 @@ export function createUI(handlers) {
     if (!found) {
       html = `<strong>Undiscovered</strong><span>Found at the ${LOCATION_LABELS[f.location]} · ${f.times.map(t => TIME_LABELS[t]).join(", ")}</span>`
         + (f.weather ? `<span class="tip-weather">${f.weather.map(w => `${ICONS[`wx_${w}`]} ${WEATHER[w].label}`).join(" ")} only</span>` : "")
+        + (f.giant ? `<span class="tip-weather">${ICONS.harpoon} Harpoon it at the trawler's bow</span>` : "")
         + (rec ? `<span class="tip-label">Caught, not mounted yet</span><span>Best so far: ${rec.sizeCm.toFixed(1)} cm ${rarityHtml(rec.rarity, 18)}</span>` : "");
     } else if (!rec) {
       html = `<strong>${f.name}</strong><span>No record yet — catch another one to log your best.</span>`;
@@ -293,7 +297,7 @@ export function createUI(handlers) {
   }
 
   // Collection: one tab per location, split into fish / odd catches / legends & myths.
-  const KIND_ICONS = { fish: "fish", odd: "gem", legend: "star", mythic: "moon" };
+  const KIND_ICONS = { fish: "fish", odd: "gem", giant: "harpoon", legend: "star", mythic: "moon" };
   let boardTab = "lake"; // a location, or "milestones"
   function renderBoard() {
     const ready = claimable(state).length;
@@ -306,9 +310,9 @@ export function createUI(handlers) {
         ${ICONS.trophy}${ready ? `<span class="claim-badge" title="Rewards to claim">${ICONS.gift} ${ready}</span>` : ""}</button>`;
     if (boardTab === "milestones") { el.boardBody.innerHTML = milestonesHtml(); return; }
     const inTab = COLLECTION.filter(f => f.location === boardTab);
-    const groups = [["fish"], ["odd"], ["legend", "mythic"]].map(kinds => inTab.filter(f => kinds.includes(kindOf(f)))).filter(g => g.length);
+    const groups = [["fish"], ["odd"], ["giant"], ["legend", "mythic"]].map(kinds => inTab.filter(f => kinds.includes(kindOf(f)))).filter(g => g.length);
     el.boardBody.innerHTML = groups.map(list => {
-      const kind = kindOf(list[0]), label = kind === "fish" || kind === "odd" ? KIND_LABELS[kind] : "Legends & myths";
+      const kind = kindOf(list[0]), label = kind === "legend" || kind === "mythic" ? "Legends & myths" : KIND_LABELS[kind];
       const n = list.filter(f => state.discovered.includes(f.id)).length;
       return `<h3 class="board-section">${ICONS[KIND_ICONS[kind]]} ${label} <span class="muted">${n} / ${list.length}</span></h3><div class="board-grid">${list.map(f => {
         const found = state.discovered.includes(f.id);
@@ -337,6 +341,46 @@ export function createUI(handlers) {
     boardTab = tab.dataset.tab;
     renderBoard();
   });
+
+  /** Harpoon round: the giant surfacing along the lane, the swinging aim, where the last harpoon landed and the count. */
+  function updateHarpoon(session) {
+    const h = session.harpoon, species = FISH_BY_ID[session.encounter.speciesId];
+    if (last.hpSpecies !== species.id) {
+      last.hpSpecies = species.id;
+      el.hpTarget.querySelector(".hp-back").innerHTML = `<svg viewBox="0 0 64 32" aria-hidden="true">${LANE_ICONS.whale}</svg>`;
+      el.hpGame.dataset.rarity = session.encounter.rarity;
+      el.hpTitle.textContent = state.discovered.includes(species.id) ? species.name : species.legendary ? "Something enormous…" : "A giant!";
+      el.hpName.hidden = !species.legendary;
+      el.hpName.textContent = species.legendary ? "Legendary" : "";
+    }
+    el.hpTarget.style.width = `${h.width * 100}%`;
+    el.hpTarget.style.left = `${(h.pos - h.width / 2) * 100}%`;
+    el.hpTarget.classList.toggle("dived", !h.surfaced);
+    const dir = h.pos - (last.hpPos ?? h.pos);
+    last.hpPos = h.pos;
+    if (Math.abs(dir) > 0.0005) el.hpTarget.classList.toggle("right", dir > 0);
+    el.hpAim.style.left = `${h.aim * 100}%`;
+    el.hpAim.classList.toggle("on", h.surfaced && Math.abs(h.aim - h.pos) <= h.width / 2);
+    const showMark = !!h.flight || (h.resultAt >= 0 && h.t - h.resultAt < 0.8);
+    el.hpMark.hidden = !showMark;
+    if (showMark) {
+      el.hpMark.style.left = `${(h.flight ? h.flight.at : h.resultPos) * 100}%`;
+      el.hpMark.className = `hp-mark ${h.flight ? "flying" : h.result}`;
+    }
+    const key = `${h.hits}/${h.need}/${h.left}`;
+    if (last.hpCount !== key) {
+      last.hpCount = key;
+      el.hpHits.innerHTML = Array.from({ length: h.need }, (_, i) => `<span class="hp-pip ${i < h.hits ? "hit" : ""}">${ICONS.whale}</span>`).join("");
+      el.hpLeft.innerHTML = Array.from({ length: h.left }, () => `<span class="hp-pip">${ICONS.harpoon}</span>`).join("") || `<span class="hp-none">no harpoons left</span>`;
+    }
+    const result = h.resultAt >= 0 && h.t - h.resultAt < 1.1 ? h.result : !h.surfaced ? "dive" : null;
+    if (last.hpResult !== result) {
+      last.hpResult = result;
+      el.hpResult.hidden = !result;
+      el.hpResult.className = `mg-phase ${result === "hit" ? "secondwind" : result === "miss" ? "burst" : "exhausted"}`;
+      el.hpResult.innerHTML = result === "hit" ? `${ICONS.check} Hit!` : result === "miss" ? `${ICONS.alert} Missed!` : result === "dive" ? `${ICONS.sleep} It dived — wait for it` : "";
+    }
+  }
 
   function refreshOpenPanels() {
     if (el.shop.open) { el.shopCoins.textContent = state.coins; renderMarket(); renderGear(); }
@@ -554,7 +598,7 @@ export function createUI(handlers) {
       const show = !!session && session.phase !== "done";
       el.fishing.hidden = !show;
       document.body.classList.toggle("fishing", !!session);
-      const legend = show && !!FISH_BY_ID[session.encounter.speciesId].legendary && (session.phase === "bite" || session.phase === "fight");
+      const legend = show && !!FISH_BY_ID[session.encounter.speciesId].legendary && ["bite", "harpoon", "fight"].includes(session.phase);
       if (last.legend !== legend) {
         last.legend = legend;
         el.fishing.classList.toggle("boss", legend);
@@ -564,6 +608,7 @@ export function createUI(handlers) {
       if (!show) return;
       const phase = session.phase;
       el.minigame.hidden = phase !== "fight";
+      el.hpGame.hidden = phase !== "harpoon";
       if (last.fishPhaseUi !== phase) {
         last.fishPhaseUi = phase;
         el.fishing.dataset.phase = phase;
@@ -573,10 +618,15 @@ export function createUI(handlers) {
           el.whisper.innerHTML = `${fishSvg(FISH_BY_ID[enc.speciesId], { silhouette: true, size: 64 })}${rarityHtml(enc.rarity, 22)}`;
           el.whisper.title = RARITY_LABELS[enc.rarity];
         }
-        const [ico, text] = phase === "cast" ? ["rod", "Casting…"] : phase === "wait" ? ["bobber", "Waiting for a bite…"] : phase === "bite" ? ["alert", "Bite! Click or press Space!"] : [session.hookQuality === "perfect" ? "star" : "check", session.hookQuality === "perfect" ? "Perfect hook!" : "Hooked!"];
+        const bow = session.mode === "harpoon";
+        const [ico, text] = bow
+          ? (phase === "cast" || phase === "wait" ? ["eye", "Watching the waves for a spout…"] : phase === "bite" ? ["alert", "Thar she blows! Click or press Space!"] : phase === "harpoon" ? ["harpoon", "Harpoon it!"] : ["check", "Harpooned! Reel it in!"])
+          : phase === "cast" ? ["rod", "Casting…"] : phase === "wait" ? ["bobber", "Waiting for a bite…"] : phase === "bite" ? ["alert", "Bite! Click or press Space!"] : [session.hookQuality === "perfect" ? "star" : "check", session.hookQuality === "perfect" ? "Perfect hook!" : "Hooked!"];
         el.statusIco.innerHTML = ICONS[ico];
         el.statusText.textContent = text;
       }
+      el.minigame.classList.toggle("deep", session.location === "trench");
+      if (phase === "harpoon") { updateHarpoon(session); return; }
       if (phase !== "fight") return;
       const f = session.fight;
       const laneKind = LANE_KIND[FISH_BY_ID[session.encounter.speciesId].art.shape] ?? "fish";
@@ -590,18 +640,18 @@ export function createUI(handlers) {
       if (f.boss) setText(el.mgBoss, "mgBoss", `${FISH_BY_ID[session.encounter.speciesId].name} · round ${f.rage + 1} / 3${f.mech === "kraken" ? ` · ${KRAKEN_ROUNDS[Math.min(f.rage, 2)]}` : ""}`);
       el.mgBoss.hidden = !f.boss;
       // Mechanics first: they are what the player must react to right now.
-      const mechLabel = f.jolt === "charge" ? "charge" : f.jolt === "zap" ? "zap" : f.pulseLeft > 0 ? "glow" : f.grabLeft > 0 ? "grab" : f.inkLeft > 0 ? "ink" : null;
+      const mechLabel = f.jolt === "charge" ? "charge" : f.jolt === "zap" ? "zap" : f.pulseLeft > 0 ? "glow" : f.grabLeft > 0 ? "grab" : f.inkLeft > 0 ? "ink" : f.swellLeft > 0 ? "swell" : null;
       const label = f.secondWindAt !== undefined && f.elapsed - f.secondWindAt < 1.6 ? "secondwind" : mechLabel ?? (f.enraged ? "rage" : f.fishPhase);
       if (f.inkLeft > 0 && !el.minigame.classList.contains("inked")) el.minigame.style.setProperty("--ink-x", `${f.fishPos * 100}%`);
       el.minigame.classList.toggle("inked", f.inkLeft > 0);
       el.minigame.classList.toggle("zapping", f.jolt === "zap");
-      el.zone.classList.toggle("grabbed", f.grabLeft > 0);
+      el.zone.classList.toggle("grabbed", f.grabLeft > 0 || f.swellLeft > 0);
       el.laneFish.classList.toggle("glowing", f.pulseLeft > 0);
       el.laneFish.classList.toggle("charging", f.jolt === "charge");
       if (last.mgPhase !== label) {
         last.mgPhase = label;
         el.mgPhase.hidden = label === "normal";
-        const MECH_LABELS = { charge: `${ICONS.bolt} It crackles — let go!`, zap: `${ICONS.bolt} Zap!`, glow: `${ICONS.jelly} Glowing — keep clear!`, grab: `${ICONS.tentacle} Grabbed!`, ink: `${ICONS.ink} Ink!` };
+        const MECH_LABELS = { charge: `${ICONS.bolt} It crackles — let go!`, zap: `${ICONS.bolt} Zap!`, glow: `${ICONS.jelly} Glowing — keep clear!`, grab: `${ICONS.tentacle} Grabbed!`, ink: `${ICONS.ink} Ink!`, swell: `${ICONS.smooth} Big wave!` };
         el.mgPhase.innerHTML = MECH_LABELS[label] ?? (label === "secondwind" ? `${ICONS.recovery} Second wind!` : label === "rage" ? `${ICONS.flame} Enraged!` : label === "burst" ? `${ICONS.burst} Burst!` : `${ICONS.sleep} Tired`);
         el.mgPhase.className = `mg-phase ${label}`;
         el.laneFish.dataset.phase = f.enraged ? "burst" : f.fishPhase;

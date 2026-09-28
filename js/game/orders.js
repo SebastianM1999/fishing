@@ -10,11 +10,11 @@ const avg = list => list.reduce((a, b) => a + b, 0) / list.length;
 export function reachableLocations(state) {
   return LOCATIONS.filter(l => l === "lake" || (l === "river" && state.unlocked.includes("river"))
     || (l === "sea" && state.unlocked.includes("sea")) || (l === "offshore" && state.boatOwned)
-    || (l === "trench" && state.boatOwned && state.gear.line >= LOCATION_GATES.trench.gear.line));
+    || (l === "trench" && state.trawlerOwned && Object.entries(LOCATION_GATES.trench.gear).every(([slot, tier]) => state.gear[slot] >= tier)));
 }
 
-// Order templates only ask for regular fish (weather-only fish, odd catches and legends are too random to request).
-const orderFish = loc => FISH.filter(f => f.location === loc && !f.legendary && !f.weather && !f.special);
+// Order templates only ask for regular fish (weather-only fish, odd catches, giants and legends are too random to request).
+const orderFish = loc => FISH.filter(f => f.location === loc && !f.legendary && !f.weather && !f.special && !f.giant);
 
 // Each template builds one order from a seeded rng. Rewards are ORDERS.rewardMult x the plain market price.
 const TEMPLATES = {

@@ -1,9 +1,10 @@
 // Three.js view of the game state. Holds no gameplay rules; reads plain state each frame.
 import * as THREE from "three";
-import { WORLD, CAST_DISTANCE, NPCS } from "../game/world.js";
+import { WORLD, CAST_DISTANCE, NPCS, INTERACTIONS } from "../game/world.js";
 import { FISH_BY_ID, BOAT_PRICE } from "../game/content.js";
 import { dayFraction, bucketProgress } from "../game/time.js";
-import { createMaterials, TIME, WAVE_GAIN, G, Kit, Batch, GroupSink, waveHeight } from "./kit.js";
+import { createMaterials, TIME, WAVE_GAIN, TRENCH_GAIN, TRENCH_WAVES, G, Kit, Batch, GroupSink, waveHeight } from "./kit.js";
+import { buildTrench } from "./trench.js";
 import { buildEnvironment, buildHome, SEA_Y, RIVER_Y, LAKE_Y } from "./environment.js";
 import * as models from "./models.js";
 import { createBoardTexture, createSignTexture } from "./textures.js";
@@ -43,6 +44,9 @@ const WEATHER_LOOK = {
   storm: { cloud: 0.9, rain: 1, fog: 0.3, storm: 1 },
 };
 const RAIN_DROPS = 700, RAIN_BOX = 26, RAIN_TOP = 20;
+// The Deep Trench always looks stormy: overcast, drizzle, haze and lightning, whatever the forecast.
+const TRENCH_LOOK = { cloud: 0.8, rain: 0.45, fog: 0.35, storm: 0.8 };
+const TRENCH_TINT = new THREE.Color("#1c2a34");
 
 export function createRenderer(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
@@ -144,6 +148,73 @@ export function createRenderer(canvas) {
   const bigBoat = models.makeBoat(M, 1.55);
   bigBoat.position.set(off.cx, SEA_Y - 0.12, off.cz - 0.3);
   scene.add(bigBoat);
+
+  // Deep Trench: its seascape, the Ironhull Trawler out there, and the same trawler moored at the end of the dock.
+  const trench = buildTrench(M);
+  scene.add(trench.root);
+  const tc = WORLD.trench;
+  const trawler = models.makeTrawler(M, 1);
+  trawler.position.set(tc.cx, SEA_Y - 0.3, tc.cz);
+  scene.add(trawler);
+  trench.floodlight.position.set(0, 4.3, -2.6);
+  trawler.add(trench.floodlight);
+  const mooredTrawler = models.makeTrawler(M, 0.8);
+  mooredTrawler.position.set(WORLD.trawlerMooring.x, SEA_Y - 0.25, WORLD.trawlerMooring.z);
+  scene.add(mooredTrawler);
+  // Harpoon rack on the dock: a little stand with harpoons, next to Captain Olsen.
+  const rack = new THREE.Group();
+  {
+    const rk = new Kit(new GroupSink(rack));
+    rk.part(G.box(0.12, 1.4, 0.9), M.woodDark, [0, 0.7, 0]);
+    rk.part(G.box(0.5, 0.1, 1.0), M.woodDark, [0.15, 0.05, 0]);
+    rk.part(G.box(0.3, 0.08, 0.9), M.woodLight, [0.1, 1.1, 0]);
+    for (const z of [-0.3, 0, 0.3]) {
+      rk.part(G.cyl(0.03, 0.03, 1.9, 5), M.woodLight, [0.12, 0.95, z], [0, 0, -0.08]);
+      rk.part(G.cone(0.06, 0.26, 4), M.metal, [0.04, 2.0, z], [0, 0, -0.08]);
+    }
+    rack.position.set(WORLD.harpoonRack.x, 0.18, WORLD.harpoonRack.z);
+  }
+  scene.add(rack);
+  // Markers for the spots on the boats ride with the deck (children of the boat, undoing its scale).
+  const boatMarkers = [];
+  for (const [boat, area, deckY] of [[bigBoat, "offshore", 0.84], [trawler, "trench", models.TRAWLER_DECK]]) {
+    const s = boat.scale.x;
+    for (const it of INTERACTIONS.filter(i => i.area === area)) {
+      const m = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.75, 24).rotateX(-Math.PI / 2), M.spot);
+      m.position.set((it.x - boat.position.x) / s, (deckY + 0.04) / s, (it.z - boat.position.z) / s);
+      m.scale.setScalar(1 / s);
+      boat.add(m);
+      boatMarkers.push(m);
+    }
+  }
+  const DECK_Y = { offshore: 0.24 - SEA_Y, trench: models.TRAWLER_DECK };
+
+  // Harpoon round visuals: the giant, its spout, a thrown harpoon and the harpoon in the player's hands.
+  const giants = new Map();
+  let giantShown = null;
+  const giantOf = id => {
+    if (!giants.has(id)) { const g = models.makeGiant(FISH_BY_ID[id].art); g.visible = false; scene.add(g); giants.set(id, g); }
+    return giants.get(id);
+  };
+  const SPOUT = 48;
+  const spoutPos = new Float32Array(SPOUT * 3), spoutVel = new Float32Array(SPOUT * 3), spoutLife = new Float32Array(SPOUT);
+  const spoutGeo = new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(spoutPos, 3));
+  const spout = new THREE.Points(spoutGeo, new THREE.PointsMaterial({ color: "#f4faff", size: 8, sizeAttenuation: false, transparent: true, opacity: 0.85, depthWrite: false }));
+  spout.frustumCulled = false;
+  scene.add(spout);
+  let spoutCursor = 0;
+  function blow(x, y, z) {
+    for (let i = 0; i < 16; i++) {
+      const j = spoutCursor++ % SPOUT;
+      spoutPos.set([x, y, z], j * 3);
+      spoutVel.set([(Math.random() - 0.5) * 1.4, 5 + Math.random() * 2.5, (Math.random() - 0.5) * 1.4], j * 3);
+      spoutLife[j] = 1 + Math.random() * 0.4;
+    }
+  }
+  const flyingHarpoon = models.makeHarpoon(M);
+  flyingHarpoon.visible = false;
+  scene.add(flyingHarpoon);
+  const stuckHarpoons = Array.from({ length: 5 }, () => { const h = models.makeHarpoon(M); h.scale.setScalar(0.8); h.visible = false; scene.add(h); return h; });
   const isleBatch = new Batch();
   const ik = new Kit(isleBatch);
   [[-14, 70, 2.5], [16, 92, 3], [-20, 96, 2], [22, 66, 1.6]].forEach(([x, z, s], i) => {
@@ -157,6 +228,8 @@ export function createRenderer(canvas) {
   // Player, rod line, bobber, splash
   const P = models.makePlayer();
   scene.add(P.root);
+  const heldHarpoon = models.makeHarpoon(M);
+  heldHarpoon.visible = false;
 
   // Villagers: turn their heads toward the player and wave hello when they come close.
   const npcs = NPCS.map(n => {
@@ -356,11 +429,24 @@ export function createRenderer(canvas) {
     vane.visible = false;
   }
   scene.add(vane);
+  // Harpooneer milestone: a carved wooden whale hanging from the rafters over the rug, like a ship's mobile.
+  const carvedWhale = new THREE.Group();
+  {
+    const w = models.makeGiant({ color: "#b98a58", fin: "#8a6242", belly: "#d8b484", flippers: true });
+    w.scale.setScalar(0.21);
+    carvedWhale.add(w);
+    const ck = new Kit(new GroupSink(carvedWhale));
+    for (const x of [-0.55, 0.45]) ck.part(G.cyl(0.012, 0.012, 1.2, 4), M.rope, [x, 0.78, 0]);
+  }
+  carvedWhale.position.set(WORLD.home.cx + 0.2, 2.55, WORLD.home.cz + 0.3);
+  carvedWhale.visible = false;
+  scene.add(carvedWhale);
   const bobberRed = bobber.children[0].material;
   function setMilestones(fx) {
     pennants.children.filter(f => !f.userData.isString).forEach((f, i) => { f.visible = i < fx.pennants.length; if (f.visible) f.userData.mat.color.set(fx.pennants[i]); });
     pennants.children[0].visible = fx.pennants.length > 0;
     vane.visible = fx.weathervane;
+    carvedWhale.visible = fx.carvedWhale;
     bobber.children[0].material = fx.goldenBobber ? gold : bobberRed;
     P.materials.band.color.set(fx.goldenBand ? "#f2c24a" : "#b8433a");
   }
@@ -405,6 +491,12 @@ export function createRenderer(canvas) {
         armLx: -1.0, armLz: 0.5, foreL: held ? -1.2 + Math.sin(t * 16) * 0.55 : -1.0, headX: 0.1, headY: 0,
         legL: 0.25, legR: -0.35, bodyY: held ? -0.03 : 0,
       });
+    } else if (mode === "harpoon") {
+      // Harpoon raised over the shoulder; the arm swings through when a throw is in the air.
+      const thrown = !!session.harpoon?.flight;
+      Object.assign(target, thrown
+        ? { armRx: -1.3, armRz: 0.1, foreR: -0.2, armLx: -0.6, armLz: 0.3, foreL: -0.5, torsoX: 0.25, headX: 0.1, headY: 0, legL: 0.35, legR: -0.3 }
+        : { armRx: -2.9, armRz: 0.2, foreR: -0.9, armLx: -1.2, armLz: 0.35, foreL: -0.4, torsoX: -0.12, headX: 0.05, headY: 0, legL: -0.3, legR: 0.35 });
     } else if (mode === "celebrate") {
       Object.assign(target, { armLx: -2.95, armLz: 0.15, foreL: -0.2, armRx: -2.5, armRz: 0.35, foreR: -0.2, headX: -0.25, headY: 0, bodyY: Math.abs(Math.sin(t * 7)) * 0.25 });
     } else if (mode === "sad") {
@@ -424,7 +516,12 @@ export function createRenderer(canvas) {
     P.body.position.y = pose.bodyY;
     // Rod lives in the hand while fishing or cheering, otherwise it rides on the creel.
     const socket = mode === "walk" || mode === "idle" || mode === "sad" ? P.backSocket : P.handSocket;
-    if (P.rod.parent !== socket) socket.add(P.rod);
+    // At the bow the harpoon takes the rod's place in the hand (and flies off while thrown).
+    const harpoon = session?.mode === "harpoon" && socket === P.handSocket;
+    if (harpoon && heldHarpoon.parent !== P.handSocket) P.handSocket.add(heldHarpoon);
+    heldHarpoon.visible = harpoon && !session.harpoon?.flight;
+    const rodSocket = harpoon ? P.backSocket : socket;
+    if (P.rod.parent !== rodSocket) rodSocket.add(P.rod);
   }
 
   function setHeldFish(speciesId) {
@@ -443,7 +540,7 @@ export function createRenderer(canvas) {
 
   function updateLine(session, t) {
     const pts = lineGeo.attributes.position.array;
-    P.tip.getWorldPosition(tipWorld);
+    (session.mode === "harpoon" ? heldHarpoon.userData.tail : P.tip).getWorldPosition(tipWorld);
     const b = bobber.position;
     const taut = session.phase === "fight" ? 0.05 : session.phase === "cast" ? 0.3 : 0.9;
     for (let i = 0; i < LINE_POINTS; i++) {
@@ -456,8 +553,10 @@ export function createRenderer(canvas) {
   }
 
   /** Overcast light, fog, rain streaks, lightning and storm swell; eased toward the current weather. */
-  function applyWeather(weather, dt, elapsed, indoors) {
-    const target = WEATHER_LOOK[weather] ?? WEATHER_LOOK.clear, k = 1 - Math.exp(-dt / 3);
+  function applyWeather(weather, dt, elapsed, indoors, danger = false) {
+    const base = WEATHER_LOOK[weather] ?? WEATHER_LOOK.clear, k = 1 - Math.exp(-dt / 3);
+    const target = danger ? Object.fromEntries(Object.keys(TRENCH_LOOK).map(key => [key, Math.max(base[key], TRENCH_LOOK[key])])) : base;
+    TRENCH_GAIN.value += ((weather === "storm" ? 1.35 : 1) - TRENCH_GAIN.value) * k;
     for (const key of ["cloud", "rain", "fog", "storm"]) wx[key] += ((indoors ? 0 : target[key]) - wx[key]) * (indoors ? 1 : k);
     const bg = scene.background;
     const grey = (bg.r + bg.g + bg.b) / 3 * 0.92;
@@ -469,7 +568,7 @@ export function createRenderer(canvas) {
     let lightning = false;
     if (wx.storm > 0.6 && elapsed > wx.nextBolt) {
       if (wx.nextBolt) { wx.flash = 1; lightning = true; }
-      wx.nextBolt = elapsed + 6 + Math.random() * 10;
+      wx.nextBolt = elapsed + (danger ? 4 + Math.random() * 7 : 6 + Math.random() * 10);
     }
     wx.flash *= Math.exp(-dt * 7);
     if (wx.flash > 0.01) { hemi.intensity += wx.flash * 2.5; bg.lerp(WHITE, wx.flash * 0.5); }
@@ -499,6 +598,138 @@ export function createRenderer(canvas) {
     return lightning;
   }
 
+  // --- Boats: they ride the wave surface (heave from height, pitch/roll from its slope) and the player rides the deck.
+  const ride = (obj, baseY, x, z, elapsed, k = 1, w = undefined) => {
+    const d = 1.2, h = waveHeight(x, z, elapsed, w);
+    obj.position.y = baseY + h;
+    obj.rotation.x = -Math.atan((waveHeight(x, z + d, elapsed, w) - waveHeight(x, z - d, elapsed, w)) / (2 * d)) * k;
+    obj.rotation.z = Math.atan((waveHeight(x + d, z, elapsed, w) - waveHeight(x - d, z, elapsed, w)) / (2 * d)) * k;
+    return h;
+  };
+  const deckTmp = new THREE.Vector3(), yawQ = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0);
+  /** Stand the player on a boat's deck: their deck position turned with the boat's pitch and roll, then lifted with it. */
+  function standOnDeck(boat, deckY, p) {
+    deckTmp.set(p.x - boat.position.x, deckY, p.z - boat.position.z).applyQuaternion(boat.quaternion).add(boat.position);
+    P.root.position.copy(deckTmp);
+    P.root.quaternion.copy(boat.quaternion).multiply(yawQ.setFromAxisAngle(UP, shownFacing));
+  }
+  function rideBoats(p, elapsed) {
+    mooredBoat.visible = mooredTrawler.visible = rack.visible = p.area === "land";
+    ride(mooredBoat, SEA_Y + 0.05, WORLD.boatMooring.x, WORLD.boatMooring.z, elapsed);
+    ride(mooredTrawler, SEA_Y - 0.25, WORLD.trawlerMooring.x, WORLD.trawlerMooring.z, elapsed, 0.8);
+    bigBoat.visible = p.area === "offshore";
+    ride(bigBoat, SEA_Y - 0.12, off.cx, off.cz, elapsed, 0.8);
+    trawler.visible = trench.root.visible = p.area === "trench";
+    ride(trawler, SEA_Y - 0.3, tc.cx, tc.cz, elapsed, 0.7, TRENCH_WAVES);
+    if (p.area === "offshore") standOnDeck(bigBoat, DECK_Y.offshore, p);
+    else if (p.area === "trench") standOnDeck(trawler, DECK_Y.trench, p);
+    else P.root.rotation.set(0, shownFacing, 0);
+  }
+
+  /** Where a lane position (0..1) is at sea for the bow spot: `dist` ahead, spread across 12 units. */
+  function laneWorld(spot, u, dist, out) {
+    const fx = Math.sin(spot.facing), fz = Math.cos(spot.facing);
+    return out.set(spot.x + fx * dist + fz * (u - 0.5) * 12, 0, spot.z + fz * dist - fx * (u - 0.5) * 12);
+  }
+  const hv = { a: new THREE.Vector3(), b: new THREE.Vector3(), c: new THREE.Vector3(), lastSurfaced: false, lastHits: 0, lastPos: 0.5, y: -4, spoutAt: 0 };
+  const STUCK = [[-0.4, 0.75, 0.2], [0.3, 0.8, -0.25], [-1.1, 0.7, -0.15], [0.9, 0.72, 0.18], [-1.7, 0.6, 0.1]];
+  /** The harpoon round in 3D: the giant surfacing along the lane, its spout, the thrown harpoon and the rope. */
+  function updateHarpoonView(s, dt, elapsed) {
+    // Spout droplets always settle, even after the session ends.
+    for (let i = 0; i < SPOUT; i++) {
+      if (spoutLife[i] <= 0) { spoutPos[i * 3 + 1] = -50; continue; }
+      spoutLife[i] -= dt;
+      spoutVel[i * 3 + 1] -= 7 * dt;
+      for (let a = 0; a < 3; a++) spoutPos[i * 3 + a] += spoutVel[i * 3 + a] * dt;
+    }
+    spoutGeo.attributes.position.needsUpdate = true;
+    if (!s) {
+      if (giantShown) giantShown.visible = false;
+      flyingHarpoon.visible = false;
+      stuckHarpoons.forEach(h => { h.visible = false; });
+      hv.lastHits = 0;
+      return;
+    }
+    const g = giantOf(s.encounter.speciesId);
+    if (giantShown && giantShown !== g) giantShown.visible = false;
+    giantShown = g;
+    g.scale.setScalar(0.75);
+    const h = s.harpoon, f = s.fight;
+    const lanePos = s.phase === "fight" ? f.fishPos : h ? h.pos : 0.5 + Math.sin(elapsed * 0.4) * 0.25;
+    const surfaced = s.phase === "fight" || s.phase === "bite" || (h && h.surfaced);
+    laneWorld(s.spot, lanePos, s.phase === "fight" ? 7 : 8.5, hv.a);
+    const water = SEA_Y + waveHeight(hv.a.x, hv.a.z, elapsed, TRENCH_WAVES);
+    const targetY = s.phase === "cast" || s.phase === "wait" ? water - 5 : surfaced ? water + (s.phase === "fight" ? -0.1 : 0.15) : water - 3.2;
+    hv.y += (targetY - hv.y) * (1 - Math.exp(-dt * 3));
+    g.visible = hv.y > water - 4.6;
+    // Face the way it swims (head = +x), with a gentle roll in the swell.
+    const dir = lanePos - hv.lastPos;
+    hv.lastPos = lanePos;
+    const fx = Math.sin(s.spot.facing), fz = Math.cos(s.spot.facing);
+    if (Math.abs(dir) > 0.0004) g.userData.dir = Math.sign(dir);
+    const d = g.userData.dir ?? 1;
+    g.position.set(hv.a.x, hv.y, hv.a.z);
+    g.rotation.set(0, Math.atan2(-(-fx * d), fz * d), Math.sin(elapsed * 0.9) * 0.08);
+    // Spouts: on the bite, whenever it surfaces again, and now and then while up.
+    if (surfaced && (!hv.lastSurfaced || elapsed > hv.spoutAt)) {
+      g.localToWorld(hv.b.set(1.2, 0.9, 0));
+      blow(hv.b.x, hv.b.y, hv.b.z);
+      hv.spoutAt = elapsed + 2.4 + Math.random() * 1.5;
+    }
+    hv.lastSurfaced = surfaced;
+    // Harpoons that struck ride on its back.
+    const hits = s.phase === "fight" ? (h?.need ?? 0) : h?.hits ?? 0;
+    stuckHarpoons.forEach((sh, i) => {
+      sh.visible = i < hits && g.visible;
+      if (!sh.visible) return;
+      if (sh.parent !== g) g.add(sh);
+      sh.position.set(...STUCK[i]);
+      sh.rotation.set(0.3, 0, -0.9 + i * 0.2);
+    });
+    // A harpoon in the air: an arc from the hand to where the aim was.
+    if (h?.flight) {
+      heldHarpoon.getWorldPosition(hv.b);
+      laneWorld(s.spot, h.flight.at, 8.5, hv.c);
+      hv.c.y = water + 0.3;
+      const t = 1 - h.flight.left / 0.45, arc = Math.sin(Math.PI * t) * 2.2;
+      const x = hv.b.x + (hv.c.x - hv.b.x) * t, y = hv.b.y + (hv.c.y - hv.b.y) * t + arc, z = hv.b.z + (hv.c.z - hv.b.z) * t;
+      const vy = (hv.c.y - hv.b.y) + Math.cos(Math.PI * t) * Math.PI * 2.2;
+      flyingHarpoon.position.set(x, y, z);
+      flyingHarpoon.quaternion.setFromUnitVectors(UP, hv.a.set(hv.c.x - hv.b.x, vy, hv.c.z - hv.b.z).normalize());
+      flyingHarpoon.visible = true;
+    } else flyingHarpoon.visible = false;
+    // Splash rings where a harpoon lands or the giant thrashes.
+    if (h && h.resultAt >= 0 && h.t - h.resultAt < 1) {
+      const k = h.t - h.resultAt;
+      laneWorld(s.spot, h.resultPos, 8.5, hv.c);
+      [splash, splash2].forEach((sp, i) => {
+        const u = Math.min(1, k * 1.4 + i * 0.25);
+        sp.position.set(hv.c.x, water + 0.05, hv.c.z);
+        sp.scale.setScalar(2 + u * 7);
+        sp.material.opacity = 0.9 * (1 - u);
+      });
+    } else if (s.phase === "fight") {
+      [splash, splash2].forEach((sp, i) => {
+        const u = (elapsed * 0.9 + i * 0.5) % 1;
+        sp.position.set(hv.a.x, water + 0.05, hv.a.z);
+        sp.scale.setScalar(3 + u * 6);
+        sp.material.opacity = 0.7 * (1 - u);
+      });
+    } else splash.material.opacity = splash2.material.opacity = 0;
+    // The rope: once a harpoon is in, from the harpoon in hand to the giant's back.
+    bobber.visible = false;
+    if (hits > 0 && g.visible) {
+      g.localToWorld(bobber.position.set(-0.4, 0.6, 0));
+      P.root.updateMatrixWorld(true);
+      updateLine(s, elapsed);
+      fishingLine.visible = true;
+    } else fishingLine.visible = false;
+  }
+
+  function setOwned(state) {
+    for (const t of [trawler, mooredTrawler]) t.userData.harpoonGun.visible = !!state.harpoonOwned;
+  }
+
   function render({ state, session, walking, dt, elapsed, result, questReady = false, weather = "clear" }) {
     TIME.value = elapsed;
     footstep = false;
@@ -512,12 +743,14 @@ export function createRenderer(canvas) {
     const active = session && session.phase !== "done" ? session : null;
     // Legendary bites and boss fights: golden ripples and a slow camera push-in.
     const boss = !!active && !!FISH_BY_ID[active.encounter.speciesId].legendary && (active.phase === "bite" || active.phase === "fight");
-    const zoom = boss ? 1.22 : 1;
+    const harpoonMode = active?.mode === "harpoon";
+    const zoom = boss && !harpoonMode ? 1.22 : 1;
     if (Math.abs(camera.zoom - zoom) > 0.001) { camera.zoom += (zoom - camera.zoom) * Math.min(1, dt * 2.5); camera.updateProjectionMatrix(); }
     splash.material.color.set(boss ? "#ffd36a" : "#ffffff");
     splash2.material.color.copy(splash.material.color);
-    const mode = result === "caught" ? "celebrate" : result ? "sad" : active ? (active.phase === "cast" ? "cast" : active.phase === "fight" ? "fight" : active.phase === "bite" ? "bite" : "wait") : walking ? "walk" : "idle";
+    const mode = result === "caught" ? "celebrate" : result ? "sad" : active ? (active.phase === "harpoon" ? "harpoon" : active.phase === "cast" ? (harpoonMode ? "wait" : "cast") : active.phase === "fight" ? "fight" : active.phase === "bite" ? "bite" : "wait") : walking ? "walk" : "idle";
     animatePlayer(mode, active, dt, elapsed);
+    rideBoats(p, elapsed);
     animateNpcs(p, dt, elapsed, !!session);
     questMark.visible = questReady && p.area === "land";
     if (questMark.visible) {
@@ -526,12 +759,13 @@ export function createRenderer(canvas) {
     }
     setHeldFish(result === "caught" ? session?.encounter.speciesId : null);
 
-    // Bobber + line
-    if (active) {
+    // Bobber + line (at the bow: the giant, its spout and the harpoons instead)
+    updateHarpoonView(harpoonMode ? active : null, dt, elapsed);
+    if (active && !harpoonMode) {
       const spot = active.spot;
       const bx = spot.x + Math.sin(spot.facing) * CAST_DISTANCE;
       const bz = spot.z + Math.cos(spot.facing) * CAST_DISTANCE;
-      const waterY = spot.location === "lake" ? LAKE_Y + 0.04 : spot.location === "river" ? RIVER_Y + 0.05 : SEA_Y + 0.1 + waveHeight(bx, bz, elapsed);
+      const waterY = spot.location === "lake" ? LAKE_Y + 0.04 : spot.location === "river" ? RIVER_Y + 0.05 : SEA_Y + 0.1 + waveHeight(bx, bz, elapsed, spot.location === "trench" ? TRENCH_WAVES : undefined);
       const castT = active.phase === "cast" ? Math.min(1, active.t / active.castMs) : 1;
       let by = waterY + Math.sin(elapsed * 2.5) * 0.04, ox = 0, oz = 0;
       if (active.phase === "cast") by = waterY + Math.sin(castT * Math.PI) * 2.5;
@@ -555,29 +789,12 @@ export function createRenderer(canvas) {
         s.material.opacity = ripple ? (boss ? 1 : 0.8) * (1 - k) : 0;
         if (boss) s.scale.multiplyScalar(1.6);
       });
-    } else {
+    } else if (!harpoonMode) {
       bobber.visible = false;
       fishingLine.visible = false;
       splash.material.opacity = splash2.material.opacity = 0;
     }
-
-    // Boats ride the shared wave surface: heave from height, pitch/roll from its slope.
-    const ride = (obj, baseY, x, z, k = 1) => {
-      const d = 1.2, h = waveHeight(x, z, elapsed);
-      obj.position.y = baseY + h;
-      obj.rotation.x = -Math.atan((waveHeight(x, z + d, elapsed) - waveHeight(x, z - d, elapsed)) / (2 * d)) * k;
-      obj.rotation.z = Math.atan((waveHeight(x + d, z, elapsed) - waveHeight(x - d, z, elapsed)) / (2 * d)) * k;
-      return h;
-    };
-    mooredBoat.visible = p.area === "land";
-    ride(mooredBoat, SEA_Y + 0.05, WORLD.boatMooring.x, WORLD.boatMooring.z);
     forSale.visible = !state.boatOwned;
-    const deckWave = ride(bigBoat, SEA_Y - 0.12, off.cx, off.cz, 0.8);
-    if (p.area === "offshore") {
-      P.root.position.y += deckWave;
-      P.root.rotation.x = bigBoat.rotation.x;
-      P.root.rotation.z = bigBoat.rotation.z;
-    } else P.root.rotation.x = P.root.rotation.z = 0;
     surf.forEach((m, i) => {
       const u = (elapsed / 5.5 + i / 3) % 1, e = 1 - Math.pow(1 - u, 2);
       const z = WORLD.land.maxZ + 3.4 - e * 2.6;
@@ -587,7 +804,7 @@ export function createRenderer(canvas) {
     });
     for (const m of env.markers) m.material.opacity = 0.3 + Math.sin(elapsed * 2) * 0.15;
     if (vane.visible) vane.userData.fish.rotation.y = Math.sin(elapsed * 0.4) * 0.8;
-    { const t = env.trenchPatch.position; t.y = SEA_Y + 0.14 + waveHeight(t.x, t.z, elapsed); }
+    if (carvedWhale.visible) carvedWhale.rotation.set(0, 0.5 + Math.sin(elapsed * 0.5) * 0.12, Math.sin(elapsed * 0.8) * 0.03);
     env.buoys.forEach((b, i) => { b.position.y = SEA_Y + waveHeight(b.position.x, b.position.z, elapsed); b.rotation.z = Math.sin(elapsed * 1.3 + i) * 0.18; });
     M.foam.opacity = 0.35 + Math.sin(elapsed * 1.2) * 0.2;
     env.seaFoam.position.z = WORLD.land.maxZ + 2.0 + Math.sin(elapsed * 1.2) * 0.35;
@@ -664,6 +881,7 @@ export function createRenderer(canvas) {
 
     // Camera follows the player with gentle easing (snaps when changing areas).
     camTarget.set(p.x, 0, p.z).add(CAMERA_OFFSET);
+    if (session?.mode === "harpoon" && session.phase !== "done") camTarget.add(hv.c.set(Math.sin(session.spot.facing) * 6.5, 0, Math.cos(session.spot.facing) * 6.5));
     if (!camInit || camera.position.distanceTo(camTarget) > 30) { camera.position.copy(camTarget); camInit = true; }
     else camera.position.lerp(camTarget, 1 - Math.exp(-dt * 6));
     camLook.copy(camera.position).sub(CAMERA_OFFSET);
@@ -680,11 +898,21 @@ export function createRenderer(canvas) {
       sun.position.copy(shadowFocus).add(sunDir);
     }
 
-    const lightning = applyWeather(weather, dt, elapsed, indoors);
+    const inTrench = p.area === "trench";
+    if (inTrench) { scene.background.lerp(TRENCH_TINT, 0.5); hemi.intensity = Math.max(0.6, hemi.intensity * 0.85); sun.intensity *= 0.75; }
+    const lightning = applyWeather(weather, dt, elapsed, indoors, inTrench);
+    if (inTrench) {
+      trench.update({ elapsed, dt, boat: trawler, night: lamps, flash: lightning });
+      // At the bow the floodlight swings forward onto the water where the giants surface.
+      const bow = session?.mode === "harpoon" && session.phase !== "done";
+      trench.floodlight.position.set(0, bow ? 5 : 4.3, bow ? 9.5 : -2.6);
+    }
+    if (!inTrench) trench.beacon.intensity = trench.floodlight.intensity = 0; // lights stay in the scene: no shader recompiles
+    env.farSea.visible = !inTrench;
     renderer.render(scene, camera);
     return { footstep, lightning };
   }
 
   resize();
-  return { render, resize, pickGround, screenAxes, setWallboard, setTrophies, setUnlocked, setMilestones, renderer, camera };
+  return { render, resize, pickGround, screenAxes, setWallboard, setTrophies, setUnlocked, setMilestones, setOwned, renderer, camera };
 }

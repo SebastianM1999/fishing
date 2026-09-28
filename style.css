@@ -807,3 +807,37 @@ body.at-title .hud, body.at-title .hud-buttons, body.at-title .action-btn, body.
   .close { width: 36px; height: 36px; }
   .title-card { zoom: 0.8; }
 }
+
+/* Harpoon round (Deep Trench bow) ------------------------------------------------ */
+.harpoon-game .lane.hp-lane, .minigame.deep .lane { background: linear-gradient(#3e6a84 0%, #22455e 50%, #142e42 100%); }
+.hp-target {
+  position: absolute; top: 50%; height: 34px; margin-top: -17px; display: grid; place-items: center;
+  border-radius: 12px; background: rgb(255 255 255 / 0.12); border: 2px dashed rgb(255 255 255 / 0.45); transition: opacity 0.3s, transform 0.3s;
+}
+.hp-back { display: block; width: 100%; max-width: 72px; min-width: 42px; height: 30px; color: #1c2430; filter: drop-shadow(0 2px 1px rgb(0 0 0 / 0.3)); }
+.hp-back svg { width: 100%; height: 100%; display: block; }
+.hp-target.right .hp-back svg { transform: scaleX(-1); }
+.harpoon-game[data-rarity="legendary"] .hp-back { color: #f4f2ea; }
+.hp-target.dived { opacity: 0.12; transform: translateY(10px) scale(0.85); }
+.hp-aim {
+  position: absolute; top: 3px; bottom: 3px; width: 4px; margin-left: -2px; border-radius: 2px; background: #ffe7a0;
+  box-shadow: 0 0 0 2px rgb(59 49 41 / 0.35), 0 0 10px rgb(255 220 120 / 0.8);
+}
+.hp-aim::before, .hp-aim::after { content: ""; position: absolute; left: 50%; translate: -50% 0; border: 7px solid transparent; }
+.hp-aim::before { top: -4px; border-top-color: #ffe7a0; }
+.hp-aim::after { bottom: -4px; border-bottom-color: #ffe7a0; }
+.hp-aim.on { background: #b8ff9a; box-shadow: 0 0 0 2px rgb(40 80 30 / 0.4), 0 0 14px rgb(180 255 140 / 0.9); }
+.hp-aim.on::before { border-top-color: #b8ff9a; } .hp-aim.on::after { border-bottom-color: #b8ff9a; }
+.hp-mark { position: absolute; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; border: 3px solid #fff; opacity: 0.9; }
+.hp-mark.flying { border-style: dotted; animation: spin 0.6s linear infinite; }
+.hp-mark.hit { border-color: #b8ff9a; box-shadow: 0 0 12px rgb(180 255 140 / 0.9); animation: pop 0.25s ease-out; }
+.hp-mark.miss { border-color: #ffb0a0; animation: ripple 0.8s ease-out forwards; }
+@keyframes ripple { to { transform: scale(2.2); opacity: 0; } }
+.hp-count { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 10px; }
+.hp-row { display: inline-flex; gap: 4px; align-items: center; }
+.hp-pip { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: var(--paper-2); opacity: 0.45; }
+.hp-pip .ico { width: 22px; height: 22px; }
+.hp-pip.hit { opacity: 1; background: #e3f0d9; box-shadow: 0 0 0 2px var(--leaf); }
+.hp-row.spare .hp-pip { opacity: 1; background: #f3e2c2; }
+.hp-none { font-size: 12px; font-weight: 800; color: var(--danger); }
+.mg-phase.swell { background: #d6e6f2; color: #24506e; animation: pop 0.2s ease-out; }

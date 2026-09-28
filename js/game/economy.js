@@ -1,5 +1,5 @@
 // Inventory, collection, selling, shop and boat rules on plain state.
-import { GEAR, BOAT_PRICE, REGIONS, RARITY_RANK, BAGS, FISH_BY_ID, STREAK } from "./content.js";
+import { GEAR, BOAT_PRICE, TRAWLER, HARPOON, REGIONS, RARITY_RANK, BAGS, FISH_BY_ID, STREAK } from "./content.js";
 import { skillEffects, normalizedSize } from "./skills.js";
 
 export const bagCapacity = state => BAGS[state.bag].slots + skillEffects(state).bagBonus;
@@ -168,5 +168,21 @@ export function buyBoat(state) {
   if (state.boatOwned || state.coins < BOAT_PRICE) return false;
   state.coins -= BOAT_PRICE;
   state.boatOwned = true;
+  return true;
+}
+
+/** The Deep Trench trawler: needs the small boat first. */
+export function buyTrawler(state) {
+  if (!state.boatOwned || state.trawlerOwned || state.coins < TRAWLER.price) return false;
+  state.coins -= TRAWLER.price;
+  state.trawlerOwned = true;
+  return true;
+}
+
+/** The harpoon for giants: only sold to trawler owners. */
+export function buyHarpoon(state) {
+  if (!state.trawlerOwned || state.harpoonOwned || state.coins < HARPOON.price) return false;
+  state.coins -= HARPOON.price;
+  state.harpoonOwned = true;
   return true;
 }
