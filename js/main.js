@@ -227,6 +227,16 @@ const renderer = createRenderer(canvas);
 addEventListener("resize", () => renderer.resize());
 
 const markTouch = () => document.body.classList.add("touch");
+// Phones: play full-screen (no status bar) and in landscape. The installed app already launches full-screen
+// (manifest display); in a browser tab, a tap asks for it again whenever the player has left full-screen.
+function goFullscreen() {
+  if (!document.body.classList.contains("touch") || document.fullscreenElement || matchMedia("(display-mode: fullscreen)").matches) return;
+  document.documentElement.requestFullscreen?.({ navigationUI: "hide" })
+    .then(() => screen.orientation?.lock?.("landscape"))
+    .catch(() => {});
+}
+addEventListener("click", goFullscreen, { capture: true });
+addEventListener("touchend", goFullscreen, { capture: true, passive: true });
 addEventListener("pointerdown", () => { screen.orientation?.lock?.("landscape").catch(() => {}); }, { once: true });
 if (matchMedia("(pointer: coarse)").matches || params.has("touch")) markTouch();
 addEventListener("touchstart", markTouch, { once: true, passive: true });
