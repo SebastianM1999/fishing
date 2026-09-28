@@ -6,7 +6,7 @@ import {
 } from "../game/content.js";
 import { priceOf, inventoryWorth, bagCapacity, bagFull, streakBonus } from "../game/economy.js";
 import { orderText, matchingFish, canHandIn } from "../game/orders.js";
-import { milestoneProgress } from "../game/collection.js";
+import { milestoneProgress, claimable } from "../game/collection.js";
 import { huntChecks, moonPhase } from "../game/fishing.js";
 import { levelInfo, pointsFree, pointsSpent, rankOf, tierOpen, canLearn, respecCost, skillEffects, branchOf } from "../game/skills.js";
 import { fishSvg, rarityIcon } from "./fishArt.js";
@@ -162,7 +162,12 @@ export function createUI(handlers) {
   el.boardBody.addEventListener("pointerleave", hideTip);
   el.boardBody.addEventListener("focusin", e => { const slot = e.target.closest(".board-slot"); if (slot) showTip(slot); });
   el.boardBody.addEventListener("focusout", hideTip);
-  el.boardBody.addEventListener("click", e => { const slot = e.target.closest(".board-slot"); if (slot) showTip(slot); });
+  el.boardBody.addEventListener("click", e => {
+    const claim = e.target.closest("[data-claim]");
+    if (claim) { handlers.claimMilestone(claim.dataset.claim); return; }
+    const slot = e.target.closest(".board-slot");
+    if (slot) showTip(slot);
+  });
   el.board.addEventListener("close", hideTip);
 
   // Settings: icons, sliders and mute toggle
@@ -311,10 +316,14 @@ export function createUI(handlers) {
           <span class="name">${found ? f.name : "???"}</span></button>`;
       }).join("")}</div>`;
     }).join("") + `<h3 class="board-section">${ICONS.trophy} Milestones</h3><div class="milestones">${MILESTONES.map(m => {
-      const p = milestoneProgress(state, m), done = p.have >= p.need;
-      return `<div class="milestone ${done ? "done" : ""}" title="${m.reward}">${ICONS[m.icon]}<div><b>${m.name}</b><span>${m.reward}</span></div>
-        <span class="ms-count">${done ? ICONS.check : `${p.have}/${p.need}`}</span></div>`;
+      const p = milestoneProgress(state, m), done = p.have >= p.need, claimed = state.milestonesClaimed.includes(m.id);
+      const end = claimed ? `<span class="ms-count">${ICONS.check}</span>`
+        : done ? `<button type="button" class="ms-claim" data-claim="${m.id}" aria-label="Claim ${m.name}">${ICONS.gift} Claim</button>`
+          : `<span class="ms-count">${p.have}/${p.need}</span>`;
+      return `<div class="milestone ${claimed ? "done" : done ? "ready" : ""}" title="${m.reward}">${ICONS[m.icon]}<div><b>${m.name}</b><span>${m.reward}</span></div>${end}</div>`;
     }).join("")}</div>`;
+    const n = claimable(state).length;
+    el.boardCount.innerHTML = `${state.discovered.length} / ${FISH.length}${n ? ` <span class="claim-badge" title="Rewards to claim">${ICONS.gift} ${n}</span>` : ""}`;
   }
   el.boardTabs.addEventListener("click", e => {
     const tab = e.target.closest("[data-tab]");

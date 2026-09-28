@@ -1,4 +1,4 @@
-// Collection milestones: progress and rewards, all derived from state.discovered (nothing extra is saved). No DOM.
+// Collection milestones: progress comes from state.discovered; rewards apply once claimed (state.milestonesClaimed). No DOM.
 import { FISH, MILESTONES, regularAt, kindOf } from "./content.js";
 
 /** The species a milestone asks for. */
@@ -17,10 +17,21 @@ export function milestoneProgress(state, m) {
 export const milestoneDone = (state, m) => { const p = milestoneProgress(state, m); return p.have >= p.need; };
 export const doneMilestones = state => MILESTONES.filter(m => milestoneDone(state, m));
 
-/** Combined rewards: per-location sell bonus, extra bag slots, cosmetics and the pennants to hang at home. */
+/** Reached but not yet claimed at the collection board. */
+export const claimable = state => doneMilestones(state).filter(m => !state.milestonesClaimed.includes(m.id));
+
+/** Claim a reached milestone's reward. */
+export function claimMilestone(state, id) {
+  const m = MILESTONES.find(x => x.id === id);
+  if (!m || state.milestonesClaimed.includes(id) || !milestoneDone(state, m)) return false;
+  state.milestonesClaimed.push(id);
+  return true;
+}
+
+/** Combined rewards of the claimed milestones: sell bonus per location, bag slots, cosmetics, pennants at home. */
 export function milestoneEffects(state) {
   const fx = { sell: {}, bag: 0, goldenBobber: false, goldenBand: false, weathervane: false, pennants: [] };
-  for (const m of doneMilestones(state)) {
+  for (const m of MILESTONES.filter(x => state.milestonesClaimed.includes(x.id))) {
     for (const [loc, v] of Object.entries(m.sell ?? {})) fx.sell[loc] = (fx.sell[loc] ?? 0) + v;
     fx.bag += m.bag ?? 0;
     fx.goldenBobber ||= !!m.goldenBobber;

@@ -1,7 +1,7 @@
 // Cast -> wait -> bite/hook -> catch minigame. Pure simulation on plain data; no DOM or Three.js.
 import {
   FISH, FISH_BY_ID, RARITY_WEIGHTS, RARITY_MULTIPLIER, RARITY_FIGHT, BEHAVIORS, EXHAUSTED,
-  HOOK, BITE_WAIT_MS, MINIGAME, GEAR, LEGENDARIES, BOSS_FIGHT, WEATHER, LOCATION_GATES, MECHANICS, SPECIAL_FIGHT, MOON, LOCATION_LABELS, SKILLS_BY_ID, regularAt,
+  HOOK, BITE_WAIT_MS, MINIGAME, GEAR, LEGENDARIES, BOSS_FIGHT, WEATHER, LOCATION_GATES, MECHANICS, SPECIAL_FIGHT, SPECIAL_MAX_RARITY, RARITY_RANK, MOON, LOCATION_LABELS, SKILLS_BY_ID, regularAt,
 } from "./content.js";
 import { skillEffects, rankOf, levelOf } from "./skills.js";
 
@@ -112,7 +112,9 @@ export function salePrice(species, rarity, sizeCm) {
 export function rollEncounter(rng, location, bucket, stats, hunt = null) {
   const legend = hunt && rng.next() < hunt.hunt.chance;
   const species = legend ? hunt : pickSpecies(rng, fishTable(location, bucket, stats.weather, stats.gear));
-  const rarity = legend ? "legendary" : rollRarity(rng, location, stats.rareWeightMult);
+  let rarity = legend ? "legendary" : rollRarity(rng, location, stats.rareWeightMult);
+  // Odd catches cap at SPECIAL_MAX_RARITY (so the Fish Whisperer preview already shows the capped rarity).
+  if (species.special && RARITY_RANK[rarity] > RARITY_RANK[SPECIAL_MAX_RARITY]) rarity = SPECIAL_MAX_RARITY;
   const sizeCm = Math.round(rng.range(species.sizeCm[0], species.sizeCm[1]) * 10) / 10;
   return { speciesId: species.id, rarity, sizeCm, value: salePrice(species, rarity, sizeCm) };
 }

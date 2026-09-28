@@ -1,6 +1,6 @@
 // Leveling (XP -> level -> skill points) and the skill tree, on plain state. No DOM.
 import {
-  LEVEL_CAP, RARITY_XP, XP_FIRST_CATCH, XP_PERFECT_HOOK, RESPEC_FEE_PER_LEVEL, TIER_POINTS,
+  LEVEL_CAP, RARITY_XP, XP_FIRST_CATCH, LEGEND_XP_VALUE_CAP, XP_PERFECT_HOOK, RESPEC_FEE_PER_LEVEL, TIER_POINTS,
   SKILLS, SKILLS_BY_ID, SKILL_BRANCHES,
 } from "./content.js";
 
@@ -84,7 +84,8 @@ export function skillEffects(state, bucket) {
 /** XP for one catch (before skill multipliers when mult is omitted). */
 export function catchXp(species, rarity, sizeCm, { first = false, perfect = false, mult = 1 } = {}) {
   // Named legendaries already have a huge baseValue, so they use the rare multiplier.
-  const base = Math.round((6 + species.baseValue * 0.25) * (species.legendary ? RARITY_XP.rare : RARITY_XP[rarity]) * (1 + normalizedSize(species, sizeCm) * 0.5));
+  const value = species.legendary ? Math.min(species.baseValue, LEGEND_XP_VALUE_CAP) : species.baseValue;
+  const base = Math.round((6 + value * 0.25) * (species.legendary ? RARITY_XP.rare : RARITY_XP[rarity]) * (1 + normalizedSize(species, sizeCm) * 0.5));
   return Math.round((base + (first ? XP_FIRST_CATCH : 0) + (perfect ? XP_PERFECT_HOOK : 0)) * mult);
 }
 
