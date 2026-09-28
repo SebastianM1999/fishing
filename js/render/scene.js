@@ -38,11 +38,11 @@ const damp = (cur, target, k) => cur + (target - cur) * k;
 // Weather look targets (eased in over a few seconds): overcast dimming, rain amount, fog haze, storm extras.
 const WEATHER_LOOK = {
   clear: { cloud: 0, rain: 0, fog: 0, storm: 0 },
-  rain: { cloud: 0.55, rain: 0.6, fog: 0.15, storm: 0 },
+  rain: { cloud: 0.4, rain: 0.45, fog: 0.1, storm: 0 },
   fog: { cloud: 0.3, rain: 0, fog: 1, storm: 0 },
   storm: { cloud: 0.9, rain: 1, fog: 0.3, storm: 1 },
 };
-const RAIN_DROPS = 1400, RAIN_BOX = 26, RAIN_TOP = 20;
+const RAIN_DROPS = 700, RAIN_BOX = 26, RAIN_TOP = 20;
 
 export function createRenderer(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
@@ -482,8 +482,8 @@ export function createRenderer(canvas) {
     if (rain.visible) {
       const n = Math.floor(RAIN_DROPS * Math.min(1, wx.rain));
       rainGeo.setDrawRange(0, n * 2);
-      rain.material.opacity = 0.3 + 0.35 * wx.rain;
-      const fall = (16 + 10 * wx.storm) * dt, len = 0.8 + wx.storm * 0.6, slant = 0.2 + wx.storm * 0.45;
+      rain.material.opacity = 0.16 + 0.2 * wx.rain;
+      const fall = (13 + 9 * wx.storm) * dt, len = 0.55 + wx.storm * 0.45, slant = 0.2 + wx.storm * 0.45;
       for (let i = 0; i < n; i++) {
         const j = i * 3;
         let y = rainDrop[j + 1] - fall;

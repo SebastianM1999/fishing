@@ -43,12 +43,12 @@ export const WEATHER = {
 };
 // Chance weights per time of day; `stay` = chance the previous slot's weather carries on. A new game's first dawn is clear.
 export const WEATHER_WEIGHTS = {
-  dawn: { clear: 50, rain: 15, fog: 35, storm: 0 },
-  day: { clear: 60, rain: 25, fog: 5, storm: 10 },
-  dusk: { clear: 50, rain: 25, fog: 10, storm: 15 },
-  night: { clear: 45, rain: 25, fog: 15, storm: 15 },
+  dawn: { clear: 66, rain: 6, fog: 28, storm: 0 },
+  day: { clear: 82, rain: 10, fog: 4, storm: 4 },
+  dusk: { clear: 75, rain: 12, fog: 7, storm: 6 },
+  night: { clear: 72, rain: 12, fog: 10, storm: 6 },
 };
-export const WEATHER_STAY = 0.35;
+export const WEATHER_STAY = 0.25;
 
 
 
