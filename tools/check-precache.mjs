@@ -1,4 +1,5 @@
-// CI check: every PRECACHE entry in sw.js exists, and every file the game needs offline is in PRECACHE.
+// CI check: every PRECACHE entry in sw.js exists, every file the game needs offline is in PRECACHE, and the
+// manifest only uses relative paths to files that exist (root-absolute paths break under the Pages sub-path).
 // Usage: node tools/check-precache.mjs
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -14,5 +15,9 @@ const missingFiles = [...files].filter(f => !existsSync(join(root, f)));
 const notCached = needed.filter(f => !files.has(f));
 if (missingFiles.length) console.error("PRECACHE lists files that don't exist:", missingFiles);
 if (notCached.length) console.error("Files missing from PRECACHE (won't work offline):", notCached);
-if (missingFiles.length || notCached.length) process.exit(1);
+const manifest = JSON.parse(readFileSync(join(root, "manifest.webmanifest"), "utf8"));
+const manifestPaths = [manifest.start_url, manifest.scope, manifest.id, ...manifest.icons.map(i => i.src)].filter(Boolean);
+const badManifest = manifestPaths.filter(p => p.startsWith("/") || (p !== "./" && !existsSync(join(root, p))));
+if (badManifest.length) console.error("Manifest paths must be relative and exist:", badManifest);
+if (missingFiles.length || notCached.length || badManifest.length) process.exit(1);
 console.log(`PRECACHE ok: ${files.size} files`);
