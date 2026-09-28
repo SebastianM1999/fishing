@@ -1,7 +1,7 @@
 // Three.js view of the game state. Holds no gameplay rules; reads plain state each frame.
 import * as THREE from "three";
 import { WORLD, CAST_DISTANCE, NPCS, INTERACTIONS } from "../game/world.js";
-import { FISH_BY_ID, BOAT_PRICE } from "../game/content.js";
+import { FISH_BY_ID, BOAT_PRICE, TRAWLER } from "../game/content.js";
 import { dayFraction, bucketProgress } from "../game/time.js";
 import { createMaterials, TIME, WAVE_GAIN, TRENCH_GAIN, TRENCH_WAVES, G, Kit, Batch, GroupSink, waveHeight } from "./kit.js";
 import { buildTrench } from "./trench.js";
@@ -161,7 +161,23 @@ export function createRenderer(canvas) {
   const mooredTrawler = models.makeTrawler(M, 0.8);
   mooredTrawler.position.set(WORLD.trawlerMooring.x, SEA_Y - 0.25, WORLD.trawlerMooring.z);
   scene.add(mooredTrawler);
-  // Harpoon rack on the dock: a little stand with harpoons, next to Captain Olsen.
+  // Until it's repaired, the trawler lies run aground at the old pier: listing, low in the water, with a sign.
+  const repairSign = new THREE.Group();
+  {
+    const rk = new Kit(new GroupSink(repairSign));
+    rk.part(G.box(0.12, 1.7, 0.12), M.woodDark, [0, 0.85, 0]);
+    const tex = createSignTexture([["WRECKED", 58], [TRAWLER.name, 26], [`Repair: ${TRAWLER.price} coins`, 30]], { bg: "#f2e6cc", border: "#8a3a30" });
+    const board = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.85, 0.06), [M.woodDark, M.woodDark, M.woodDark, M.woodDark, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8 }), M.woodDark]);
+    board.position.set(0, 1.6, 0.07);
+    board.rotation.z = 0.08;
+    board.castShadow = true;
+    repairSign.add(board);
+    repairSign.position.set(-25.2, 0.12, 23.6);
+    repairSign.rotation.y = -0.5;
+  }
+  scene.add(repairSign);
+  const owned = { trawler: false };
+  // Harpoon rack on the old pier: a little stand with harpoons.
   const rack = new THREE.Group();
   {
     const rk = new Kit(new GroupSink(rack));
@@ -616,7 +632,12 @@ export function createRenderer(canvas) {
   function rideBoats(p, elapsed) {
     mooredBoat.visible = mooredTrawler.visible = rack.visible = p.area === "land";
     ride(mooredBoat, SEA_Y + 0.05, WORLD.boatMooring.x, WORLD.boatMooring.z, elapsed);
-    ride(mooredTrawler, SEA_Y - 0.25, WORLD.trawlerMooring.x, WORLD.trawlerMooring.z, elapsed, 0.8);
+    if (owned.trawler) ride(mooredTrawler, SEA_Y - 0.25, WORLD.trawlerMooring.x, WORLD.trawlerMooring.z, elapsed, 0.8);
+    else { // aground: listing to port, bow down, barely rocking
+      mooredTrawler.position.y = SEA_Y - 1.0 + Math.sin(elapsed * 0.7) * 0.03;
+      mooredTrawler.rotation.set(0.13, 0.35, -0.45 + Math.sin(elapsed * 0.7) * 0.01);
+    }
+    repairSign.visible = p.area === "land" && !owned.trawler;
     bigBoat.visible = p.area === "offshore";
     ride(bigBoat, SEA_Y - 0.12, off.cx, off.cz, elapsed, 0.8);
     trawler.visible = trench.root.visible = p.area === "trench";
@@ -727,6 +748,8 @@ export function createRenderer(canvas) {
   }
 
   function setOwned(state) {
+    owned.trawler = !!state.trawlerOwned;
+    if (owned.trawler) mooredTrawler.rotation.set(0, 0, 0);
     for (const t of [trawler, mooredTrawler]) t.userData.harpoonGun.visible = !!state.harpoonOwned;
   }
 

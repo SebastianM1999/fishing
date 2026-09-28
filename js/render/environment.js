@@ -75,7 +75,7 @@ export function buildEnvironment(M) {
   root.add(seaFoam, lakeFoam);
 
   // --- Structures -----------------------------------------------------------------------------
-  for (const w of WORLD.walkways) models.walkway(k, M, w, w.id === "boat_dock");
+  for (const w of WORLD.walkways) if (w.broken) models.brokenPier(k, M, w); else models.walkway(k, M, w, w.id === "boat_dock");
   // Mooring bollards at the dock end
   for (const x of [2.8, 5.2]) { k.part(G.cyl(0.14, 0.16, 0.5, 8), M.metal, [x, 0.4, 23.7]); k.part(G.cyl(0.2, 0.2, 0.08, 8), M.metal, [x, 0.66, 23.7]); }
   for (const b of WORLD.buildings) models.building(k, M, b);

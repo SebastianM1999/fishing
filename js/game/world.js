@@ -16,6 +16,8 @@ export const WORLD = {
     { id: "river_platform", minX: 11.4, maxX: 14.6, minZ: -7.2, maxZ: -4.8 },
     { id: "sea_jetty", minX: -9.1, maxX: -6.9, minZ: 15, maxZ: 18.6 },
     { id: "boat_dock", minX: 2.9, maxX: 5.1, minZ: 15, maxZ: 24 },
+    // The old storm pier on the far (west) side of the beach: crooked, patched and half broken; the wrecked trawler lies at its end.
+    { id: "old_pier", minX: -28.1, maxX: -25.9, minZ: 15, maxZ: 25.4, broken: true },
   ],
 
   buildings: [
@@ -34,8 +36,8 @@ export const WORLD = {
   boatMooring: { x: 6.6, z: 21.5 },
   // Deep Trench: the Ironhull Trawler's deck, far out in rough water. The wheelhouse at the stern is solid.
   trench: { minX: -1.75, maxX: 1.75, minZ: 255.4, maxZ: 265.2, cx: 0, cz: 260, cabin: { minX: -1.1, maxX: 1.1, minZ: 255.4, maxZ: 257.4 } },
-  trawlerMooring: { x: 4, z: 30 },
-  harpoonRack: { x: 2.72, z: 19 },
+  trawlerMooring: { x: -27, z: 31.3 },
+  harpoonRack: { x: -28.3, z: 20 },
 
   trees: [
     [-34, -22, 1.2], [-29, -23, 1], [-22, -22.5, 1.3], [-15, -23, 1], [-8, -23.5, 1.1], [2, -23, 1.2], [9, -22.5, 1],
@@ -44,7 +46,7 @@ export const WORLD = {
     [-18, -9.5, 1], [-29, -12, 0.9],
   ],
   rocks: [[-17, 6, 0.7], [-30, 8.5, 0.9], [10.5, 9, 0.6], [-12, 12, 0.5], [7, 12.5, 0.6], [-20, -15, 0.7]],
-  lamps: [[-3, -6.5], [3, -6.5], [-6.5, 13.5], [3, 14.3]],
+  lamps: [[-3, -6.5], [3, -6.5], [-6.5, 13.5], [3, 14.3], [-25.4, 13.2]],
   // Construction barriers (see REGIONS in content.js). A locked zone cannot be entered.
   barriers: {
     river: { gate: { x: 10.2, z: -5 }, line: [[10.2, -26], [10.2, 10.2]], zone: (x, z) => x > 10.2 && z <= 10.2 },
@@ -62,7 +64,10 @@ export const WORLD = {
     ["reeds", -23, 7.1, 0, 1], ["reeds", 13.1, -12, 0, 1], ["reeds", 13.2, 2, 0, 1],
     ["lily", -26, -2, 0, 1], ["lily", -22.6, 3.5, 0, 1], ["lily", -27.8, 2.2, 0, 1], ["lily", -21, -4, 0, 1],
     ["umbrella", -2.5, 13.5, 0, 1], ["towel", -2.5, 14.4, 0.2, 1], ["shell", -11, 15.4, 0, 1], ["shell", 8.5, 14.8, 0, 1],
-    ["buoy", -3, 22, 0, 1], ["buoy", 9, 25, 0, 1], ["crate", 5.6, 15.6, 0.2, 0.8], ["barrel", 1.9, 15.5, 0, 0.8],
+    ["buoy", -3, 22, 0, 1], ["buoy", 9, 25, 0, 1], ["buoy", -31, 27, 0, 1],
+    // The old pier's corner of the beach: salvage, driftwood and shells.
+    ["crate", -24.6, 14.6, 0.5, 0.9], ["crate", -24.1, 13.9, 0.1, 0.7], ["barrel", -29.2, 14.2, 0, 0.9], ["barrel", -29.9, 13.6, 0.6, 0.8],
+    ["log", -32.5, 14.4, 0.4, 1], ["log", -21.5, 15.6, -0.3, 0.8], ["shell", -30.5, 15.6, 0, 1], ["shell", -23, 14.8, 0, 1], ["umbrella", -35, 13.2, 0, 1], ["crate", 5.6, 15.6, 0.2, 0.8], ["barrel", 1.9, 15.5, 0, 0.8],
     ["tacklebox", 12.5, -4.2, 0.5, 1], ["bucket", -16.3, 1.3, 0, 1],
   ],
   // Decorative path strips (rendering only).
@@ -89,9 +94,9 @@ export const INTERACTIONS = [
   { id: "exit_home", type: "exit", area: "home", x: -150, z: -146.1, r: 1.3, label: "Go outside" },
   { id: "board", type: "board", area: "home", x: -152.6, z: -153.2, r: 1.9, label: "View the collection" },
   { id: "trophies", type: "trophies", area: "home", x: -146.8, z: -153.2, r: 1.9, label: "Trophy shelf" },
-  { id: "dock", type: "dock", area: "land", x: 3.7, z: 21.9, r: 1.25, label: "Sail offshore" },
-  { id: "trawler", type: "trawler", area: "land", x: 4, z: 23.6, r: 1, label: "Sail to the Deep Trench" },
-  { id: "harpoon_rack", type: "harpoon", area: "land", x: 3.45, z: 19, r: 1.05, label: "Harpoon rack" },
+  { id: "dock", type: "dock", area: "land", x: 3.8, z: 22.4, r: 1.7, label: "Sail offshore" },
+  { id: "trawler", type: "trawler", area: "land", x: -27, z: 24.8, r: 1.1, label: "Sail to the Deep Trench" },
+  { id: "harpoon_rack", type: "harpoon", area: "land", x: -27.45, z: 20, r: 1.05, label: "Harpoon rack" },
   { id: "return", type: "return", area: "offshore", x: 0, z: 77.2, r: 1.4, label: "Sail back to shore" },
   { id: "return_trench", type: "return", area: "trench", x: -1.2, z: 258.2, r: 1.1, label: "Sail back to shore" },
   { id: "gate_river", type: "barrier", region: "river", area: "land", x: 9.1, z: -5, r: 1.9, label: "Construction site" },
@@ -114,6 +119,7 @@ export const PROP_RADIUS = { bench: 0.7, barrel: 0.45, crate: 0.5, mailbox: 0.2,
 export const TRAVEL = {
   toOffshore: { x: 0, z: 78.5, area: "offshore" },
   toTrench: { x: 0, z: 260.5, area: "trench", facing: 0 },
+  fromTrench: { x: -27, z: 23.6, area: "land" }, // back to the old pier
   toShore: { x: 4, z: 21.5, area: "land" },
   toHome: { x: -150, z: -146.8, area: "home", facing: Math.PI },
   fromHome: { x: -8, z: -6.3, area: "land", facing: 0 },

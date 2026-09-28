@@ -56,7 +56,7 @@ function buyBoat() {
 }
 function buyTrawler() {
   if (!economy.buyTrawler(state)) return;
-  ui.toast("The Ironhull Trawler is yours! Board it at the end of the dock to sail to the Deep Trench.");
+  ui.toast("The shipwrights patched up the Ironhull Trawler! Board it at the end of the old pier to sail to the Deep Trench.");
   audio.play("buy");
   renderer.setOwned(state);
   afterChange();
@@ -312,7 +312,7 @@ function interact(it) {
   switch (it.type) {
     case "fish":
       if (!fishing.locationOpen(state, it.location)) ui.toast(content.LOCATION_GATES[it.location].hint);
-      else if (it.mode === "harpoon" && !state.harpoonOwned) ui.toast(`Giants need a harpoon. Captain Olsen sells the ${content.HARPOON.name} at the dock.`);
+      else if (it.mode === "harpoon" && !state.harpoonOwned) ui.toast(`Giants need a harpoon. The ${content.HARPOON.name} hangs on the rack at the old pier.`);
       else startFishing(it);
       break;
     case "shop": ui.openShop(state); break;
@@ -332,8 +332,8 @@ function interact(it) {
       if (state.trawlerOwned) travel(TRAVEL.toTrench);
       else ui.openPurchase(state, {
         blocked: state.boatOwned ? null : "Buy the small fishing boat first!",
-        title: content.TRAWLER.name, art: "trawler", price: content.TRAWLER.price, confirmLabel: "Buy the trawler", onConfirm: buyTrawler,
-        text: "A steel-hulled, storm-proof trawler with a warm wheelhouse. The only boat that survives the waves of the Deep Trench, where the hardest fish and the giants live.",
+        title: `Wrecked ${content.TRAWLER.name}`, art: "trawler", price: content.TRAWLER.price, confirmLabel: "Pay for the repairs", onConfirm: buyTrawler,
+        text: "A steel-hulled storm trawler, run aground at the old pier years ago. Once the shipwrights fix her up, she's the only boat that survives the waves of the Deep Trench, where the hardest fish and the giants live.",
       });
       break;
     case "harpoon":
@@ -341,10 +341,10 @@ function interact(it) {
       ui.openPurchase(state, {
         blocked: state.trawlerOwned ? null : `Only for trawler owners: buy the ${content.TRAWLER.name} first!`,
         title: content.HARPOON.name, art: "harpoon", price: content.HARPOON.price, confirmLabel: "Buy the harpoon", onConfirm: buyHarpoon,
-        text: "A heavy harpoon with a long line and a winch. At the trawler's bow it lets you take on the giants of the trench: narwhals, orcas and whales. Some say the Kraken too.",
+        text: "A heavy harpoon with a long line and a winch, left on the old pier's rack. At the trawler's bow it lets you take on the giants of the trench: narwhals, orcas and whales. Some say the Kraken too.",
       });
       break;
-    case "return": travel(TRAVEL.toShore); break;
+    case "return": travel(state.player.area === "trench" ? TRAVEL.fromTrench : TRAVEL.toShore); break;
     case "barrier": {
       const region = content.REGIONS[it.region];
       const needs = region.requires && !economy.regionAvailable(state, region.id) ? content.REGIONS[region.requires] : null;
@@ -360,7 +360,7 @@ function interact(it) {
 
 function actionLabelFor(it) {
   if (it.type === "dock" && !state.boatOwned) return { label: `Buy the boat — ${content.BOAT_PRICE} coins`, locked: state.coins < content.BOAT_PRICE };
-  if (it.type === "trawler" && !state.trawlerOwned) return { label: `${content.TRAWLER.name} — ${content.TRAWLER.price} coins${state.boatOwned ? "" : " · needs the small boat"}`, locked: !state.boatOwned || state.coins < content.TRAWLER.price };
+  if (it.type === "trawler" && !state.trawlerOwned) return { label: `Repair the ${content.TRAWLER.name} — ${content.TRAWLER.price} coins${state.boatOwned ? "" : " · needs the small boat"}`, locked: !state.boatOwned || state.coins < content.TRAWLER.price };
   if (it.type === "harpoon" && !state.harpoonOwned) return { label: `${content.HARPOON.name} — ${content.HARPOON.price} coins${state.trawlerOwned ? "" : " · needs the trawler"}`, locked: !state.trawlerOwned || state.coins < content.HARPOON.price };
   if (it.type === "harpoon") return { label: "Harpoon rack · yours is on the trawler", locked: false };
   if (it.type === "barrier" && !economy.regionAvailable(state, it.region)) {
