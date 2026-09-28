@@ -1,5 +1,7 @@
 # Fish expansion: design
 
+> **Update:** the Deep Trench is now its own late-game area with a trawler, harpoon, giants and Moby Dick; see `docs/deep-trench.md` (76 species).
+
 Goal: many more catchable creatures, so that 100% collection becomes a long-term goal. The tone stays cozy and whimsical: sharks and the Kraken feel epic but friendly, and nothing is ever gory.
 
 The collection grows from **29 species** (the original 24 plus the 5 weather-only fish) **to 71**, with 42 new creatures:

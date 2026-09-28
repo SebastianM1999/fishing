@@ -7,8 +7,8 @@ import { milestoneDone } from "./collection.js";
 
 // v2: construction-barrier unlocks + per-species best-catch records. v3: bag tier. v4: xp + skills; hook & tackle removed.
 // v5: home interior (area "home"), trophy shelf, catch streak, day counter + notice-board orders. v6: weather seed.
-// v7: claimed collection milestones.
-export const SAVE_VERSION = 7;
+// v7: claimed collection milestones. v8: Ironhull Trawler, harpoon and the Deep Trench as its own area.
+export const SAVE_VERSION = 8;
 export const TROPHY_SLOTS = 3;
 // Coins refunded for pre-v4 purchases that no longer exist (cumulative hook tier prices, tackle prices).
 const LEGACY_HOOK_REFUND = [0, 120, 420];
@@ -23,6 +23,8 @@ export function createState(seed = (Date.now() ^ 0x5eed) >>> 0) {
     xp: 0, // total XP; level and skill points derive from it
     skills: {}, // { skillId: rank }
     boatOwned: false,
+    trawlerOwned: false, // Ironhull Trawler: sails to the Deep Trench
+    harpoonOwned: false, // harpoon for giants at the trawler's bow
     unlocked: [], // region ids from REGIONS whose construction barrier was cleared
     discovered: [], // species ids
     // Best specimen per species (rarest, then biggest): { rarity, sizeCm, value, uid|null, sold }
@@ -51,6 +53,8 @@ export function serialize(state, rng) {
     xp: state.xp,
     skills: { ...state.skills },
     boatOwned: state.boatOwned,
+    trawlerOwned: state.trawlerOwned,
+    harpoonOwned: state.harpoonOwned,
     unlocked: [...state.unlocked],
     discovered: [...state.discovered],
     records: structuredClone(state.records),
@@ -85,6 +89,8 @@ export function deserialize(data) {
   const bag = num(data.bag, 0);
   s.bag = Number.isInteger(bag) && bag >= 0 && bag < BAGS.length ? bag : 0;
   s.boatOwned = data.boatOwned === true;
+  s.trawlerOwned = s.boatOwned && data.trawlerOwned === true;
+  s.harpoonOwned = s.trawlerOwned && data.harpoonOwned === true;
   if (Array.isArray(data.discovered)) {
     const order = FISH.map(f => f.id);
     s.discovered = order.filter(id => data.discovered.includes(id));
@@ -123,10 +129,10 @@ export function deserialize(data) {
   s.nextFishUid = Math.max(num(data.nextFishUid, 1), ...kept.map(f => f.uid + 1), 1);
   const p = data.player;
   if (p && typeof p === "object") {
-    const area = p.area === "offshore" && s.boatOwned ? "offshore" : p.area === "home" ? "home" : "land";
+    const area = p.area === "offshore" && s.boatOwned ? "offshore" : p.area === "trench" && s.trawlerOwned ? "trench" : p.area === "home" ? "home" : "land";
     const x = num(p.x, s.player.x);
     const z = num(p.z, s.player.z);
-    if (isWalkable(x, z, area, s.unlocked) && (area !== "offshore" || s.unlocked.includes("sea"))) s.player = { x, z, facing: num(p.facing, Math.PI), area };
+    if (isWalkable(x, z, area, s.unlocked) && (!["offshore", "trench"].includes(area) || s.unlocked.includes("sea"))) s.player = { x, z, facing: num(p.facing, Math.PI), area };
   }
   if ((num(data.version, 1)) < 4) migrateToV4(s, data);
   else {

@@ -163,7 +163,8 @@ export function buildEnvironment(M) {
   }
 
   // Fishing-spot / dock markers
-  const markers = INTERACTIONS.filter(i => ["fish", "dock", "return", "exit"].includes(i.type)).map(it => {
+  // (Spots on the boats ride with their deck: scene.js adds those.)
+  const markers = INTERACTIONS.filter(i => ["fish", "dock", "trawler", "harpoon", "return", "exit"].includes(i.type) && ["land", "home"].includes(i.area)).map(it => {
     const m = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.75, 24).rotateX(-Math.PI / 2), M.spot);
     m.position.set(it.x, 0.22, it.z);
     root.add(m);
@@ -183,38 +184,7 @@ export function buildEnvironment(M) {
     return g;
   });
 
-  let trenchPatch;
-  // Deep Trench: a lantern buoy over a patch of dark water beside the offshore boat.
-  {
-    const trench = INTERACTIONS.find(i => i.id === "spot_trench");
-    const tx = trench.x + 4.2, tz = trench.z;
-    // Dark water rides the waves (moved in scene.js); the edges fade out in rings.
-    trenchPatch = new THREE.Group();
-    [[3, 0.12], [2.6, 0.12], [2.2, 0.14], [1.8, 0.14], [1.4, 0.16], [1, 0.16]].forEach(([r, o], i) => {
-      const d = new THREE.Mesh(new THREE.CircleGeometry(r, 28).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: "#081a33", transparent: true, opacity: o, depthWrite: false }));
-      d.position.y = i * 0.01;
-      d.renderOrder = 2; // after the (transparent) sea
-      trenchPatch.add(d);
-    });
-    trenchPatch.position.set(tx, SEA_Y, tz);
-    root.add(trenchPatch);
-    const g = new THREE.Group();
-    const bk = new Kit(new GroupSink(g));
-    bk.part(G.sphere(0.32, 10, 8), M.woodDark, [0, 0.1, 0], [0, 0, 0], [1, 0.75, 1]);
-    bk.part(G.cyl(0.33, 0.33, 0.1, 10), M.yellow, [0, 0.14, 0]);
-    bk.part(G.cyl(0.04, 0.04, 0.7, 5), M.metal, [0, 0.55, 0]);
-    bk.part(G.box(0.2, 0.05, 0.2), M.metal, [0, 0.9, 0]);
-    bk.part(G.box(0.2, 0.05, 0.2), M.metal, [0, 1.18, 0]);
-    const glow = new THREE.Mesh(G.box(0.15, 0.23, 0.15), new THREE.MeshStandardMaterial({ color: "#bff4ff", emissive: "#6fe0ff", emissiveIntensity: 2.2 }));
-    glow.position.y = 1.04;
-    g.add(glow);
-    g.scale.setScalar(1.35);
-    g.position.set(tx + 0.6, SEA_Y, tz - 1.2);
-    root.add(g);
-    buoys.push(g);
-  }
-
-  return { root, barriers, markers, buoys, trenchPatch, seaFoam, lakeFoam, chimney: new THREE.Vector3(-8 - 7 / 4, 0.4 + 3 + 2.3, -10 - 0.7) };
+  return { root, farSea, barriers, markers, buoys, seaFoam, lakeFoam, chimney: new THREE.Vector3(-8 - 7 / 4, 0.4 + 3 + 2.3, -10 - 0.7) };
 }
 
 /**

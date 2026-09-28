@@ -378,6 +378,127 @@ export function makeBoat(M, scale = 1) {
   return g;
 }
 
+/**
+ * The Ironhull Trawler: a steel storm boat with a wheelhouse, fenders and a harpoon gun on the bow (shown once
+ * bought). Bow = +z; the deck top is at y = TRAWLER_DECK (unscaled). userData: { harpoonGun, lights }.
+ */
+export const TRAWLER_DECK = 0.96;
+export function makeTrawler(M, scale = 1) {
+  const g = new THREE.Group();
+  const k = new Kit(new GroupSink(g));
+  const outline = [[-1.9, -5.4], [1.9, -5.4], [2.15, -3], [2.15, 3.2], [1.25, 5.6], [0, 6.9], [-1.25, 5.6], [-2.15, 3.2], [-2.15, -3]];
+  const shapeOf = sc => new THREE.Shape(outline.map(([x, z]) => new THREE.Vector2(x * sc, -z * sc)));
+  const hullGeo = (sc, h, hole = 0) => {
+    const shape = shapeOf(sc);
+    if (hole) shape.holes.push(new THREE.Path(outline.map(([x, z]) => new THREE.Vector2(x * hole, -z * hole)).reverse()));
+    return new THREE.ExtrudeGeometry(shape, { depth: h, bevelEnabled: false }).rotateX(-PI / 2);
+  };
+  k.part(hullGeo(0.96, 1.0), M.steelDark, [0, -1.25, 0]); // keel / waterline
+  k.part(hullGeo(1, 1.2), M.steel, [0, -0.3, 0]); // red steel hull
+  k.part(hullGeo(1.012, 0.12), M.steelLight, [0, 0.52, 0]); // white band
+  k.part(hullGeo(1.015, 0.08), M.steelDark, [0, -0.32, 0]); // boot top
+  k.part(hullGeo(1.0, 0.42, 0.9), M.steel, [0, 0.9, 0]); // bulwark
+  k.part(hullGeo(1.02, 0.07, 0.88), M.steelLight, [0, 1.3, 0]); // capping rail
+  k.part(hullGeo(0.92, 0.06), M.deckSteel, [0, 0.9, 0]); // deck
+  for (let j = 0; j < 9; j++) k.part(G.box(3.4, 0.015, 0.05), M.steelDark, [0, 0.965, -2.2 + j * 0.85]);
+  // Reinforcing ribs and tyre fenders along both sides.
+  for (const sx of [-1, 1]) {
+    for (let j = 0; j < 6; j++) k.part(G.box(0.07, 1.25, 0.12), M.steel, [sx * 2.17, 0.3, -4.2 + j * 1.5]);
+    for (const z of [-2.4, -0.2, 2]) k.part(G.torus(0.26, 0.11, 6, 10), M.tyre, [sx * 2.28, 0.25, z], [0, PI / 2, 0]);
+  }
+  // Wheelhouse with a window band, roof, mast, radar and lamps.
+  k.part(G.box(2.2, 1.75, 2.0), M.steelLight, [0, 0.96 + 0.875, -3.6]);
+  k.part(G.box(2.24, 0.55, 2.04), M.window, [0, 2.2, -3.6]);
+  for (const x of [-0.55, 0, 0.55]) k.part(G.box(0.06, 0.57, 2.06), M.steelLight, [x, 2.2, -3.6]);
+  k.part(G.box(2.5, 0.14, 2.3), M.steel, [0, 2.78, -3.6]);
+  k.part(G.box(0.7, 1.1, 0.06), M.steelDark, [0.55, 1.5, -2.58]); // door
+  k.part(G.torus(0.26, 0.07, 6, 12), M.red, [-0.55, 1.5, -2.55]); // life ring
+  k.part(G.torus(0.26, 0.072, 2, 4), M.white, [-0.55, 1.5, -2.54], [0, 0, PI / 4]);
+  k.part(G.cyl(0.06, 0.07, 2.4, 6), M.steelDark, [0, 4.0, -3.9]);
+  k.part(G.box(1.3, 0.08, 0.14), M.steelDark, [0, 4.6, -3.9]);
+  k.part(G.box(0.9, 0.12, 0.26), M.steelLight, [0, 3.35, -3.9]); // radar
+  k.part(G.cyl(0.32, 0.36, 1.4, 8), M.steel, [0, 3.2, -5.0]); // funnel
+  k.part(G.cyl(0.33, 0.33, 0.3, 8), M.steelDark, [0, 3.95, -5.0]);
+  // Bow: anchor winch and bollards.
+  k.part(G.cyl(0.22, 0.22, 0.9, 8), M.steelDark, [0, 1.2, 4.4], [0, 0, PI / 2]);
+  for (const sx of [-1, 1]) k.part(G.cyl(0.12, 0.14, 0.35, 6), M.steelDark, [sx * 1.4, 1.14, 3.6]);
+  // Stern: a winch drum, net and crates behind the wheelhouse.
+  k.part(G.box(0.7, 0.5, 0.6), M.woodDark, [1.55, 1.2, -1.9]);
+  k.part(G.torus(0.3, 0.1, 5, 10), M.rope, [-1.55, 1.02, -2.0], [PI / 2, 0, 0]);
+  const lights = [];
+  for (const [x, y, z] of [[0.62, 4.62, -3.9], [-0.62, 4.62, -3.9], [0, 1.55, 6.2]]) {
+    const l = new THREE.Mesh(G.box(0.16, 0.2, 0.16), M.lampGlass);
+    l.position.set(x, y, z);
+    g.add(l);
+    lights.push(l);
+  }
+  k.part(G.cyl(0.03, 0.03, 0.4, 4), M.steelDark, [0, 1.35, 6.2]);
+  // Harpoon gun on a swivel at the bow.
+  const gun = new THREE.Group();
+  const gk = new Kit(new GroupSink(gun));
+  gk.part(G.cyl(0.2, 0.3, 0.5, 8), M.steelDark, [0, 0.25, 0]);
+  gk.part(G.box(0.36, 0.24, 0.5), M.steelDark, [0, 0.6, 0]);
+  gk.part(G.cyl(0.08, 0.1, 1.3, 8), M.steelDark, [0, 0.72, 0.5], [PI / 2, 0, 0]);
+  gk.part(G.cone(0.1, 0.3, 4), M.metal, [0, 0.72, 1.3], [PI / 2, 0, 0]);
+  gk.part(G.box(0.05, 0.3, 0.05), M.steelDark, [0, 0.45, -0.35], [0.4, 0, 0]);
+  gk.part(G.torus(0.14, 0.05, 5, 10), M.rope, [0.28, 0.5, -0.05], [0, PI / 2, 0]);
+  gun.position.set(0, TRAWLER_DECK, 5.3);
+  gun.visible = false;
+  g.add(gun);
+  g.userData = { harpoonGun: gun, lights };
+  g.scale.setScalar(scale);
+  return g;
+}
+
+/** A hand-thrown harpoon (+y along the shaft like the rod); `tail` is where the rope starts. */
+export function makeHarpoon(M) {
+  const g = new THREE.Group();
+  const iron = new THREE.MeshStandardMaterial({ color: "#8a9096", roughness: 0.4, metalness: 0.5, flatShading: true });
+  g.add(mesh(G.cyl(0.035, 0.04, 2.0, 6), M.woodDark, 0, 0.8, 0));
+  g.add(mesh(G.cyl(0.05, 0.05, 0.12, 6), iron, 0, 1.8, 0));
+  g.add(mesh(G.cone(0.07, 0.34, 4), iron, 0, 2.0, 0));
+  for (const s of [-1, 1]) g.add(mesh(G.box(0.02, 0.18, 0.02), iron, s * 0.06, 1.88, 0, 0, 0, s * 0.6));
+  g.add(mesh(G.torus(0.06, 0.02, 4, 8), M.rope, 0, -0.15, 0));
+  const tail = new THREE.Object3D();
+  tail.position.y = -0.18;
+  g.add(tail);
+  g.userData.tail = tail;
+  return g;
+}
+
+/** A giant for the harpoon round: a low-poly whale (head = +x, about 6 units long) coloured from its portrait art. */
+export function makeGiant(art) {
+  const g = new THREE.Group();
+  const mat = c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.55, flatShading: true });
+  const body = mat(art.color), fin = mat(art.fin), belly = mat(art.belly), eyeMat = mat("#15130f");
+  const add = (...a) => g.add(mesh(...a));
+  if (art.shape === "kraken") {
+    const k = makeHeldFish(art);
+    k.scale.setScalar(9);
+    k.position.y = -0.4;
+    g.add(k);
+    return g;
+  }
+  const box = !!art.boxHead;
+  add(G.sphere(1, 12, 8), body, -0.2, 0, 0, 0, 0, 0, [3.0, 0.78, 0.95]);
+  if (box) add(G.box(2.0, 1.25, 1.5), body, 1.8, 0.1, 0, 0, 0, 0);
+  else add(G.sphere(0.9, 10, 8), body, 1.6, -0.05, 0, 0, 0, 0, [1.3, 0.8, 0.9]);
+  add(G.sphere(0.95, 10, 6), belly, 0.4, -0.35, 0, 0, 0, 0, [2.6, 0.45, 0.8]);
+  // Tail stock and fluke.
+  add(G.cone(0.55, 1.8, 8), body, -3.6, 0.05, 0, 0, 0, PI / 2, [1, 1, 0.8]);
+  for (const s of [-1, 1]) add(G.sphere(0.6, 6, 4), fin, -4.6, 0.1, s * 0.75, 0, s * 0.5, 0, [0.7, 0.12, 1.3]);
+  // Dorsal fin: a tall blade for the orca, a small hump for the others.
+  const tall = art.dorsal === "tall";
+  add(G.cone(tall ? 0.45 : 0.3, tall ? 1.8 : 0.5, 4), fin, tall ? -0.2 : -1.2, tall ? 1.4 : 0.8, 0, 0, 0, tall ? 0.15 : 0.5, [1, 1, 0.25]);
+  const fl = art.flippers ? 2.2 : 0.9;
+  for (const s of [-1, 1]) add(G.sphere(0.5, 6, 4), art.flippers ? belly : fin, 0.8, -0.45, s * (0.8 + fl * 0.35), 0, s * 0.6, 0, [fl * 0.6, 0.1, 0.35 + fl * 0.3]);
+  if (art.orca) { for (const s of [-1, 1]) add(G.sphere(0.34, 8, 6), belly, 1.9, 0.25, s * 0.66, 0, 0, 0, [1.3, 0.6, 0.4]); add(G.sphere(0.5, 8, 6), mat("#9aa0a6"), -0.8, 0.62, 0, 0, 0, 0, [1.2, 0.3, 0.7]); }
+  if (art.tusk) add(G.cone(0.07, 2.4, 5), mat("#efe6cc"), 3.3, 0.05, 0, 0, 0, -PI / 2);
+  if (art.grooves) for (let i = 0; i < 4; i++) add(G.box(1.6, 0.03, 0.05), fin, 1.3, -0.62, -0.3 + i * 0.2);
+  for (const s of [-1, 1]) add(G.sphere(0.09, 6, 4), eyeMat, box ? 1.3 : 1.6, box ? -0.05 : 0.02, s * (box ? 0.76 : 0.7));
+  return g;
+}
+
 /** A small caught-fish mesh coloured like the species (held up when celebrating). */
 /** The held-up catch (and trophy): a tiny low-poly model per body type, coloured from art.color / art.fin. Head = +x. */
 export function makeHeldFish(art) {
@@ -458,6 +579,12 @@ export function makeHeldFish(art) {
         add(G.cone(0.14, 0.06, 5), new THREE.MeshStandardMaterial({ color: "#6fae52", flatShading: true }), 0.04, 0.47, 0);
       }
       eye(0.4, 0.06, 0.05, 0.022);
+      break;
+    }
+    case "whale": {
+      const w = makeGiant(art);
+      w.scale.setScalar(0.12);
+      g.add(w);
       break;
     }
     default: {

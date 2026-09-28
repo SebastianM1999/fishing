@@ -54,6 +54,20 @@ function buyBoat() {
   audio.play("buy");
   afterChange();
 }
+function buyTrawler() {
+  if (!economy.buyTrawler(state)) return;
+  ui.toast("The Ironhull Trawler is yours! Board it at the end of the dock to sail to the Deep Trench.");
+  audio.play("buy");
+  renderer.setOwned(state);
+  afterChange();
+}
+function buyHarpoon() {
+  if (!economy.buyHarpoon(state)) return;
+  ui.toast("The Whaler's Harpoon is yours! Watch for giants at the trawler's bow.");
+  audio.play("buy");
+  renderer.setOwned(state);
+  afterChange();
+}
 
 // --- UI handlers ------------------------------------------------------------
 const ui = createUI({
@@ -287,6 +301,7 @@ function travel(to) {
   setTimeout(() => {
     state.player.x = to.x; state.player.z = to.z; state.player.area = to.area;
     state.player.facing = to.facing ?? (to.area === "offshore" ? 0 : Math.PI);
+    if (to.area === "trench") ui.toast("The Deep Trench. Hold on tight: the sea is rough out here.");
     game.moveTarget = null;
     saveNow();
     setTimeout(() => { ui.fade(false); game.travelling = false; }, 250);
@@ -296,8 +311,9 @@ function travel(to) {
 function interact(it) {
   switch (it.type) {
     case "fish":
-      if (fishing.locationOpen(state, it.location)) startFishing(it);
-      else ui.toast(content.LOCATION_GATES[it.location].hint);
+      if (!fishing.locationOpen(state, it.location)) ui.toast(content.LOCATION_GATES[it.location].hint);
+      else if (it.mode === "harpoon" && !state.harpoonOwned) ui.toast(`Giants need a harpoon. Captain Olsen sells the ${content.HARPOON.name} at the dock.`);
+      else startFishing(it);
       break;
     case "shop": ui.openShop(state); break;
     case "board": ui.openBoard(); break;
@@ -310,6 +326,22 @@ function interact(it) {
       else ui.openPurchase(state, {
         title: "Small Fishing Boat", art: "boat", price: content.BOAT_PRICE, confirmLabel: "Buy the boat", onConfirm: buyBoat,
         text: "A sturdy little sailboat, moored and ready. Own it for good and sail offshore for tuna, marlin and sharks.",
+      });
+      break;
+    case "trawler":
+      if (state.trawlerOwned) travel(TRAVEL.toTrench);
+      else ui.openPurchase(state, {
+        blocked: state.boatOwned ? null : "Buy the small fishing boat first!",
+        title: content.TRAWLER.name, art: "trawler", price: content.TRAWLER.price, confirmLabel: "Buy the trawler", onConfirm: buyTrawler,
+        text: "A steel-hulled, storm-proof trawler with a warm wheelhouse. The only boat that survives the waves of the Deep Trench, where the hardest fish and the giants live.",
+      });
+      break;
+    case "harpoon":
+      if (state.harpoonOwned) { ui.toast("Your harpoon waits on the trawler's bow."); break; }
+      ui.openPurchase(state, {
+        blocked: state.trawlerOwned ? null : `Only for trawler owners: buy the ${content.TRAWLER.name} first!`,
+        title: content.HARPOON.name, art: "harpoon", price: content.HARPOON.price, confirmLabel: "Buy the harpoon", onConfirm: buyHarpoon,
+        text: "A heavy harpoon with a long line and a winch. At the trawler's bow it lets you take on the giants of the trench: narwhals, orcas and whales. Some say the Kraken too.",
       });
       break;
     case "return": travel(TRAVEL.toShore); break;
@@ -328,12 +360,16 @@ function interact(it) {
 
 function actionLabelFor(it) {
   if (it.type === "dock" && !state.boatOwned) return { label: `Buy the boat — ${content.BOAT_PRICE} coins`, locked: state.coins < content.BOAT_PRICE };
+  if (it.type === "trawler" && !state.trawlerOwned) return { label: `${content.TRAWLER.name} — ${content.TRAWLER.price} coins${state.boatOwned ? "" : " · needs the small boat"}`, locked: !state.boatOwned || state.coins < content.TRAWLER.price };
+  if (it.type === "harpoon" && !state.harpoonOwned) return { label: `${content.HARPOON.name} — ${content.HARPOON.price} coins${state.trawlerOwned ? "" : " · needs the trawler"}`, locked: !state.trawlerOwned || state.coins < content.HARPOON.price };
+  if (it.type === "harpoon") return { label: "Harpoon rack · yours is on the trawler", locked: false };
   if (it.type === "barrier" && !economy.regionAvailable(state, it.region)) {
     return { label: `${content.REGIONS[it.region].name} — clear the ${content.REGIONS[content.REGIONS[it.region].requires].name.toLowerCase()} first`, locked: true };
   }
   if (it.type === "barrier") return { label: `${content.REGIONS[it.region].name} — clear for ${content.REGIONS[it.region].price} coins`, locked: state.coins < content.REGIONS[it.region].price };
   if ((it.type === "board" || it.type === "enter") && claimable(state).length) return { label: `${it.label} · rewards to claim`, locked: false };
-  if (it.type === "fish" && !fishing.locationOpen(state, it.location)) return { label: `${it.label} — needs a ${content.GEAR.line[content.LOCATION_GATES[it.location].gear.line].name}`, locked: true };
+  if (it.type === "fish" && !fishing.locationOpen(state, it.location)) return { label: `${it.label} — needs ${fishing.missingGear(state, it.location).map(g => g.item.name).join(", ")}`, locked: true };
+  if (it.type === "fish" && it.mode === "harpoon" && !state.harpoonOwned) return { label: `${it.label} — needs the ${content.HARPOON.name}`, locked: true };
   return { label: it.label, locked: false };
 }
 
@@ -342,13 +378,13 @@ function startFishing(spot) {
   const bucket = timeBucket(state.timeMs);
   const wx = weatherNow();
   const stats = fishing.getStats(state, bucket, wx);
-  const hunt = fishing.huntAt(state, spot.location, bucket, bucketProgress(state.timeMs));
-  game.session = fishing.startCast(rng, spot.location, bucket, stats, hunt);
+  const hunt = fishing.huntAt(state, spot.location, bucket, bucketProgress(state.timeMs), wx, spot.mode);
+  game.session = fishing.startCast(rng, spot.location, bucket, stats, hunt, spot.mode);
   game.session.spot = spot;
   game.session.weather = wx;
   game.moveTarget = null;
   state.player.x = spot.x; state.player.z = spot.z; state.player.facing = spot.facing;
-  audio.play("cast");
+  audio.play(spot.mode === "harpoon" ? "ui" : "cast");
 }
 
 /** XP for a landed fish; level-ups earn a skill point each. */
@@ -404,10 +440,12 @@ function updateSession(actions, dtMs) {
   const stats = fishing.getStats(state, s.bucket, s.weather);
   if (ui.catchVisible()) return; // closed only by its Continue button or Esc
   const reelIn = actions.interact && (s.phase === "cast" || s.phase === "wait");
-  const hook = actions.hook && s.phase === "bite";
+  const hook = actions.hook && (s.phase === "bite" || s.phase === "harpoon");
   if (reelIn || hook) {
     const ev = fishing.pressAction(s, rng, stats);
     if (ev === "hooked") audio.play("hook", s.hookQuality === "perfect");
+    if (ev === "aim") audio.play("spout");
+    if (ev === "throw") audio.play("throw");
     if (ev === "early") { finishSession(); return; }
   }
   s.reelHeld = actions.reel && s.phase === "fight";
@@ -417,6 +455,10 @@ function updateSession(actions, dtMs) {
   if (ev === "secondwind") { audio.play("secondwind"); ui.toast("Second wind! The line holds."); }
   if (ev === "rage") audio.play("rage");
   if (["ink", "grab", "glow", "charge", "jolt"].includes(ev)) audio.play(ev);
+  if (ev === "hit") audio.play("harpoonhit");
+  if (ev === "swell") audio.play("splash");
+  if (ev === "miss") audio.play("splash");
+  if (ev === "harpooned") { audio.play("hook", true); ui.toast("Harpooned! Now reel it in!"); }
   if (ev === "bite") {
     audio.play(content.FISH_BY_ID[s.encounter.speciesId].legendary ? "legendbite" : "bite");
     if (document.body.classList.contains("touch") && navigator.userActivation?.hasBeenActive) navigator.vibrate?.(80);
@@ -495,8 +537,8 @@ function frame(now) {
       const { label, locked } = actionLabelFor(it);
       ui.setAction(label, locked);
       if (it.type === "fish" && skills.skillEffects(state).fishFinder) {
-        finder = fishing.fishTable(it.location, bucket, wx, state.gear);
-        finderHunt = fishing.huntAt(state, it.location, bucket, bucketProgress(state.timeMs));
+        finder = fishing.fishTable(it.location, bucket, wx, state.gear, it.mode);
+        finderHunt = fishing.huntAt(state, it.location, bucket, bucketProgress(state.timeMs), wx, it.mode);
       }
       if (actions.interact) interact(it);
     } else ui.setAction(null);
@@ -542,6 +584,7 @@ async function boot() {
   renderer.setWallboard(state.discovered);
   renderer.setTrophies(state.trophies);
   renderer.setUnlocked(state.unlocked);
+  renderer.setOwned(state);
   requestAnimationFrame(frame);
 
   // Test/debug hook, only with ?debug in the URL.

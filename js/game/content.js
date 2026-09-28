@@ -7,8 +7,11 @@ export const BUCKET_LENGTH_MS = DAY_LENGTH_MS / TIME_BUCKETS.length;
 
 export const LOCATIONS = ["lake", "river", "sea", "offshore", "trench"];
 export const LOCATION_LABELS = { lake: "Lake", river: "River", sea: "Sea Shore", offshore: "Offshore", trench: "Deep Trench" };
-// Spots that need more than getting there: the trench (a spot on the boat) needs a line long and strong enough.
-export const LOCATION_GATES = { trench: { gear: { line: 2 }, hint: "Your line can't reach the trench floor. A Braided Line can." } };
+// Spots that need more than getting there: the Deep Trench (reached on the Ironhull Trawler) tears weak tackle apart.
+export const LOCATION_GATES = { trench: { gear: { rod: 2, reel: 2, line: 3 }, hint: "The trench tears weak tackle apart. You need at least a Carbon Rod, a Quick Reel and a Heavy Line." } };
+// Trench fights are much harder: slower progress, wilder bursts, faster tension, a narrower zone, and big swells
+// that shove the zone aside now and then. (Legends and myths keep their own boss tuning.)
+export const LOCATION_FIGHT = { trench: { progressGain: 0.78, burstMult: 1.25, tensionGrowthMult: 1.15, zoneWidthMult: 0.88, swell: { every: [3, 5], time: 0.9, push: 0.3 } } };
 
 export const STARTING_COINS = 0;
 export const CHEAT_COINS = 1000; // press X three times quickly
@@ -19,6 +22,12 @@ export const ORDERS = { perDay: 3, rewardMult: 1.6, xpBase: 10, xpPerCoin: 0.25 
 // Moon phase from the day counter: phase = day % cycle; full and new moons are what some mythics wait for.
 export const MOON = { cycle: 6, full: 3, new: 0, names: ["New moon", "Waxing crescent", "First quarter", "Full moon", "Last quarter", "Waning crescent"] };
 export const BOAT_PRICE = 1000;
+// Late game: the storm-proof trawler sails to the Deep Trench; the harpoon (sold by Captain Olsen too) is needed for giants.
+export const TRAWLER = { name: "Ironhull Trawler", price: 6000 };
+export const HARPOON = { name: "Whaler's Harpoon", price: 3500 };
+// Harpoon minigame: an aim swings along the lane, a thrown harpoon lands where the aim was after `flight` s and hits
+// if the creature is surfaced there. Each species sets hits needed, how fast it swims and how big a target it is.
+export const HARPOON_GAME = { spare: 2, flight: 0.45, aimSpeed: 0.85, surface: [2.4, 3.4], dive: [1.0, 1.6], hitDive: 1.5, retarget: [0.9, 1.8], speedUp: 0.12, spareBonus: 0.04 };
 
 // Construction barriers: areas that must be cleared with coins before they can be entered.
 export const REGIONS = {
@@ -111,17 +120,23 @@ export const FISH = [
   { id: "offshore_lions_mane", name: "Lion's Mane Jelly", location: "offshore", times: ["dusk", "night"], baseValue: 200, sizeCm: [50, 200], behavior: "sting", special: true, weight: 0.065, assetId: "odd_lions_mane", flavor: "Wears a magnificent mane of ribbons.", art: { color: "#eca446", back: "#c0602a", belly: "#fbd890", fin: "#f0b060", shape: "jelly", mane: true, pattern: "none", patternColor: "#c0602a" } },
   { id: "offshore_hammerhead", name: "Hammerhead Shark", location: "offshore", times: ["dusk", "night"], baseValue: 260, sizeCm: [150, 350], behavior: "frenzy", special: true, weight: 0.052, gear: { line: 2 }, assetId: "odd_hammerhead", flavor: "Sees both sides of every story.", art: { color: "#8c9caa", back: "#56687a", belly: "#f0f2f4", fin: "#66788a", shape: "shark", pattern: "none", patternColor: "#56687a", mouth: "shark", hammer: true, len: 1, h: 0.26 } },
   { id: "offshore_whale_shark", name: "Whale Shark", location: "offshore", times: ["day"], baseValue: 380, sizeCm: [400, 900], behavior: "heavy", special: true, weight: 0.039, gear: { rod: 2, reel: 2 }, assetId: "odd_whale_shark", flavor: "The gentlest giant, dotted like a starry night.", art: { color: "#4e6e8e", back: "#2a4a6a", belly: "#eef2f4", fin: "#3e5e7e", shape: "whaleshark", pattern: "lightspots", patternColor: "#eef4f8", mouth: "wide", len: 1, h: 0.3 } },
-  { id: "trench_lanternfish", name: "Lanternfish", location: "trench", times: ["dawn", "day", "dusk", "night"], baseValue: 30, sizeCm: [5, 15], behavior: "darting", assetId: "fish_lanternfish", flavor: "Carries its own night-lights.", art: { color: "#5a6a8e", back: "#2a3450", belly: "#aab6d2", fin: "#4a5878", shape: "slim", pattern: "glow", patternColor: "#8ff0ff", iris: "#bfe8f0", len: 0.66, h: 0.24 } },
-  { id: "trench_viperfish", name: "Viperfish", location: "trench", times: ["day", "night"], baseValue: 60, sizeCm: [20, 35], behavior: "frenzy", assetId: "fish_viperfish", flavor: "Its fangs are too big for its mouth, which it finds embarrassing.", art: { color: "#3e4e62", back: "#1a2430", belly: "#7a8aa0", fin: "#2e3c4e", shape: "slim", pattern: "glow", patternColor: "#7ad8ff", mouth: "fangs", len: 0.8, h: 0.2 } },
-  { id: "trench_anglerfish", name: "Anglerfish", location: "trench", times: ["dawn", "dusk", "night"], baseValue: 95, sizeCm: [20, 60], behavior: "heavy", assetId: "fish_anglerfish", flavor: "Always brings a lamp to the party.", art: { color: "#7a6a58", back: "#3e3228", belly: "#b0a290", fin: "#54463a", shape: "angler", pattern: "mottle", patternColor: "#4a3c30", mouth: "angler", patternGlow: "#ffe38a", len: 0.7, h: 0.46 } },
-  { id: "trench_coelacanth", name: "Coelacanth", location: "trench", times: ["day", "dusk"], baseValue: 120, sizeCm: [100, 200], behavior: "heavy", assetId: "fish_coelacanth", flavor: "Older than the dinosaurs and not in a hurry.", art: { color: "#40628f", back: "#1e3456", belly: "#7090b8", fin: "#2e5080", shape: "bass", pattern: "lightspots", patternColor: "#e8eef8", len: 0.92, h: 0.32 } },
+  { id: "trench_lanternfish", name: "Lanternfish", location: "trench", times: ["dawn", "day", "dusk", "night"], baseValue: 60, sizeCm: [5, 15], behavior: "darting", assetId: "fish_lanternfish", flavor: "Carries its own night-lights.", art: { color: "#5a6a8e", back: "#2a3450", belly: "#aab6d2", fin: "#4a5878", shape: "slim", pattern: "glow", patternColor: "#8ff0ff", iris: "#bfe8f0", len: 0.66, h: 0.24 } },
+  { id: "trench_viperfish", name: "Viperfish", location: "trench", times: ["day", "night"], baseValue: 110, sizeCm: [20, 35], behavior: "frenzy", assetId: "fish_viperfish", flavor: "Its fangs are too big for its mouth, which it finds embarrassing.", art: { color: "#3e4e62", back: "#1a2430", belly: "#7a8aa0", fin: "#2e3c4e", shape: "slim", pattern: "glow", patternColor: "#7ad8ff", mouth: "fangs", len: 0.8, h: 0.2 } },
+  { id: "trench_anglerfish", name: "Anglerfish", location: "trench", times: ["dawn", "dusk", "night"], baseValue: 170, sizeCm: [20, 60], behavior: "heavy", assetId: "fish_anglerfish", flavor: "Always brings a lamp to the party.", art: { color: "#7a6a58", back: "#3e3228", belly: "#b0a290", fin: "#54463a", shape: "angler", pattern: "mottle", patternColor: "#4a3c30", mouth: "angler", patternGlow: "#ffe38a", len: 0.7, h: 0.46 } },
+  { id: "trench_coelacanth", name: "Coelacanth", location: "trench", times: ["day", "dusk"], baseValue: 220, sizeCm: [100, 200], behavior: "heavy", assetId: "fish_coelacanth", flavor: "Older than the dinosaurs and not in a hurry.", art: { color: "#40628f", back: "#1e3456", belly: "#7090b8", fin: "#2e5080", shape: "bass", pattern: "lightspots", patternColor: "#e8eef8", len: 0.92, h: 0.32 } },
 
-  { id: "trench_firefly_squid", name: "Firefly Squid", location: "trench", times: ["dusk", "night"], baseValue: 140, sizeCm: [5, 10], behavior: "ink", special: true, weight: 0.104, assetId: "odd_firefly_squid", flavor: "Sparkles like a pocketful of stars.", art: { color: "#4262aa", back: "#2a3a78", belly: "#8aa0e0", fin: "#3a52a0", shape: "squid", pattern: "glow", patternColor: "#6ae4ff" } },
-  { id: "trench_lantern_shark", name: "Lantern Shark", location: "trench", times: ["dawn", "night"], baseValue: 150, sizeCm: [20, 45], behavior: "darting", special: true, weight: 0.091, assetId: "odd_lantern_shark", flavor: "The smallest shark, glowing to fit in.", art: { color: "#40404e", back: "#22222e", belly: "#5a6a8a", fin: "#34343f", shape: "shark", pattern: "glow", patternColor: "#7ae0ff", mouth: "shark", iris: "#9ae8f0", len: 0.8, h: 0.24 } },
-  { id: "trench_starlight_jelly", name: "Starlight Jelly", location: "trench", times: ["night"], baseValue: 190, sizeCm: [20, 50], behavior: "sting", special: true, weight: 0.078, assetId: "odd_starlight_jelly", flavor: "Blinks in slow constellations.", art: { color: "#6e5ebc", back: "#3a2e7a", belly: "#b8a8f0", fin: "#8a7ad8", shape: "jelly", pattern: "stars", patternColor: "#fff4a0" } },
-  { id: "trench_lumen_eel", name: "Lumen Eel", location: "trench", times: ["night"], baseValue: 240, sizeCm: [60, 130], behavior: "jolt", special: true, weight: 0.065, assetId: "odd_lumen_eel", flavor: "Nobody knows where it plugs itself in.", art: { color: "#2e5060", back: "#14283a", belly: "#4a8aa0", fin: "#24485a", shape: "eel", pattern: "lateral", patternColor: "#9affe0", iris: "#bff8ea" } },
-  { id: "trench_starfin_shark", name: "Starfin Shark", location: "trench", times: ["dusk", "night"], baseValue: 360, sizeCm: [180, 320], behavior: "frenzy", special: true, weight: 0.039, gear: { reel: 2 }, assetId: "odd_starfin_shark", flavor: "Its fins leave a trail of sparkles through the dark.", art: { color: "#2e3e70", back: "#182450", belly: "#c8d4f0", fin: "#5a6ac0", shape: "shark", pattern: "stars", patternColor: "#fff0a0", mouth: "shark", shine: true, len: 1, h: 0.27 } },
-  { id: "trench_giant_squid", name: "Giant Squid", location: "trench", times: ["night"], baseValue: 400, sizeCm: [400, 1200], behavior: "tentacle", special: true, weight: 0.033, gear: { rod: 3, line: 3 }, assetId: "odd_giant_squid", flavor: "Has the biggest eyes in the ocean, all the better to see you.", art: { color: "#cc5e4c", back: "#8a3228", belly: "#f0b0a0", fin: "#b04a3c", shape: "squid", pattern: "spots", patternColor: "#8a3228", eyeR: 9 } },
+  { id: "trench_firefly_squid", name: "Firefly Squid", location: "trench", times: ["dusk", "night"], baseValue: 210, sizeCm: [5, 10], behavior: "ink", special: true, weight: 0.104, assetId: "odd_firefly_squid", flavor: "Sparkles like a pocketful of stars.", art: { color: "#4262aa", back: "#2a3a78", belly: "#8aa0e0", fin: "#3a52a0", shape: "squid", pattern: "glow", patternColor: "#6ae4ff" } },
+  { id: "trench_lantern_shark", name: "Lantern Shark", location: "trench", times: ["dawn", "night"], baseValue: 230, sizeCm: [20, 45], behavior: "darting", special: true, weight: 0.091, assetId: "odd_lantern_shark", flavor: "The smallest shark, glowing to fit in.", art: { color: "#40404e", back: "#22222e", belly: "#5a6a8a", fin: "#34343f", shape: "shark", pattern: "glow", patternColor: "#7ae0ff", mouth: "shark", iris: "#9ae8f0", len: 0.8, h: 0.24 } },
+  { id: "trench_starlight_jelly", name: "Starlight Jelly", location: "trench", times: ["night"], baseValue: 280, sizeCm: [20, 50], behavior: "sting", special: true, weight: 0.078, assetId: "odd_starlight_jelly", flavor: "Blinks in slow constellations.", art: { color: "#6e5ebc", back: "#3a2e7a", belly: "#b8a8f0", fin: "#8a7ad8", shape: "jelly", pattern: "stars", patternColor: "#fff4a0" } },
+  { id: "trench_lumen_eel", name: "Lumen Eel", location: "trench", times: ["night"], baseValue: 350, sizeCm: [60, 130], behavior: "jolt", special: true, weight: 0.065, assetId: "odd_lumen_eel", flavor: "Nobody knows where it plugs itself in.", art: { color: "#2e5060", back: "#14283a", belly: "#4a8aa0", fin: "#24485a", shape: "eel", pattern: "lateral", patternColor: "#9affe0", iris: "#bff8ea" } },
+  { id: "trench_starfin_shark", name: "Starfin Shark", location: "trench", times: ["dusk", "night"], baseValue: 520, sizeCm: [180, 320], behavior: "frenzy", special: true, weight: 0.039, gear: { reel: 2 }, assetId: "odd_starfin_shark", flavor: "Its fins leave a trail of sparkles through the dark.", art: { color: "#2e3e70", back: "#182450", belly: "#c8d4f0", fin: "#5a6ac0", shape: "shark", pattern: "stars", patternColor: "#fff0a0", mouth: "shark", shine: true, len: 1, h: 0.27 } },
+  { id: "trench_giant_squid", name: "Giant Squid", location: "trench", times: ["night"], baseValue: 580, sizeCm: [400, 1200], behavior: "tentacle", special: true, weight: 0.033, gear: { rod: 3, line: 3 }, assetId: "odd_giant_squid", flavor: "Has the biggest eyes in the ocean, all the better to see you.", art: { color: "#cc5e4c", back: "#8a3228", belly: "#f0b0a0", fin: "#b04a3c", shape: "squid", pattern: "spots", patternColor: "#8a3228", eyeR: 9 } },
+
+  // Giants: only at the trawler's bow with the harpoon. A harpoon round (see HARPOON_GAME) comes before the reel fight.
+  { id: "trench_narwhal", name: "Narwhal", location: "trench", times: ["dawn", "night"], baseValue: 520, sizeCm: [400, 550], behavior: "darting", giant: true, weight: 1, harpoon: { hits: 2, speed: 0.34, width: 0.13 }, assetId: "giant_narwhal", flavor: "The unicorn of the sea, and it knows it.", art: { color: "#a8b4bc", back: "#5e6c78", belly: "#eef0ee", fin: "#6e7c88", shape: "whale", pattern: "mottle", patternColor: "#4a5864", tusk: true, len: 0.8 } },
+  { id: "trench_orca", name: "Orca", location: "trench", times: ["day", "dusk", "night"], baseValue: 650, sizeCm: [550, 900], behavior: "frenzy", giant: true, weight: 0.8, harpoon: { hits: 3, speed: 0.38, width: 0.13 }, assetId: "giant_orca", flavor: "Travels with family and always says hello.", art: { color: "#24262c", back: "#15161a", belly: "#f4f4f0", fin: "#1e2026", shape: "whale", pattern: "none", patternColor: "#f4f4f0", orca: true, dorsal: "tall", len: 0.82 } },
+  { id: "trench_humpback", name: "Humpback Whale", location: "trench", times: ["dawn", "day", "dusk"], baseValue: 760, sizeCm: [1200, 1600], behavior: "heavy", giant: true, weight: 0.7, harpoon: { hits: 3, speed: 0.3, width: 0.16 }, assetId: "giant_humpback", flavor: "Sings long songs about the ones that got away.", art: { color: "#4e5a6e", back: "#2e3848", belly: "#e6e8ea", fin: "#3e4a5e", shape: "whale", pattern: "spots", patternColor: "#dfe4ea", grooves: true, flippers: true, len: 1 } },
+  { id: "trench_sperm_whale", name: "Sperm Whale", location: "trench", times: ["dusk", "night"], baseValue: 900, sizeCm: [1100, 1800], behavior: "heavy", giant: true, weight: 0.5, harpoon: { hits: 3, speed: 0.36, width: 0.14 }, assetId: "giant_sperm_whale", flavor: "Dives deeper than anyone, just to think.", art: { color: "#5e5a5c", back: "#3a3638", belly: "#8a8486", fin: "#4a4648", shape: "whale", pattern: "mottle", patternColor: "#7a7476", boxHead: true, len: 1 } },
 
   // Weather-only species: they join their location's table only while the listed weather lasts.
   { id: "lake_tench", name: "Tench", location: "lake", times: ["dawn", "day", "dusk"], weather: ["rain"], baseValue: 30, sizeCm: [25, 55], behavior: "heavy", assetId: "fish_tench", flavor: "Wears velvet and never hurries — and loves a rainy day.", art: { color: "#71893c", back: "#3f5524", belly: "#dcc86c", fin: "#4b5f2b", shape: "carp", pattern: "scales", patternColor: "#3b4b21", mouth: "barbels", len: 0.8, h: 0.34 } },
@@ -168,18 +183,22 @@ export const FISH = [
   { id: "myth_aurora_eel", name: "Aurora Eel", location: "trench", times: ["dawn"], baseValue: 750, sizeCm: [80, 140], behavior: "jolt", legendary: true, mythic: true, assetId: "myth_aurora_eel", flavor: "Brings the northern lights down to the deep.",
     hunt: { bucket: "dawn", window: [0, 0.35], gear: {}, skill: "twilight_angler", chance: 0.25, clue: "Twilight anglers tell of dawn in the trench, when the deep lights up green and violet." },
     art: { color: "#4ac8a0", back: "#1e6a7a", belly: "#b8f0e0", fin: "#8a6ae0", shape: "eel", pattern: "glow", patternColor: "#eaffff", aurora: ["#5ae0a0", "#2ab0c0", "#5a70e0", "#a060e0"], iris: "#eaffff", shine: true, thick: 12 } },
-  { id: "myth_kraken", name: "Kraken", location: "trench", times: ["night"], baseValue: 2000, sizeCm: [800, 1500], behavior: "kraken", legendary: true, mythic: true, assetId: "myth_kraken", flavor: "Old as the sea, curious as a kitten and very, very big.",
+  { id: "myth_kraken", name: "Kraken", location: "trench", times: ["night"], baseValue: 2000, sizeCm: [800, 1500], behavior: "kraken", legendary: true, mythic: true, harpoon: { hits: 3, speed: 0.4, width: 0.15 }, assetId: "myth_kraken", flavor: "Old as the sea, curious as a kitten and very, very big.",
     hunt: { bucket: "night", window: [0.4, 1], gear: { rod: 3, reel: 3, line: 3 }, complete: "trench", level: 12, chance: 0.15, clue: "The trench keeps its oldest secret for a seasoned angler who knows all its fish and carries the finest rod, reel and line." },
     art: { color: "#9a4478", back: "#4a1a4a", belly: "#f0b0c8", fin: "#c05a8a", limb: "#8a3a6c", shape: "kraken", pattern: "spots", patternColor: "#5a1a50", crown: "#e8dcc0", eyeR: 7, iris: "#ffd04a", shine: true } },
+  // The most legendary find: only on a stormy night at the trench, for a seasoned harpooneer who has met every giant.
+  { id: "myth_moby_dick", name: "Moby Dick", location: "trench", times: ["night"], baseValue: 3000, sizeCm: [1800, 2600], behavior: "boss", legendary: true, mythic: true, harpoon: { hits: 4, speed: 0.4, width: 0.12 }, assetId: "myth_moby_dick", flavor: "The great white whale. Sailors tell tales of it; it tells tales of them.",
+    hunt: { bucket: "night", window: [0, 1], gear: { rod: 3, reel: 3, line: 3 }, weather: "storm", giants: true, level: 15, chance: 0.2, clue: "On a stormy night at the trench, a white whale rises for the harpooneer who has met every giant of the deep." },
+    art: { color: "#eeece4", back: "#c8c4b8", belly: "#fbfaf4", fin: "#d8d4c8", shape: "whale", pattern: "scars", patternColor: "#a8a296", boxHead: true, iris: "#6a8ab0", shine: true, len: 1 } },
 ];
 
 export const FISH_BY_ID = Object.fromEntries(FISH.map(f => [f.id, f]));
 export const LEGENDARIES = FISH.filter(f => f.legendary);
 
-// Collection kinds: regular fish, odd catches (special creatures), legendary hunts and mythics.
-export const KINDS = ["fish", "odd", "legend", "mythic"];
-export const KIND_LABELS = { fish: "Fish", odd: "Odd catches", legend: "Legends", mythic: "Myths" };
-export const kindOf = f => (f.mythic ? "mythic" : f.legendary ? "legend" : f.special ? "odd" : "fish");
+// Collection kinds: regular fish, odd catches (special creatures), giants (harpoon), legendary hunts and mythics.
+export const KINDS = ["fish", "odd", "giant", "legend", "mythic"];
+export const KIND_LABELS = { fish: "Fish", odd: "Odd catches", giant: "Giants", legend: "Legends", mythic: "Myths" };
+export const kindOf = f => (f.mythic ? "mythic" : f.legendary ? "legend" : f.giant ? "giant" : f.special ? "odd" : "fish");
 /** Species in collection order: by location, then kind. */
 /** Regular fish of a location (what the "Keeper" milestones and some mythics ask for). */
 export const regularAt = loc => FISH.filter(f => f.location === loc && kindOf(f) === "fish");
@@ -188,6 +207,7 @@ const KEEPER_NAMES = { lake: "Lake Keeper", river: "River Keeper", sea: "Shore K
 const PENNANT_COLORS = { lake: "#5f8f4e", river: "#4f86c6", sea: "#e0a13a", offshore: "#3f6e8c", trench: "#5a4a9a" };
 export const MILESTONES = [
   ...LOCATIONS.map(loc => ({ id: `keeper_${loc}`, name: KEEPER_NAMES[loc], icon: "fish", need: { regular: loc }, reward: `${LOCATION_LABELS[loc]} pennant at home`, pennant: PENNANT_COLORS[loc] })),
+  { id: "harpooneer", name: "Harpooneer", icon: "harpoon", need: { kinds: ["giant"] }, reward: "A carved whale over the fireplace", carvedWhale: true },
   { id: "curiosity", name: "Curiosity Cabinet", icon: "gem", need: { kinds: ["odd"] }, reward: "A golden bobber", goldenBobber: true },
   { id: "myth_hunter", name: "Myth Hunter", icon: "moon", need: { kinds: ["legend", "mythic"] }, reward: "A golden band on your hat", goldenBand: true },
   { id: "master", name: "Master of the Cove", icon: "trophy", need: { all: true }, reward: "A golden fish weathervane on your roof", weathervane: true },
@@ -246,7 +266,7 @@ export const MECHANICS = {
 };
 
 // Legendary boss fights: slower progress (about twice as long) and an enraged burst at each third of the way.
-// Odd catches fight a little longer than regular fish, and their rarity roll tops out at Rare (no jackpot legends).
+// Odd catches fight a little longer than regular fish, and their rarity roll (and the giants') tops out at Rare.
 export const SPECIAL_MAX_RARITY = "rare";
 // XP for legends and myths uses their baseValue up to this cap (the four legendary hunts sit at or below it).
 export const LEGEND_XP_VALUE_CAP = 900;

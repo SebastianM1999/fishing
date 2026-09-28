@@ -32,6 +32,10 @@ export const WORLD = {
   // Offshore fishing area: a small anchored boat deck far from the shore.
   offshore: { minX: -1.5, maxX: 1.5, minZ: 76.6, maxZ: 83.4, cx: 0, cz: 80 },
   boatMooring: { x: 6.6, z: 21.5 },
+  // Deep Trench: the Ironhull Trawler's deck, far out in rough water. The wheelhouse at the stern is solid.
+  trench: { minX: -1.75, maxX: 1.75, minZ: 255.4, maxZ: 265.2, cx: 0, cz: 260, cabin: { minX: -1.1, maxX: 1.1, minZ: 255.4, maxZ: 257.4 } },
+  trawlerMooring: { x: 4, z: 30 },
+  harpoonRack: { x: 2.72, z: 19 },
 
   trees: [
     [-34, -22, 1.2], [-29, -23, 1], [-22, -22.5, 1.3], [-15, -23, 1], [-8, -23.5, 1.1], [2, -23, 1.2], [9, -22.5, 1],
@@ -77,15 +81,19 @@ export const INTERACTIONS = [
   { id: "spot_river", type: "fish", location: "river", area: "land", x: 14, z: -6, r: 1.6, facing: Math.PI / 2, label: "Fish in the river" },
   { id: "spot_sea", type: "fish", location: "sea", area: "land", x: -8, z: 18, r: 1.6, facing: 0, label: "Fish from the shore" },
   { id: "spot_offshore", type: "fish", location: "offshore", area: "offshore", x: 0, z: 82.8, r: 1.4, facing: 0, label: "Fish offshore" },
-  { id: "spot_trench", type: "fish", location: "trench", area: "offshore", x: 1.15, z: 80.2, r: 1.2, facing: Math.PI / 2, label: "Fish the deep trench" },
+  { id: "spot_trench", type: "fish", location: "trench", area: "trench", x: 1.3, z: 259.4, r: 1.3, facing: Math.PI / 2, label: "Fish the Deep Trench" },
+  { id: "spot_harpoon", type: "fish", location: "trench", mode: "harpoon", area: "trench", x: 0, z: 264.4, r: 1.3, facing: 0, label: "Harpoon at the bow" },
   { id: "shop", type: "shop", area: "land", x: 6, z: -5.1, r: 2.1, label: "Talk to Mira (shop)" },
   { id: "notices", type: "quests", area: "land", x: 0, z: -10.1, r: 1.9, label: "Talk to Nell (orders)" },
   { id: "enter_home", type: "enter", area: "land", x: -8, z: -6.7, r: 1.2, label: "Go inside" },
   { id: "exit_home", type: "exit", area: "home", x: -150, z: -146.1, r: 1.3, label: "Go outside" },
   { id: "board", type: "board", area: "home", x: -152.6, z: -153.2, r: 1.9, label: "View the collection" },
   { id: "trophies", type: "trophies", area: "home", x: -146.8, z: -153.2, r: 1.9, label: "Trophy shelf" },
-  { id: "dock", type: "dock", area: "land", x: 3.8, z: 22.4, r: 1.7, label: "Sail offshore" },
+  { id: "dock", type: "dock", area: "land", x: 3.7, z: 21.9, r: 1.25, label: "Sail offshore" },
+  { id: "trawler", type: "trawler", area: "land", x: 4, z: 23.6, r: 1, label: "Sail to the Deep Trench" },
+  { id: "harpoon_rack", type: "harpoon", area: "land", x: 3.45, z: 19, r: 1.05, label: "Harpoon rack" },
   { id: "return", type: "return", area: "offshore", x: 0, z: 77.2, r: 1.4, label: "Sail back to shore" },
+  { id: "return_trench", type: "return", area: "trench", x: -1.2, z: 258.2, r: 1.1, label: "Sail back to shore" },
   { id: "gate_river", type: "barrier", region: "river", area: "land", x: 9.1, z: -5, r: 1.9, label: "Construction site" },
   { id: "gate_sea", type: "barrier", region: "sea", area: "land", x: 4, z: 9.1, r: 1.9, label: "Construction site" },
 ];
@@ -105,6 +113,7 @@ export const PROP_RADIUS = { bench: 0.7, barrel: 0.45, crate: 0.5, mailbox: 0.2,
 // Positions used when travelling by boat.
 export const TRAVEL = {
   toOffshore: { x: 0, z: 78.5, area: "offshore" },
+  toTrench: { x: 0, z: 260.5, area: "trench", facing: 0 },
   toShore: { x: 4, z: 21.5, area: "land" },
   toHome: { x: -150, z: -146.8, area: "home", facing: Math.PI },
   fromHome: { x: -8, z: -6.3, area: "land", facing: 0 },
@@ -137,6 +146,10 @@ export function isLockedAt(x, z, unlocked) {
 export function isWalkable(x, z, area, unlocked = []) {
   const pr = PLAYER_RADIUS;
   if (area === "offshore") return inRect(x, z, WORLD.offshore, pr * 0.8);
+  if (area === "trench") {
+    const c = WORLD.trench.cabin;
+    return inRect(x, z, WORLD.trench, pr * 0.8) && !(x > c.minX - pr && x < c.maxX + pr && z < c.maxZ + pr);
+  }
   if (area === "home") {
     const h = WORLD.home;
     return inRect(x, z, h, pr * 0.8) && !WORLD.homeFurniture.some(([fx, fz, r]) => Math.hypot(x - h.cx - fx, z - h.cz - fz) < r + pr * 0.6);
@@ -175,6 +188,7 @@ export function nearestInteraction(player, unlocked = []) {
 /** Area label for the HUD based on position. */
 export function regionName(player) {
   if (player.area === "offshore") return "Offshore";
+  if (player.area === "trench") return "Deep Trench";
   if (player.area === "home") return "Home";
   const { x, z } = player;
   if (z > WORLD.sandFromZ) return "Sea Shore";
@@ -185,7 +199,7 @@ export function regionName(player) {
 
 /** Ground surface under a point (drives footstep sounds). */
 export function surfaceAt(x, z, area) {
-  if (area === "offshore" || area === "home" || WORLD.walkways.some(w => inRect(x, z, w, 0))) return "wood";
+  if (area === "offshore" || area === "trench" || area === "home" || WORLD.walkways.some(w => inRect(x, z, w, 0))) return "wood";
   if (z > WORLD.sandFromZ) return "sand";
   if (WORLD.paths.some(p => Math.abs(x - p.x) <= p.w / 2 && Math.abs(z - p.z) <= p.d / 2)) return "path";
   return "grass";

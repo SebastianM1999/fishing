@@ -268,6 +268,10 @@ export function createAudio() {
       noise(S(), { t, peak: 0.32, type: "lowpass", freq: 420, sweep: 70, attack: 0.08, decay: 2.8, buffer: brown });
       noise(S(), { t, peak: 0.07, type: "bandpass", freq: 900, sweep: 180, attack: 0.02, decay: 0.7 });
     },
+    // Harpoon: a whale's spout, the throw's whoosh and a solid thunk when it strikes.
+    spout() { const t = ctx.currentTime; noise(S(), { t, peak: 0.16, freq: 300, sweep: 2600, q: 0.6, attack: 0.15, decay: 1.0 }); tone(S(), { freq: 62, glide: 48, type: "sawtooth", t, peak: 0.08, attack: 0.2, decay: 1.4 }); },
+    throw() { const t = ctx.currentTime; noise(S(), { t, peak: 0.12, freq: 900, sweep: 3200, q: 1.4, attack: 0.03, decay: 0.3 }); tone(S(), { freq: 330, glide: 180, type: "triangle", t, peak: 0.03, decay: 0.25 }); },
+    harpoonhit() { const t = ctx.currentTime; tone(S(), { freq: 140, glide: 60, t, peak: 0.2, decay: 0.2, type: "triangle" }); noise(S(), { t, peak: 0.14, type: "lowpass", freq: 1600, sweep: 400, decay: 0.6 }); tone(S(), { freq: midi(67), type: "triangle", t: t + 0.12, peak: 0.05, decay: 0.3 }); },
     boat() { const t = ctx.currentTime; noise(S(), { t, peak: 0.18, type: "lowpass", freq: 400, sweep: 1500, attack: 0.4, decay: 1.4, buffer: brown }); tone(S(), { freq: 110, glide: 85, type: "sawtooth", t: t + 0.2, peak: 0.02, attack: 0.1, decay: 0.5 }); },
   };
 
@@ -297,17 +301,17 @@ export function createAudio() {
       const now = ctx.currentTime;
       updateMusic(env.menu ? "menu" : env.bucket);
       // Ambience mix from surroundings
-      const offshore = env.area === "offshore", indoors = env.area === "home";
+      const trench = env.area === "trench", offshore = env.area === "offshore" || trench, indoors = env.area === "home";
       const seaNear = offshore ? 1 : indoors ? 0 : clamp01((env.z - 3) / 13);
       const riverNear = offshore || indoors ? 0 : clamp01(1 - Math.max(0, 13.5 - env.x) / 11) * (env.z < 14 ? 1 : 0.3);
       const swell = 0.55 + 0.45 * Math.sin((now * Math.PI * 2) / 6.5);
-      amb.wave.gain.setTargetAtTime((indoors ? 0 : 0.012 + seaNear * 0.1) * swell, now, 0.25);
+      amb.wave.gain.setTargetAtTime((indoors ? 0 : 0.012 + seaNear * (trench ? 0.2 : 0.1)) * swell, now, 0.25);
       amb.waveFilter.frequency.setTargetAtTime(offshore ? 380 : 560, now, 1);
       const wash = Math.max(0, Math.sin((now * Math.PI * 2) / 6.5 - 0.6));
-      amb.wash.gain.setTargetAtTime((offshore ? 0.012 : seaNear * 0.025) * wash * wash, now, 0.2);
+      amb.wash.gain.setTargetAtTime((trench ? 0.05 : offshore ? 0.012 : seaNear * 0.025) * wash * wash, now, 0.2);
       amb.river.gain.setTargetAtTime(riverNear * 0.045, now, 0.4);
       const storm = env.weather === "storm", wet = storm || env.weather === "rain";
-      amb.wind.gain.setTargetAtTime(((offshore ? 0.1 : indoors ? 0.004 : 0.03) + (storm && !indoors ? 0.09 : 0)) * (0.7 + 0.3 * Math.sin(now * 0.37)), now, 1);
+      amb.wind.gain.setTargetAtTime(((trench ? 0.2 : offshore ? 0.1 : indoors ? 0.004 : 0.03) + (storm && !indoors ? 0.09 : 0)) * (0.7 + 0.3 * Math.sin(now * 0.37)), now, 1);
       amb.rain.gain.setTargetAtTime(wet ? (storm ? 0.07 : 0.04) * (indoors ? 0.3 : 1) : 0, now, 2.5);
       if (prefs.muted || !prefs.ambience) return;
       if (indoors) {
@@ -321,7 +325,7 @@ export function createAudio() {
       if (!offshore && env.bucket !== "night" && now > timers.bird && !(wet && Math.random() < 0.8)) { bird(now + 0.05); timers.bird = now + (day ? rand(0.6, 3) : rand(3, 8)); }
       if (!offshore && (night || env.bucket === "dusk") && now > timers.cricket) { cricket(now + 0.05); timers.cricket = now + (night ? rand(0.5, 1.4) : rand(2, 5)); }
       if (night && !offshore && now > timers.owl) { if (timers.owl) owl(now + 0.1); timers.owl = now + rand(14, 30); }
-      if ((offshore || seaNear > 0.3) && !night && !storm && now > timers.gull) { if (timers.gull) gull(now + 0.1); timers.gull = now + rand(6, 16); }
+      if (!trench && (offshore || seaNear > 0.3) && !night && !storm && now > timers.gull) { if (timers.gull) gull(now + 0.1); timers.gull = now + rand(6, 16); }
       // Reel ratchet + line creak while fighting
       if (env.fightHeld && now > timers.tick) { this.play("reelTick"); timers.tick = now + 0.07; }
       if (env.tension > 0.78 && now > timers.creak) { this.play("creak"); timers.creak = now + rand(0.3, 0.6); }

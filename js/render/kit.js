@@ -31,20 +31,23 @@ function withSway(mat, amount, base = 0.4) {
 export const SEA_WAVES = { freq: 0.42, near: 0.1, far: 0.55, z0: 17, z1: 55 };
 // Weather multiplier on the sea swell (storms roughen it); shared by the shader and waveHeight().
 export const WAVE_GAIN = { value: 1 };
+// Deep Trench: its own rough sea with big, slower swells (its gain rises in storms).
+export const TRENCH_GAIN = { value: 1 };
+export const TRENCH_WAVES = { freq: 0.24, near: 1.1, far: 1.1, z0: 0, z1: 1, gain: TRENCH_GAIN };
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 export function waveHeight(x, z, t, w = SEA_WAVES) {
-  const f = w.freq, amp = (w.near + (w.far - w.near) * smooth(w.z0, w.z1, z)) * (w === SEA_WAVES ? WAVE_GAIN.value : 1);
+  const f = w.freq, amp = (w.near + (w.far - w.near) * smooth(w.z0, w.z1, z)) * (w.gain ? w.gain.value : w === SEA_WAVES ? WAVE_GAIN.value : 1);
   return (Math.sin(x * f + t * 1.2) * 0.5 + Math.sin(z * f * 0.8 - t * 0.9) * 0.35 + Math.sin((x + z) * f * 1.7 + t * 1.9) * 0.15) * amp;
 }
 
 /** Low-poly animated water: layered swells, faceted shading (flatShading) and white crests on the peaks. */
-function water(color, { freq, near, far = near, z0 = 0, z1 = 1, crest = 0 }) {
+function water(color, { freq, near, far = near, z0 = 0, z1 = 1, crest = 0, gain = null, deep = 0 }) {
   const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.25, metalness: 0.05, flatShading: true, transparent: true, opacity: 0.94 });
   const n = v => v.toFixed(3);
-  mat.customProgramCacheKey = () => `water:${freq}:${near}:${far}:${z0}:${z1}:${crest}`;
+  mat.customProgramCacheKey = () => `water:${freq}:${near}:${far}:${z0}:${z1}:${crest}:${deep}`;
   mat.onBeforeCompile = shader => {
     shader.uniforms.uTime = TIME;
-    shader.uniforms.uWaveGain = crest ? WAVE_GAIN : { value: 1 };
+    shader.uniforms.uWaveGain = gain ?? (crest ? WAVE_GAIN : { value: 1 });
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", "#include <common>\nuniform float uTime;\nuniform float uWaveGain;\nvarying float vWave;\nvarying vec2 vXZ;")
       .replace("#include <begin_vertex>", `#include <begin_vertex>
@@ -63,7 +66,7 @@ function water(color, { freq, near, far = near, z0 = 0, z1 = 1, crest = 0 }) {
           float ripple = sin(vXZ.x * 2.3 + uTime * 2.1) * sin(vXZ.y * 2.7 - uTime * 1.6) + 0.5 * sin((vXZ.x - vXZ.y) * 4.1 + uTime * 3.0);
           float capMask = smoothstep(0.6, 0.85, vWave) * smoothstep(0.55, 1.1, ripple);
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.97, 1.0), capMask * ${n(crest)});
-          diffuseColor.rgb *= 1.0 + vWave * 0.08;`);
+          diffuseColor.rgb *= 1.0 + vWave * ${n(0.08 + deep * 0.25)};`);
     }
   };
   return mat;
@@ -105,6 +108,10 @@ export function createMaterials() {
     boatHull: std("#e9e1cf"), boatTrim: std("#3f6e8c"), sail: std("#f5ecd8", { side: THREE.DoubleSide }),
     lake: water("#5aa7b3", { freq: 0.9, near: 0.035 }), lakeDeep: water("#428ea0", { freq: 0.9, near: 0.03 }),
     river: water("#62afbc", { freq: 0.7, near: 0.05 }), sea: water("#4a9ab4", { ...SEA_WAVES, crest: 0.85 }),
+    trenchSea: water("#1b3a50", { ...TRENCH_WAVES, crest: 1, deep: 1 }),
+    trenchRock: std("#34383f"), trenchRockLight: std("#4c525a"), trenchRockWet: std("#262a30", { roughness: 0.5 }),
+    steel: std("#8a3a30", { roughness: 0.6, metalness: 0.2 }), steelDark: std("#2a2c30", { roughness: 0.6, metalness: 0.3 }), steelLight: std("#d8d2c4", { roughness: 0.7 }),
+    rust: std("#9a5a34"), tyre: std("#1e1e20"), deckSteel: std("#5c6268", { roughness: 0.8, metalness: 0.2 }),
     foam: new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.5, depthWrite: false }),
     glint: new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.55, depthWrite: false }),
     spot: new THREE.MeshBasicMaterial({ color: "#fff4d6", transparent: true, opacity: 0.45, depthWrite: false }),

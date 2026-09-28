@@ -24,6 +24,7 @@ Project skills live in `.claude/skills/`:
 - weather (clear/rain/fog/storm per time of day, `js/game/weather.js`) with 5 weather-only species;
 - a title screen with its own menu music; recorded MP3 music per time of day.
 - the fish expansion (`docs/fish-expansion.md`): 71 species incl. odd catches and mythics, the Deep Trench, five extra fight rules, a moon phase from the day counter and collection milestones. `tools/portraits.html` renders every portrait (add `?sil`) for art checks.
+- the Deep Trench update (`docs/deep-trench.md`): the trench is its own storm-swept area (`area: "trench"`, far out at `WORLD.trench`) reached on the Ironhull Trawler, with harder fights (`LOCATION_FIGHT`), a harpoon bow spot (`mode: "harpoon"`) for giants with a harpoon round before the reel fight, and Moby Dick. 76 species. The player rides a moving boat deck through `standOnDeck` in `scene.js`.
 
 Don't "fix" these back to the spec.
 
