@@ -751,3 +751,59 @@ body.at-title .hud, body.at-title .hud-buttons, body.at-title .action-btn, body.
 .claim-badge .ico { width: 14px; height: 14px; }
 .board-tab .ico { width: 18px; height: 18px; }
 .board-tab .claim-badge { margin-left: 2px; }
+
+/* Phones: landscape only --------------------------------------------------------------------------- */
+.rotate-hint { display: none; }
+@media (orientation: portrait) and (pointer: coarse) and (max-width: 600px) {
+  .rotate-hint {
+    position: fixed; inset: 0; z-index: 100; display: grid; place-content: center; justify-items: center; gap: 8px; padding: 24px;
+    background: radial-gradient(circle at 50% 40%, #fbf5e8, #efe3cb); color: var(--ink); text-align: center;
+  }
+  .rotate-hint svg { width: 96px; height: 96px; animation: rotatehint 2.4s ease-in-out infinite; }
+  .rotate-hint strong { font-size: 22px; }
+  .rotate-hint span { color: var(--ink-soft); font-weight: 700; }
+}
+@keyframes rotatehint { 0%, 25% { rotate: 0deg; } 55%, 85% { rotate: -90deg; } 100% { rotate: 0deg; } }
+
+/* Phones held sideways (short landscape screens): a compact layout that fits ~360-430px of height. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .hud, .hud-buttons { zoom: 0.72; }
+  .hud { top: 8px; left: calc(8px + env(safe-area-inset-left)); }
+  .hud-buttons { top: 8px; right: calc(8px + env(safe-area-inset-right)); flex-direction: row; bottom: auto; }
+  .joystick { width: 108px; height: 108px; left: calc(14px + env(safe-area-inset-left)); bottom: 14px; }
+  .knob { width: 46px; height: 46px; margin: -23px 0 0 -23px; }
+  body.touch .action-btn { right: calc(14px + env(safe-area-inset-right)); bottom: 18px; min-height: 52px; padding: 8px 20px; font-size: 16px; }
+  .action-btn { zoom: 0.9; }
+  .finder { zoom: 0.8; bottom: 84px; }
+  .toasts { top: 6px; zoom: 0.85; z-index: 30; }
+  .fishing-panel { zoom: 0.78; bottom: 8px; width: min(560px, calc(128vw - 40px)); }
+
+  /* Catch card: fish on the left, details and buttons on the right. */
+  .catch-card, .catch-card.golden {
+    left: 50%; top: calc(50% + 14px); translate: -50% -50%;
+    display: grid; grid-template-columns: minmax(140px, 36%) 1fr; column-gap: 16px; align-content: center;
+    width: min(620px, calc(100vw - 32px)); max-height: calc(100dvh - 52px); overflow-y: auto; padding: 12px 18px; text-align: left;
+  }
+  .catch-card > * { grid-column: 2; }
+  .catch-card .catch-art { grid-column: 1; grid-row: 1 / span 12; align-self: center; }
+  .catch-art svg { width: 100%; max-width: 220px; }
+  .catch-card h2 { justify-content: flex-start; font-size: 19px; margin: 0 0 2px; }
+  .catch-card p { margin: 2px 0; font-size: 14px; }
+  .catch-card p:empty { display: none; }
+  .catch-card .catch-streak { justify-content: flex-start; }
+  .catch-card #catch-ok { justify-self: start; margin-top: 6px; }
+  .catch-choice { gap: 6px; margin-top: 6px; }
+  .choice-btn { min-height: 46px; padding: 5px 12px; font-size: 14px; }
+  .choice-btn b { font-size: 15px; }
+  .choice-ico { width: 34px; height: 34px; }
+  .catch-card.golden { overflow-x: hidden; }
+  .catch-card.golden .golden-banner { position: static; translate: none; justify-self: start; margin: 0 0 6px; padding: 3px 14px; font-size: 13px; }
+  .catch-card.golden .catch-art::before { inset: 0; }
+
+  /* Dialogs: slimmer header, use the full height. */
+  dialog.panel { max-height: calc(100dvh - 16px); zoom: 0.86; }
+  .panel-head { padding: 8px 14px; }
+  .panel-head h2 { font-size: 18px; }
+  .close { width: 36px; height: 36px; }
+  .title-card { zoom: 0.8; }
+}

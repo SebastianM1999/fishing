@@ -195,6 +195,7 @@ const renderer = createRenderer(canvas);
 addEventListener("resize", () => renderer.resize());
 
 const markTouch = () => document.body.classList.add("touch");
+addEventListener("pointerdown", () => { screen.orientation?.lock?.("landscape").catch(() => {}); }, { once: true });
 if (matchMedia("(pointer: coarse)").matches || params.has("touch")) markTouch();
 addEventListener("touchstart", markTouch, { once: true, passive: true });
 
