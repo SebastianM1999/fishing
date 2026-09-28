@@ -749,3 +749,5 @@ body.at-title .hud, body.at-title .hud-buttons, body.at-title .action-btn, body.
 @keyframes claimpulse { 0%, 100% { box-shadow: 0 0 0 0 rgb(242 182 50 / 0.6); } 50% { box-shadow: 0 0 0 6px rgb(242 182 50 / 0); } }
 .claim-badge { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: #fff1c8; border: 2px solid #e2b84a; font-size: 13px; color: #8a5a10; vertical-align: middle; }
 .claim-badge .ico { width: 14px; height: 14px; }
+.board-tab .ico { width: 18px; height: 18px; }
+.board-tab .claim-badge { margin-left: 2px; }
