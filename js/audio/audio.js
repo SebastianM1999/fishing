@@ -3,7 +3,10 @@
 // effects. Volumes are tiny preferences in localStorage.
 
 const PREFS_KEY = "driftwood-cove-audio";
-const DEFAULT_PREFS = { music: 0.45, sfx: 0.8, ambience: 0.5, muted: false };
+// Slider 100% = VOLUME_RANGE of full output: the comfortable mix sits mid-slider (the default 50%).
+const VOLUME_RANGE = 0.25;
+const PREFS_SCALE = 2; // bumped when the slider range changed; older saved sliders are converted
+const DEFAULT_PREFS = { music: 0.5, sfx: 0.5, ambience: 0.5, muted: false, scale: PREFS_SCALE };
 
 const midi = n => 440 * Math.pow(2, (n - 69) / 12);
 
@@ -23,8 +26,13 @@ const clamp01 = v => Math.min(1, Math.max(0, v));
 
 
 function loadPrefs() {
-  try { return { ...DEFAULT_PREFS, ...JSON.parse(localStorage.getItem(PREFS_KEY) ?? "{}") }; }
-  catch { return { ...DEFAULT_PREFS }; }
+  try {
+    const saved = JSON.parse(localStorage.getItem(PREFS_KEY) ?? "null");
+    if (!saved) return { ...DEFAULT_PREFS };
+    // Sliders saved on the old full-range scale keep sounding the same on the new one.
+    if (saved.scale !== PREFS_SCALE) for (const k of ["music", "sfx", "ambience"]) if (typeof saved[k] === "number") saved[k] = Math.min(1, saved[k] / VOLUME_RANGE);
+    return { ...DEFAULT_PREFS, ...saved, scale: PREFS_SCALE };
+  } catch { return { ...DEFAULT_PREFS }; }
 }
 function savePrefs(p) {
   try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch { /* preferences are optional */ }
@@ -117,7 +125,7 @@ export function createAudio() {
   function applyVolumes() {
     if (!ctx) return;
     for (const name of ["music", "sfx", "ambience"]) {
-      bus[name].gain.setTargetAtTime(prefs.muted ? 0 : prefs[name] * (name === "music" ? 1.1 : 1), ctx.currentTime, 0.05);
+      bus[name].gain.setTargetAtTime(prefs.muted ? 0 : prefs[name] * VOLUME_RANGE * (name === "music" ? 1.1 : 1), ctx.currentTime, 0.05);
     }
   }
 
