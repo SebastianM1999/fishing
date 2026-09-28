@@ -28,12 +28,10 @@ export function claimMilestone(state, id) {
   return true;
 }
 
-/** Combined rewards of the claimed milestones: sell bonus per location, bag slots, cosmetics, pennants at home. */
+/** Cosmetics from the claimed milestones: golden bobber, hat band, weathervane and the pennants at home. */
 export function milestoneEffects(state) {
-  const fx = { sell: {}, bag: 0, goldenBobber: false, goldenBand: false, weathervane: false, pennants: [] };
+  const fx = { goldenBobber: false, goldenBand: false, weathervane: false, pennants: [] };
   for (const m of MILESTONES.filter(x => state.milestonesClaimed.includes(x.id))) {
-    for (const [loc, v] of Object.entries(m.sell ?? {})) fx.sell[loc] = (fx.sell[loc] ?? 0) + v;
-    fx.bag += m.bag ?? 0;
     fx.goldenBobber ||= !!m.goldenBobber;
     fx.goldenBand ||= !!m.goldenBand;
     fx.weathervane ||= !!m.weathervane;

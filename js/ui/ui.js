@@ -294,14 +294,17 @@ export function createUI(handlers) {
 
   // Collection: one tab per location, split into fish / odd catches / legends & myths.
   const KIND_ICONS = { fish: "fish", odd: "gem", legend: "star", mythic: "moon" };
-  let boardTab = "lake";
+  let boardTab = "lake"; // a location, or "milestones"
   function renderBoard() {
+    const ready = claimable(state).length;
     el.boardCount.textContent = `${state.discovered.length} / ${FISH.length}`;
     el.boardTabs.innerHTML = LOCATIONS.map(loc => {
       const list = COLLECTION.filter(f => f.location === loc), n = list.filter(f => state.discovered.includes(f.id)).length;
       return `<button type="button" role="tab" class="board-tab ${loc === boardTab ? "active" : ""} ${n === list.length ? "done" : ""}" data-tab="${loc}" aria-selected="${loc === boardTab}">
         ${LOCATION_LABELS[loc]} <span class="tab-count">${n}/${list.length}</span></button>`;
-    }).join("");
+    }).join("") + `<button type="button" role="tab" class="board-tab ${boardTab === "milestones" ? "active" : ""}" data-tab="milestones" aria-selected="${boardTab === "milestones"}" aria-label="Milestones">
+        ${ICONS.trophy}${ready ? `<span class="claim-badge" title="Rewards to claim">${ICONS.gift} ${ready}</span>` : ""}</button>`;
+    if (boardTab === "milestones") { el.boardBody.innerHTML = milestonesHtml(); return; }
     const inTab = COLLECTION.filter(f => f.location === boardTab);
     const groups = [["fish"], ["odd"], ["legend", "mythic"]].map(kinds => inTab.filter(f => kinds.includes(kindOf(f)))).filter(g => g.length);
     el.boardBody.innerHTML = groups.map(list => {
@@ -315,15 +318,18 @@ export function createUI(handlers) {
           ${fishSvg(f, { silhouette: !found, size: 120 })}
           <span class="name">${found ? f.name : "???"}</span></button>`;
       }).join("")}</div>`;
-    }).join("") + `<h3 class="board-section">${ICONS.trophy} Milestones</h3><div class="milestones">${MILESTONES.map(m => {
+    }).join("");
+  }
+
+  // Milestones tab: cosmetic rewards, claimed here once reached.
+  function milestonesHtml() {
+    return `<h3 class="board-section">${ICONS.trophy} Milestones <span class="muted">cosmetic rewards for your collection</span></h3><div class="milestones">${MILESTONES.map(m => {
       const p = milestoneProgress(state, m), done = p.have >= p.need, claimed = state.milestonesClaimed.includes(m.id);
       const end = claimed ? `<span class="ms-count">${ICONS.check}</span>`
         : done ? `<button type="button" class="ms-claim" data-claim="${m.id}" aria-label="Claim ${m.name}">${ICONS.gift} Claim</button>`
           : `<span class="ms-count">${p.have}/${p.need}</span>`;
       return `<div class="milestone ${claimed ? "done" : done ? "ready" : ""}" title="${m.reward}">${ICONS[m.icon]}<div><b>${m.name}</b><span>${m.reward}</span></div>${end}</div>`;
     }).join("")}</div>`;
-    const n = claimable(state).length;
-    el.boardCount.innerHTML = `${state.discovered.length} / ${FISH.length}${n ? ` <span class="claim-badge" title="Rewards to claim">${ICONS.gift} ${n}</span>` : ""}`;
   }
   el.boardTabs.addEventListener("click", e => {
     const tab = e.target.closest("[data-tab]");

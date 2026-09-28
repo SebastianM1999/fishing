@@ -182,12 +182,11 @@ export const kindOf = f => (f.mythic ? "mythic" : f.legendary ? "legend" : f.spe
 /** Species in collection order: by location, then kind. */
 /** Regular fish of a location (what the "Keeper" milestones and some mythics ask for). */
 export const regularAt = loc => FISH.filter(f => f.location === loc && kindOf(f) === "fish");
-// Collection milestones: rewards unlock by themselves once the species are found (derived from state.discovered).
+// Collection milestones: purely cosmetic rewards (no gameplay bonus), claimed at the collection board once reached.
 const KEEPER_NAMES = { lake: "Lake Keeper", river: "River Keeper", sea: "Shore Keeper", offshore: "Offshore Keeper", trench: "Trench Keeper" };
 const PENNANT_COLORS = { lake: "#5f8f4e", river: "#4f86c6", sea: "#e0a13a", offshore: "#3f6e8c", trench: "#5a4a9a" };
 export const MILESTONES = [
-  ...LOCATIONS.map(loc => ({ id: `keeper_${loc}`, name: KEEPER_NAMES[loc], icon: "fish", need: { regular: loc }, reward: `+5% for ${LOCATION_LABELS[loc]} catches · a pennant at home`, sell: { [loc]: 0.05 }, pennant: PENNANT_COLORS[loc] })),
-  { id: "halfway", name: "Halfway There", icon: "board", need: { count: 35 }, reward: "+2 bag slots", bag: 2 },
+  ...LOCATIONS.map(loc => ({ id: `keeper_${loc}`, name: KEEPER_NAMES[loc], icon: "fish", need: { regular: loc }, reward: `${LOCATION_LABELS[loc]} pennant at home`, pennant: PENNANT_COLORS[loc] })),
   { id: "curiosity", name: "Curiosity Cabinet", icon: "gem", need: { kinds: ["odd"] }, reward: "A golden bobber", goldenBobber: true },
   { id: "myth_hunter", name: "Myth Hunter", icon: "moon", need: { kinds: ["legend", "mythic"] }, reward: "A golden band on your hat", goldenBand: true },
   { id: "master", name: "Master of the Cove", icon: "trophy", need: { all: true }, reward: "A golden fish weathervane on your roof", weathervane: true },

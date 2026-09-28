@@ -147,16 +147,11 @@ The Rumours list on Nell's board shows every legend and myth: its clue, place, a
 
 ## Collection milestones
 
-Progress comes from `state.discovered`. When one is reached, a toast says to claim it at home. The collection dialog lists them all, and reached ones get a golden **Claim** button. The reward applies only once claimed, which is stored in `state.milestonesClaimed` (save v6). The door and board prompts say "rewards to claim" while any are waiting.
+Milestones are **cosmetic only**: they give no gameplay bonus. Progress comes from `state.discovered`. When one is reached, a toast says to claim it at home. The collection dialog lists them in their own **Milestones** tab, where reached ones get a golden **Claim** button; a badge on the tab counts them. Claimed ids are saved in `state.milestonesClaimed`. The door and board prompts say "rewards to claim" while any are waiting.
 
 | Milestone | Requirement | Reward |
 |---|---|---|
-| Lake Keeper | All Lake regular fish | +5% sell value for Lake catches · a Lake pennant in your house |
-| River Keeper | All River regular fish | +5% for River catches · River pennant |
-| Shore Keeper | All Sea Shore regular fish | +5% for Sea Shore catches · Shore pennant |
-| Offshore Keeper | All Offshore regular fish | +5% for Offshore catches · Offshore pennant |
-| Trench Keeper | All Trench regular fish | +5% for Trench catches · Trench pennant |
-| Halfway There | 35 species | +2 bag slots |
+| Lake / River / Shore / Offshore / Trench Keeper | All regular fish of that location | That location's pennant at home |
 | Curiosity Cabinet | All 22 odd catches | Golden bobber |
 | Myth Hunter | All 12 legends & myths | Golden band on your hat |
 | Master of the Cove | All 70 | Golden fish weathervane on your house roof |
@@ -164,7 +159,7 @@ Progress comes from `state.discovered`. When one is reached, a toast says to cla
 ## Collection UI
 
 - **Dialog:** location tabs (Lake · River · Sea Shore · Offshore · Trench), each with its own count. Each tab has three sections: Fish, Odd catches, and Legends & myths.
-  - A milestone strip sits at the bottom.
+  - A sixth tab lists the milestones.
   - Hover tooltips and the golden first-catch card are unchanged.
   - The last opened tab is remembered for the session.
 - **In-world board:**
