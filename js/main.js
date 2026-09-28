@@ -254,6 +254,16 @@ addEventListener("keydown", e => {
   if (e.code === "KeyK") ui.openSkills();
 });
 
+// Cheat: Ctrl+Alt+G adds coins (also AltGr+G on German keyboards).
+addEventListener("keydown", e => {
+  if (e.code !== "KeyG" || !e.ctrlKey || !e.altKey || e.repeat || game.menu) return;
+  e.preventDefault();
+  state.coins += content.CHEAT_COINS;
+  ui.toast(`Cheat: +${content.CHEAT_COINS} coins`);
+  audio.play("coin");
+  afterChange();
+});
+
 // --- Weather -----------------------------------------------------------------
 const weatherNow = () => game.forcedWeather ?? weather.currentWeather(state);
 const WEATHER_NEWS = {

@@ -19,10 +19,11 @@ Open http://localhost:8080/. Append `?debug` to expose a `window.cozy` test hook
 | Hook on a bite | `Space` or mouse click | Tap |
 | Reel (minigame) | Hold `Space` or hold the mouse button | Press & hold |
 | Bag / Skills / close | `I` / `K` / `Esc` | Buttons (top right) |
+| Cheat: +1000 coins | `Ctrl` + `Alt` + `G` | — |
 
 ## Progression
 
-Start at the lake with 30 coins. Construction barriers close off the **river bank (250 coins)** and then the **beach & docks (750 coins, after the river)**; pay the builders at the barrier to open them for good. **Captain Olsen** on the sea dock sells the **boat (1000 coins)** for offshore fishing. **Mira** runs the tackle shop: sell fish, buy rod, reel, line and bag upgrades, and rethink your skills (refund all skill points for 25 coins × level).
+Start at the lake with no coins. Construction barriers close off the **river bank (250 coins)** and then the **beach & docks (750 coins, after the river)**; pay the builders at the barrier to open them for good. **Captain Olsen** on the sea dock sells the **boat (1000 coins)** for offshore fishing. **Mira** runs the tackle shop: sell fish, buy rod, reel, line and bag upgrades, and rethink your skills (refund all skill points for 25 coins × level).
 
 **Coins buy equipment, XP buys technique.** Every landed fish earns XP (more for rare, legendary and big fish, +50 for a species' first catch, +5 for a perfect hook); lost fish earn nothing. Levels go up to 25 and each level gained gives one skill point. Press `K` for the skill tree: three branches — **Angler** (the fight), **Naturalist** (finding fish) and **Merchant** (money) — with three tiers each; tier II opens after 3 points in that branch, the capstone after 7.
 
