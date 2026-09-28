@@ -21,9 +21,9 @@ Project skills live in `.claude/skills/`:
 - leveling + skill tree (coins buy gear, XP buys technique), no hooks or tackle;
 - an enterable house with the collection board and a 3-spot trophy shelf;
 - daily village orders, catch streaks and 4 named legendary fish;
-- weather (clear/rain/fog/storm per time of day, `js/game/weather.js`) with 5 weather-only species (collection 29);
+- weather (clear/rain/fog/storm per time of day, `js/game/weather.js`) with 5 weather-only species;
 - a title screen with its own menu music; recorded MP3 music per time of day.
-- the fish expansion (`docs/fish-expansion.md`): 70 species incl. odd catches and mythics, the Deep Trench, five extra fight rules, a moon phase from the day counter and collection milestones. `tools/portraits.html` renders every portrait (add `?sil`) for art checks.
+- the fish expansion (`docs/fish-expansion.md`): 71 species incl. odd catches and mythics, the Deep Trench, five extra fight rules, a moon phase from the day counter and collection milestones. `tools/portraits.html` renders every portrait (add `?sil`) for art checks.
 
 Don't "fix" these back to the spec.
 

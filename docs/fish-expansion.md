@@ -2,11 +2,13 @@
 
 Goal: many more catchable creatures, so that 100% collection becomes a long-term goal. The tone stays cozy and whimsical: sharks and the Kraken feel epic but friendly, and nothing is ever gory.
 
-The collection grows from **24 to 70 species**, with 46 new creatures:
+The collection grows from **29 species** (the original 24 plus the 5 weather-only fish) **to 71**, with 42 new creatures:
 
-- 16 regular fish
-- 22 odd catches: eels, squids, octopus, jellyfish, sharks, rays, turtles, crabs and crayfish
+- 13 regular fish
+- 21 odd catches: eels, squids, octopus, jellyfish, sharks, rays, turtles, crabs and crayfish
 - 8 mythic creatures
+
+The weather update landed on `main` while this was built. It already had **Tench** (rain), **Grayling** (fog), **Moonfish** (fog, the same fish as the planned Opah) and a **Great White** (storm), so those stay weather-only regular fish. The planned entries were merged into them: the flavour text was kept, the Opah was dropped, and the Great White got the friendly grin. Their rows below are struck through.
 
 It also adds one new location (the Deep Trench), five new minigame behaviours, a moon phase, and collection milestones.
 
@@ -62,7 +64,7 @@ Columns are Times, Base value, Size (cm), Behaviour, Special condition, Flavour,
 | Name | Times | Base | Size | Behaviour | Special condition | Flavour | Art |
 |---|---|---:|---|---|---|---|---|
 | Zander | Dusk, Night | 28 | 40–80 | darting | – | Glassy eyes made for moonlit hunting. | Slim bass body, grey-green with dark bars, spiny dorsal; **pale glassy eyes**. |
-| Tench | Day, Dusk | 14 | 25–50 | calm | – | Wears velvet and never hurries. | Olive-gold carp body with soft scales and barbels; **little red eyes**. |
+| ~~Tench~~ (see weather fish) | Day, Dusk | 14 | 25–50 | calm | – | Wears velvet and never hurries. | Olive-gold carp body with soft scales and barbels; **little red eyes**. |
 | Pumpkinseed | Day | 10 | 10–20 | calm | – | Painted like a sunset in a pond. | Round sunfish, orange belly, turquoise squiggles; **red ear spot**. |
 | Crayfish | Dawn, Night | 100 | 8–15 | darting | Odd catch | Snips at the bait, then backs off politely. | Lobster body, red-brown; **tiny claws raised like a wave**. |
 | Snapping Turtle | Dusk, Night | 140 | 25–45 | heavy | Odd catch · Strong Line+ | Grumpy looking, secretly a softie. | Turtle body, mossy olive shell; **ridged shell and beaky smile**. |
@@ -72,7 +74,7 @@ Columns are Times, Base value, Size (cm), Behaviour, Special condition, Flavour,
 
 | Name | Times | Base | Size | Behaviour | Special condition | Flavour | Art |
 |---|---|---:|---|---|---|---|---|
-| Grayling | Dawn, Day | 16 | 25–45 | darting | – | Carries a flag on its back like a tiny sailboat. | Silver-lilac trout body with dark spots; **big purple sail dorsal**. |
+| ~~Grayling~~ (see weather fish) | Dawn, Day | 16 | 25–45 | darting | – | Carries a flag on its back like a tiny sailboat. | Silver-lilac trout body with dark spots; **big purple sail dorsal**. |
 | Barbel | Day, Night | 20 | 35–70 | heavy | – | Snuffles the gravel for snacks with four whiskers. | Bronze trout body, mottled; **orange fins and barbels**. |
 | Arctic Char | Dawn, Dusk | 22 | 25–50 | zigzag | – | Blushes bright red in cold water. | Olive salmon body with pale spots; **fiery red belly**. |
 | River Eel | Dusk, Night | 110 | 50–110 | zigzag | Odd catch | Slides through your fingers like a wet ribbon. | Eel body, olive-brown with a cream belly; **frilly ribbon fin round the tail**. |
@@ -100,13 +102,13 @@ Columns are Times, Base value, Size (cm), Behaviour, Special condition, Flavour,
 | Name | Times | Base | Size | Behaviour | Special condition | Flavour | Art |
 |---|---|---:|---|---|---|---|---|
 | Barracuda | Day, Dusk | 60 | 60–150 | darting | – | All teeth and good intentions. | Silver pike body with dark bars; **snaggle-tooth grin**. |
-| Opah | Dawn, Dusk | 90 | 80–150 | calm | – | Round as the moon, warm-blooded and proud of it. | Very deep rose-silver body with white spots; **crimson fins**. |
+| ~~Opah~~ (see weather fish) | Dawn, Dusk | 90 | 80–150 | calm | – | Round as the moon, warm-blooded and proud of it. | Very deep rose-silver body with white spots; **crimson fins**. |
 | Flying Fish | Day | 45 | 20–40 | zigzag | – | Has seen the boat from above. | Slim, blue and silver; **huge wing-like pectoral fins**. |
 | Sea Turtle | Day, Dusk | 180 | 60–120 | calm | Odd catch · Strong Line+ | Old, wise and in no rush to be caught. | Turtle body, green-olive shell with plate pattern. |
 | Manta Ray | Dawn, Day | 220 | 200–450 | calm | Odd catch · Carbon Rod+ | Somersaults for fun at sunrise. | Ray body, ink-navy back, white belly; **curled head fins**. |
 | Lion's Mane Jelly | Dusk, Night | 200 | 50–200 | **sting** | Odd catch | Wears a magnificent mane of ribbons. | Jelly bell, amber-orange; **a big mane of ribbons**. |
 | Hammerhead Shark | Dusk, Night | 260 | 150–350 | frenzy | Odd catch · Braided Line+ | Sees both sides of every story. | Shark body, blue-grey; **hammer head**. |
-| Great White Shark | Night | 340 | 250–500 | frenzy | Odd catch · Carbon Rod + Braided Line | A big softie with a big smile. | Shark body, grey back, snow-white belly; **friendly grin**. |
+| ~~Great White Shark~~ (see weather fish) | Night | 340 | 250–500 | frenzy | Odd catch · Carbon Rod + Braided Line | A big softie with a big smile. | Shark body, grey back, snow-white belly; **friendly grin**. |
 | Whale Shark | Day | 380 | 400–900 | heavy | Odd catch · Carbon Rod + Quick Reel | The gentlest giant, dotted like a starry night. | Broad-headed shark, navy with white spots. |
 | **Sea Serpent** | Dusk (second half) | 1200 | 400–700 | boss | Mythic · all Offshore regular fish discovered · Pro Reel | Friendly, enormous and extremely ticklish. | Serpent body in humps, jade green with a cream belly; **orange frill and little horns**. |
 | **Ghost-Ship Fish** | Night (second half) | 900 | 90–160 | boss | Mythic · **new moon** · Quick Reel+ | On moonless nights, you can hear it creak. | Pale sea-glass salmon body with plank lines; **tattered sail dorsal**, shine. |
@@ -152,9 +154,9 @@ Milestones are **cosmetic only**: they give no gameplay bonus. Progress comes fr
 | Milestone | Requirement | Reward |
 |---|---|---|
 | Lake / River / Shore / Offshore / Trench Keeper | All regular fish of that location | That location's pennant at home |
-| Curiosity Cabinet | All 22 odd catches | Golden bobber |
+| Curiosity Cabinet | All 21 odd catches | Golden bobber |
 | Myth Hunter | All 12 legends & myths | Golden band on your hat |
-| Master of the Cove | All 70 | Golden fish weathervane on your house roof |
+| Master of the Cove | All 71 | Golden fish weathervane on your house roof |
 
 ## Collection UI
 
@@ -164,7 +166,7 @@ Milestones are **cosmetic only**: they give no gameplay bonus. Progress comes fr
   - The last opened tab is remembered for the session.
 - **In-world board:**
   - The canvas grows to 2048×1120.
-  - The grid adapts to the species count (12 columns × 6 rows for 70), in location order.
+  - The grid adapts to the species count (12 columns × 6 rows for 71), in location order.
   - Silhouettes show for undiscovered species.
 - **Counters:** these already use `FISH.length`.
 
@@ -195,8 +197,8 @@ Milestones are **cosmetic only**: they give no gameplay bonus. Progress comes fr
 ## Saves
 
 - New species are only new entries in `FISH`. Saved `discovered`, `records`, inventory and trophies are validated against `FISH`, so old saves stay valid.
-- The moon phase is derived from `day`. Claimed milestones are the only new state (`milestonesClaimed`, **`SAVE_VERSION` 6**). `deserialize()` keeps only known ids that the save has actually reached.
-- Older saves (v1–v5) load with nothing claimed, so reached milestones wait to be claimed.
+- The moon phase is derived from `day`. Claimed milestones are the only new state (`milestonesClaimed`, **`SAVE_VERSION` 7**; v6 was the weather seed). `deserialize()` keeps only known ids that the save has actually reached.
+- Older saves (v1–v6) load with nothing claimed, so reached milestones wait to be claimed.
 
 ## Open questions
 
